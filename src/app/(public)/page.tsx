@@ -1,15 +1,13 @@
-export const dynamic = "force-dynamic";
-
 import Hero from "@/components/landing/Hero";
 import Sobre from "@/components/landing/Sobre";
 import Servicos from "@/components/landing/Servicos";
 import Depoimentos from "@/components/landing/Depoimentos";
 import CtaFinal from "@/components/landing/CtaFinal";
-import { getLandingSettings } from "@/lib/admin-settings";
-import { getPublishedItems } from "@/lib/admin-items";
+import { demoSettings, demoServicos } from "@/lib/demo-data";
 
-export default async function HomePage() {
-  const [settings, items] = await Promise.all([getLandingSettings(), getPublishedItems()]);
+export default function HomePage() {
+  const settings = demoSettings;
+  const items = demoServicos;
 
   return (
     <>

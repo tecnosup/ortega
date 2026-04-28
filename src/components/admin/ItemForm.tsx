@@ -37,6 +37,8 @@ export default function ItemForm({ action, item }: ItemFormProps) {
 
       <Input label="Título" name="titulo" defaultValue={item?.titulo} required />
       <Textarea label="Descrição" name="descricao" defaultValue={item?.descricao} required />
+      <Input label="Preço (ex: 55 ou A partir de R$ 120)" name="preco" defaultValue={item?.preco} />
+      <Input label="Duração (ex: 45 min)" name="duracao" defaultValue={item?.duracao} />
 
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium text-gray-700">Imagem</label>

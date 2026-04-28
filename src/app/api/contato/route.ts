@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// DEMO MODE: resposta simulada — plugar fluxo real após aprovação do cliente
 export async function POST(_req: NextRequest) {
-  // TODO: plugar fluxo de conversão — WhatsApp, gateway, agendamento, e-mail, etc.
   return NextResponse.json({ ok: true });
 }

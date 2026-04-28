@@ -5,37 +5,45 @@ interface HeroProps {
 }
 
 export default function Hero({ titulo, subtitulo, whatsappNumber }: HeroProps) {
-  const href = whatsappNumber ? `https://wa.me/${whatsappNumber}` : "#";
+  const whatsappHref = whatsappNumber
+    ? `https://wa.me/${whatsappNumber}?text=Olá! Gostaria de agendar um horário na Ortega Barber.`
+    : "#";
 
   return (
-    <section className="min-h-[92vh] pt-16 flex items-center bg-white">
+    <section className="min-h-[92vh] pt-16 flex items-center bg-[#1a1a1a]">
       <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-12 items-center w-full">
         <div className="flex flex-col gap-6">
-          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 leading-tight">
+          <span className="text-[#b8944a] text-sm font-medium tracking-widest uppercase">
+            Barbearia Premium
+          </span>
+          <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight">
             {titulo}
           </h1>
-          <p className="text-lg text-gray-500">{subtitulo}</p>
-          <div className="flex gap-3">
+          <p className="text-lg text-gray-400 leading-relaxed">{subtitulo}</p>
+          <div className="flex flex-wrap gap-3">
             <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center px-6 py-3 bg-gray-900 text-white text-sm hover:bg-gray-700 transition"
+              href="/agendamento"
+              className="inline-flex items-center px-6 py-3 bg-[#b8944a] text-white text-sm font-medium hover:bg-[#a07d3a] transition"
             >
-              Chame no WhatsApp
+              Agendar horário
             </a>
             <a
-              href="/contato"
-              className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 text-sm hover:bg-gray-100 transition"
+              href={whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-6 py-3 border border-[#b8944a] text-[#b8944a] text-sm hover:bg-[#b8944a] hover:text-white transition"
             >
-              Saiba mais
+              WhatsApp
             </a>
           </div>
         </div>
 
-        <div className="w-full h-80 bg-gray-200 flex items-center justify-center text-gray-400 text-sm">
-          {/* insira imagem aqui */}
-          [imagem]
+        <div className="w-full h-80 md:h-[500px] overflow-hidden">
+          <img
+            src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=800&q=80"
+            alt="Barbeiro trabalhando"
+            className="w-full h-full object-cover"
+          />
         </div>
       </div>
     </section>

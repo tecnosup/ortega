@@ -10,7 +10,7 @@ export default async function EditarItemPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="max-w-xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Editar item</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-8">Editar serviço</h1>
       <ItemForm action={updateItemAction} item={item} />
     </div>
   );

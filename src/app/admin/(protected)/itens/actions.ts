@@ -11,6 +11,8 @@ const schema = z.object({
   titulo: z.string().min(1),
   descricao: z.string().min(1),
   imagem: z.string().default(""),
+  preco: z.string().default(""),
+  duracao: z.string().default(""),
   status: z.enum(["draft", "published"]),
   order: z.coerce.number().default(0),
 });

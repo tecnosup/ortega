@@ -11,14 +11,14 @@ export default async function ItensPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Itens</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Serviços</h1>
         <Link href="/admin/itens/novo">
-          <Button>Novo item</Button>
+          <Button>Novo serviço</Button>
         </Link>
       </div>
 
       {items.length === 0 ? (
-        <p className="text-gray-500 text-sm">Nenhum item cadastrado.</p>
+        <p className="text-gray-500 text-sm">Nenhum serviço cadastrado.</p>
       ) : (
         <div className="bg-white border border-gray-200 rounded divide-y divide-gray-100">
           {items.map((item) => (
@@ -26,7 +26,10 @@ export default async function ItensPage() {
               <div>
                 <p className="font-medium text-gray-900 text-sm">{item.titulo}</p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {item.status === "published" ? "Publicado" : "Rascunho"} · ordem {item.order}
+                  {item.status === "published" ? "Publicado" : "Rascunho"}
+                  {item.preco ? ` · R$ ${item.preco}` : ""}
+                  {item.duracao ? ` · ${item.duracao}` : ""}
+                  {` · ordem ${item.order}`}
                 </p>
               </div>
               <div className="flex gap-2">

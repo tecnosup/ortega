@@ -9,12 +9,12 @@ export interface LandingSettings {
 }
 
 const DEFAULTS: LandingSettings = {
-  heroTitulo: "Título principal aqui",
-  heroSubtitulo: "Subtítulo de apoio aqui",
+  heroTitulo: "Você mais bonito",
+  heroSubtitulo: "Cortes precisos, barba impecável e atendimento exclusivo. Na Ortega, cada detalhe importa.",
   sobreTexto:
-    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-  whatsappNumber: "",
-  emailContato: "",
+    "A Ortega Barber nasceu da paixão pelo artesanato da barbearia tradicional aliado ao estilo contemporâneo. Em nosso espaço, você encontra profissionais dedicados, ambiente premium e os melhores produtos do mercado.",
+  whatsappNumber: "5511999999999",
+  emailContato: "contato@ortegabarber.com.br",
 };
 
 export async function getLandingSettings(): Promise<LandingSettings> {

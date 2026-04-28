@@ -46,13 +46,13 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
-      <div className="w-full max-w-sm bg-white border border-gray-200 p-8 flex flex-col gap-6">
+    <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center px-6">
+      <div className="w-full max-w-sm bg-[#2d2d2d] border border-[#3d3d3d] p-8 flex flex-col gap-6">
         <div>
-          <div className="w-16 h-8 bg-gray-200 flex items-center justify-center text-xs text-gray-400 mb-4">
-            [LOGO]
-          </div>
-          <h1 className="text-xl font-bold text-gray-900">Acesso admin</h1>
+          <span className="text-[#b8944a] font-bold text-lg tracking-widest uppercase block mb-4">
+            Ortega Barber
+          </span>
+          <h1 className="text-xl font-bold text-white">Acesso admin</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -70,7 +70,7 @@ export default function AdminLoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <p className="text-sm text-red-400">{error}</p>}
           <Button type="submit" disabled={loading} size="lg">
             {loading ? "Entrando..." : "Entrar"}
           </Button>
