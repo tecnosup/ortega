@@ -1,190 +1,459 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { HORARIO_FUNCIONAMENTO, AGENDAMENTOS_DEMO, demoServicos } from "@/lib/demo-data";
+import type { Agendamento } from "@/lib/agendamentos";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 
-const schema = z.object({
-  nome: z.string().min(2, "Nome obrigatório"),
-  telefone: z.string().min(8, "Telefone obrigatório"),
-  servico: z.string().min(1, "Escolha um serviço"),
-  data: z.string().min(1, "Escolha uma data"),
-  horario: z.string().min(1, "Escolha um horário"),
-});
+// ─── helpers ────────────────────────────────────────────────────────────────
 
-type FormData = z.infer<typeof schema>;
+function toDateKey(year: number, month: number, day: number) {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
 
-const SERVICOS = [
-  "Corte Clássico",
-  "Barba Completa",
-  "Combo Corte + Barba",
-  "Coloração e Luzes",
-  "Sobrancelha",
-];
+function gerarSlots(inicio: string, fim: string): string[] {
+  const slots: string[] = [];
+  const [ih, im] = inicio.split(":").map(Number);
+  const [fh, fm] = fim.split(":").map(Number);
+  let mins = ih * 60 + im;
+  const fimMins = fh * 60 + fm;
+  while (mins + 30 <= fimMins) {
+    slots.push(`${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`);
+    mins += 30;
+  }
+  return slots;
+}
 
-const HORARIOS = [
-  "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-  "13:00", "13:30", "14:00", "14:30", "15:00", "15:30",
-  "16:00", "16:30", "17:00", "17:30", "18:00", "18:30",
-];
+function getSlotsDisponiveis(dateKey: string, diaSemana: number): string[] {
+  const horario = HORARIO_FUNCIONAMENTO[diaSemana];
+  if (!horario) return [];
+  const todos = gerarSlots(horario.inicio, horario.fim);
+  const ocupados = AGENDAMENTOS_DEMO[dateKey] ?? [];
+  return todos.filter((s) => !ocupados.includes(s));
+}
+
+function getDisponibilidade(dateKey: string, diaSemana: number): "livre" | "parcial" | "lotado" | "fechado" {
+  const horario = HORARIO_FUNCIONAMENTO[diaSemana];
+  if (!horario) return "fechado";
+  const todos = gerarSlots(horario.inicio, horario.fim);
+  const disponiveis = getSlotsDisponiveis(dateKey, diaSemana);
+  if (disponiveis.length === 0) return "lotado";
+  if (disponiveis.length < todos.length * 0.4) return "parcial";
+  return "livre";
+}
+
+const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const DIAS_SEMANA = ["D","S","T","Q","Q","S","S"];
+
+const STATUS_CONFIG = {
+  pendente: {
+    label: "Aguardando confirmação",
+    desc: "O Ortega vai revisar e confirmar em breve.",
+    cor: "bg-yellow-50 border-yellow-200 text-yellow-800",
+    icone: "⏳",
+  },
+  confirmado: {
+    label: "Agendamento confirmado!",
+    desc: "Seu horário está garantido. Te esperamos!",
+    cor: "bg-green-50 border-green-200 text-green-800",
+    icone: "✅",
+  },
+  cancelado: {
+    label: "Agendamento cancelado",
+    desc: "Entre em contato para reagendar.",
+    cor: "bg-red-50 border-red-200 text-red-800",
+    icone: "❌",
+  },
+};
+
+// ─── tipos ───────────────────────────────────────────────────────────────────
+
+type Step = "servico" | "calendario" | "dados" | "confirmado";
+
+interface Selecao {
+  servico: string;
+  preco: string;
+  data: Date | null;
+  horario: string;
+  nome: string;
+  telefone: string;
+}
+
+// ─── componente principal ────────────────────────────────────────────────────
 
 export default function AgendamentoPage() {
-  const [sent, setSent] = useState(false);
-  const [sentData, setSentData] = useState<FormData | null>(null);
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
-    resolver: zodResolver(schema),
+  const [step, setStep] = useState<Step>("servico");
+  const [selecao, setSelecao] = useState<Selecao>({
+    servico: "", preco: "", data: null, horario: "", nome: "", telefone: "",
   });
+  const [mesAtual, setMesAtual] = useState(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  const [nome, setNome] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [erros, setErros] = useState<{ nome?: string; telefone?: string }>({});
+  const [salvando, setSalvando] = useState(false);
+  const [agendamentoId, setAgendamentoId] = useState<string | null>(null);
+  const [statusAtual, setStatusAtual] = useState<Agendamento["status"]>("pendente");
 
-  async function onSubmit(data: FormData) {
-    setSentData(data);
-    setSent(true);
+  // polling de status após agendamento criado
+  const pollStatus = useCallback(async (id: string) => {
+    const res = await fetch(`/api/agendamentos/${id}`);
+    if (!res.ok) return;
+    const data: Agendamento = await res.json();
+    setStatusAtual(data.status);
+  }, []);
+
+  useEffect(() => {
+    if (!agendamentoId || statusAtual === "cancelado") return;
+    const interval = setInterval(() => pollStatus(agendamentoId), 5000);
+    return () => clearInterval(interval);
+  }, [agendamentoId, statusAtual, pollStatus]);
+
+  // calendário
+  const diasCalendario = useMemo(() => {
+    const ano = mesAtual.getFullYear();
+    const mes = mesAtual.getMonth();
+    const primeiroDia = new Date(ano, mes, 1).getDay();
+    const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+    const dias: Array<{ dia: number; mes: number; ano: number; atual: boolean }> = [];
+
+    const ultimoDiaMesAnterior = new Date(ano, mes, 0).getDate();
+    for (let i = primeiroDia - 1; i >= 0; i--) {
+      dias.push({ dia: ultimoDiaMesAnterior - i, mes: mes - 1, ano, atual: false });
+    }
+    for (let d = 1; d <= ultimoDia; d++) {
+      dias.push({ dia: d, mes, ano, atual: true });
+    }
+    while (dias.length < 42) {
+      dias.push({ dia: dias.length - primeiroDia - ultimoDia + 1, mes: mes + 1, ano, atual: false });
+    }
+    return dias;
+  }, [mesAtual]);
+
+  function selecionarData(dia: number, mes: number, ano: number) {
+    const d = new Date(ano, mes, dia);
+    if (d < hoje || d.getDay() === 0) return;
+    setSelecao((s) => ({ ...s, data: d, horario: "" }));
   }
 
-  return (
-    <section className="min-h-screen pt-28 pb-24 bg-white">
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="text-center mb-12">
-          <span className="text-[#b8944a] text-sm font-medium tracking-widest uppercase">Reservas</span>
-          <h1 className="text-3xl font-bold text-[#1a1a1a] mt-2">Agende seu horário</h1>
-          <p className="text-gray-500 mt-3 max-w-md mx-auto">
-            Escolha o serviço, data e horário. Confirmaremos pelo WhatsApp em instantes.
-          </p>
+  async function confirmarAgendamento() {
+    const e: { nome?: string; telefone?: string } = {};
+    if (nome.trim().length < 2) e.nome = "Nome obrigatório";
+    if (telefone.trim().length < 8) e.telefone = "Telefone obrigatório";
+    if (Object.keys(e).length > 0) { setErros(e); return; }
+
+    setSalvando(true);
+    const dataKey = toDateKey(
+      selecao.data!.getFullYear(),
+      selecao.data!.getMonth(),
+      selecao.data!.getDate()
+    );
+
+    const res = await fetch("/api/agendamentos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nome,
+        telefone,
+        servico: selecao.servico,
+        preco: selecao.preco,
+        data: dataKey,
+        horario: selecao.horario,
+      }),
+    });
+
+    const data = await res.json();
+    setSalvando(false);
+    setSelecao((s) => ({ ...s, nome, telefone }));
+    setAgendamentoId(data.id);
+    setStatusAtual("pendente");
+    setStep("confirmado");
+  }
+
+  const dataKey = selecao.data
+    ? toDateKey(selecao.data.getFullYear(), selecao.data.getMonth(), selecao.data.getDate())
+    : null;
+
+  const slotsDisponiveis = selecao.data && dataKey
+    ? getSlotsDisponiveis(dataKey, selecao.data.getDay())
+    : [];
+
+  const dataFormatada = selecao.data
+    ? selecao.data.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })
+    : null;
+
+  // ── STEP: SERVIÇO ──────────────────────────────────────────────────────────
+  if (step === "servico") {
+    return (
+      <section className="min-h-screen pt-28 pb-24 bg-white">
+        <div className="max-w-3xl mx-auto px-6">
+          <div className="text-center mb-10">
+            <span className="text-[#b8944a] text-sm font-medium tracking-widest uppercase">Passo 1 de 3</span>
+            <h1 className="text-3xl font-bold text-[#1a1a1a] mt-2">Escolha o serviço</h1>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {demoServicos.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => { setSelecao((sel) => ({ ...sel, servico: s.titulo, preco: s.preco })); setStep("calendario"); }}
+                className="text-left border border-gray-200 p-5 hover:border-[#b8944a] hover:bg-amber-50 transition group"
+              >
+                <p className="font-semibold text-[#1a1a1a] group-hover:text-[#b8944a] transition">{s.titulo}</p>
+                <p className="text-sm text-gray-500 mt-1 leading-relaxed">{s.descricao}</p>
+                <div className="flex gap-4 mt-3 text-xs text-gray-400">
+                  {s.preco && <span className="text-[#b8944a] font-semibold">R$ {s.preco}</span>}
+                  {s.duracao && <span>{s.duracao}</span>}
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
+      </section>
+    );
+  }
 
-        <div className="grid md:grid-cols-2 gap-12">
-          <div>
-            {sent && sentData ? (
-              <div className="bg-[#1a1a1a] p-8 flex flex-col gap-4">
-                <div className="w-12 h-12 bg-[#b8944a] flex items-center justify-center text-white text-xl font-bold">✓</div>
-                <h2 className="text-xl font-bold text-white">Agendamento recebido!</h2>
-                <p className="text-gray-400 text-sm">
-                  Olá, <strong className="text-white">{sentData.nome}</strong>! Seu agendamento para{" "}
-                  <strong className="text-[#b8944a]">{sentData.servico}</strong> em{" "}
-                  <strong className="text-white">{sentData.data}</strong> às{" "}
-                  <strong className="text-white">{sentData.horario}</strong> foi recebido.
-                  <br /><br />
-                  Entraremos em contato pelo número <strong className="text-white">{sentData.telefone}</strong> para confirmar.
-                </p>
-                <a
-                  href={`https://wa.me/5511999999999?text=Olá! Quero confirmar meu agendamento: ${sentData.servico} em ${sentData.data} às ${sentData.horario}.`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="self-start mt-2 inline-flex items-center px-5 py-2.5 bg-[#b8944a] text-white text-sm font-medium hover:bg-[#a07d3a] transition"
-                >
-                  Confirmar pelo WhatsApp
-                </a>
+  // ── STEP: CALENDÁRIO ───────────────────────────────────────────────────────
+  if (step === "calendario") {
+    return (
+      <section className="min-h-screen pt-28 pb-24 bg-white">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-8">
+            <span className="text-[#b8944a] text-sm font-medium tracking-widest uppercase">Passo 2 de 3</span>
+            <h1 className="text-3xl font-bold text-[#1a1a1a] mt-2">Escolha data e horário</h1>
+          </div>
+
+          <div className="grid md:grid-cols-[1fr_300px] gap-8">
+            <div className="bg-white border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <button onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1, 1))} className="p-1 hover:text-[#b8944a] transition">
+                  <ChevronLeft size={20} />
+                </button>
+                <h2 className="text-xl font-bold text-[#1a1a1a]">
+                  {MESES[mesAtual.getMonth()]} <span className="text-gray-400 font-normal">{mesAtual.getFullYear()}</span>
+                </h2>
+                <button onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1, 1))} className="p-1 hover:text-[#b8944a] transition">
+                  <ChevronRight size={20} />
+                </button>
               </div>
-            ) : (
-              <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
-                <Input
-                  label="Nome completo"
-                  placeholder="Seu nome"
-                  {...register("nome")}
-                  error={errors.nome?.message}
-                />
-                <Input
-                  label="Telefone / WhatsApp"
-                  placeholder="(11) 99999-9999"
-                  {...register("telefone")}
-                  error={errors.telefone?.message}
-                />
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium text-gray-700">Serviço</label>
-                  <select
-                    {...register("servico")}
-                    className="border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-[#b8944a]"
-                  >
-                    <option value="">Selecione um serviço</option>
-                    {SERVICOS.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                  {errors.servico && <p className="text-xs text-red-500">{errors.servico.message}</p>}
+              <div className="grid grid-cols-7 mb-2">
+                {DIAS_SEMANA.map((d, i) => (
+                  <div key={i} className={`text-center text-xs font-medium py-1 ${i === 0 ? "text-red-400" : "text-gray-400"}`}>{d}</div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-1">
+                {diasCalendario.map((cell, i) => {
+                  const cellDate = new Date(cell.ano, cell.mes, cell.dia);
+                  cellDate.setHours(0, 0, 0, 0);
+                  const passado = cellDate < hoje;
+                  const domingo = cellDate.getDay() === 0;
+                  const desabilitado = passado || domingo || !cell.atual;
+                  const key = toDateKey(cell.ano, cell.mes, cell.dia);
+                  const disp = cell.atual && !desabilitado ? getDisponibilidade(key, cellDate.getDay()) : null;
+                  const selecionado = selecao.data ? cellDate.getTime() === selecao.data.getTime() : false;
+
+                  return (
+                    <button
+                      key={i}
+                      disabled={desabilitado}
+                      onClick={() => selecionarData(cell.dia, cell.mes, cell.ano)}
+                      className={`relative flex flex-col items-center justify-center rounded py-2 text-sm transition
+                        ${!cell.atual ? "text-gray-200" : ""}
+                        ${desabilitado && cell.atual ? "text-gray-300 cursor-not-allowed" : ""}
+                        ${!desabilitado && cell.atual ? "hover:bg-amber-50 cursor-pointer" : ""}
+                        ${selecionado ? "bg-[#1a1a1a] text-white hover:bg-[#1a1a1a]" : ""}
+                      `}
+                    >
+                      <span className={selecionado ? "text-white font-bold" : ""}>{cell.dia}</span>
+                      {disp && !selecionado && (
+                        <span className={`mt-0.5 h-1 w-5 rounded-full ${
+                          disp === "livre" ? "bg-green-400" :
+                          disp === "parcial" ? "bg-yellow-400" : "bg-red-300"
+                        }`} />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex gap-4 mt-4 text-xs text-gray-400">
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-1 rounded-full bg-green-400" /> Disponível</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-1 rounded-full bg-yellow-400" /> Poucos horários</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-1 rounded-full bg-red-300" /> Lotado</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="border border-gray-200 p-4">
+                <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Serviço</p>
+                <p className="font-semibold text-[#1a1a1a]">{selecao.servico}</p>
+                {selecao.preco && <p className="text-[#b8944a] text-sm font-medium mt-0.5">R$ {selecao.preco}</p>}
+                <button onClick={() => setStep("servico")} className="text-xs text-gray-400 hover:text-[#b8944a] mt-2 transition">Trocar serviço</button>
+              </div>
+
+              {selecao.data && (
+                <div className="border border-gray-200 p-4">
+                  <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">
+                    Horários para <span className="text-[#b8944a] normal-case font-medium">{dataFormatada}</span>
+                  </p>
+                  {slotsDisponiveis.length === 0 ? (
+                    <p className="text-sm text-gray-400">Sem horários disponíveis. Escolha outra data.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {slotsDisponiveis.map((slot) => (
+                        <button
+                          key={slot}
+                          onClick={() => setSelecao((s) => ({ ...s, horario: slot }))}
+                          className={`py-2 text-sm rounded transition border ${
+                            selecao.horario === slot
+                              ? "bg-[#1a1a1a] text-white border-[#1a1a1a]"
+                              : "border-green-300 bg-green-50 text-green-800 hover:bg-green-100"
+                          }`}
+                        >
+                          {slot}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
+              )}
 
-                <Input
-                  label="Data desejada"
-                  type="date"
-                  {...register("data")}
-                  error={errors.data?.message}
-                />
+              {selecao.data && selecao.horario && (
+                <Button onClick={() => setStep("dados")}>Continuar →</Button>
+              )}
+              {!selecao.data && (
+                <p className="text-sm text-gray-400 text-center">Clique em uma data para ver os horários disponíveis</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium text-gray-700">Horário</label>
-                  <select
-                    {...register("horario")}
-                    className="border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-[#b8944a]"
-                  >
-                    <option value="">Selecione um horário</option>
-                    {HORARIOS.map((h) => (
-                      <option key={h} value={h}>{h}</option>
-                    ))}
-                  </select>
-                  {errors.horario && <p className="text-xs text-red-500">{errors.horario.message}</p>}
-                </div>
+  // ── STEP: DADOS PESSOAIS ───────────────────────────────────────────────────
+  if (step === "dados") {
+    return (
+      <section className="min-h-screen pt-28 pb-24 bg-white">
+        <div className="max-w-xl mx-auto px-6">
+          <div className="text-center mb-10">
+            <span className="text-[#b8944a] text-sm font-medium tracking-widest uppercase">Passo 3 de 3</span>
+            <h1 className="text-3xl font-bold text-[#1a1a1a] mt-2">Seus dados</h1>
+          </div>
 
-                <Button type="submit" disabled={isSubmitting} size="lg">
-                  {isSubmitting ? "Enviando..." : "Confirmar agendamento"}
-                </Button>
-              </form>
+          <div className="bg-gray-50 border border-gray-200 p-5 mb-6 flex flex-col gap-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Serviço</span>
+              <span className="font-medium text-[#1a1a1a]">{selecao.servico}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Data</span>
+              <span className="font-medium text-[#1a1a1a]">{dataFormatada}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Horário</span>
+              <span className="font-medium text-[#1a1a1a]">{selecao.horario}</span>
+            </div>
+            {selecao.preco && (
+              <div className="flex justify-between border-t border-gray-200 pt-2 mt-1">
+                <span className="text-gray-500">Valor</span>
+                <span className="font-semibold text-[#b8944a]">R$ {selecao.preco}</span>
+              </div>
             )}
           </div>
 
-          <div className="flex flex-col gap-6">
-            <div className="bg-gray-50 border border-gray-200 p-6 flex flex-col gap-4">
-              <h3 className="font-semibold text-[#1a1a1a]">Onde estamos</h3>
-              <p className="text-sm text-gray-500">
-                Rua Exemplo, 123 — Bairro Centro<br />
-                São Paulo, SP — CEP 01310-100
-              </p>
-              <div className="w-full h-48 bg-gray-200 overflow-hidden">
-                {/* Substituir pelo embed real do Google Maps após o cliente fornecer o endereço */}
-                <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3657.1!2d-46.6333!3d-23.5505!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjPCsDMzJzAxLjgiUyA0NsKwMzgnMDAuMCJX!5e0!3m2!1spt-BR!2sbr!4v1234567890"
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  title="Localização Ortega Barber"
-                />
-              </div>
+          <div className="flex flex-col gap-4">
+            <Input label="Nome completo" placeholder="Seu nome" value={nome} onChange={(e) => setNome(e.target.value)} error={erros.nome} />
+            <Input label="Telefone / WhatsApp" placeholder="(11) 99999-9999" value={telefone} onChange={(e) => setTelefone(e.target.value)} error={erros.telefone} />
+            <div className="flex gap-3 mt-2">
+              <button onClick={() => setStep("calendario")} className="flex-1 py-3 border border-gray-200 text-sm text-gray-500 hover:border-gray-400 transition">
+                ← Voltar
+              </button>
+              <Button onClick={confirmarAgendamento} disabled={salvando} className="flex-1">
+                {salvando ? "Enviando..." : "Confirmar agendamento"}
+              </Button>
             </div>
-
-            <div className="bg-gray-50 border border-gray-200 p-6 flex flex-col gap-3">
-              <h3 className="font-semibold text-[#1a1a1a]">Horário de funcionamento</h3>
-              <div className="text-sm text-gray-500 flex flex-col gap-1">
-                <div className="flex justify-between">
-                  <span>Segunda a Sexta</span>
-                  <span className="font-medium text-[#1a1a1a]">09:00 – 19:00</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Sábado</span>
-                  <span className="font-medium text-[#1a1a1a]">09:00 – 18:00</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Domingo</span>
-                  <span className="font-medium text-gray-400">Fechado</span>
-                </div>
-              </div>
-            </div>
-
-            <a
-              href="https://wa.me/5511999999999?text=Olá! Gostaria de agendar um horário na Ortega Barber."
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-[#1a1a1a] text-white text-sm font-medium hover:bg-[#2d2d2d] transition"
-            >
-              Prefere o WhatsApp? Fale agora
-            </a>
           </div>
         </div>
+      </section>
+    );
+  }
+
+  // ── STEP: CONFIRMADO + STATUS ──────────────────────────────────────────────
+  const statusConfig = STATUS_CONFIG[statusAtual];
+
+  return (
+    <section className="min-h-screen pt-28 pb-24 bg-white">
+      <div className="max-w-xl mx-auto px-6 flex flex-col gap-5">
+        {/* card de status — atualiza em tempo real */}
+        <div className={`border rounded-lg p-5 flex items-start gap-4 ${statusConfig.cor}`}>
+          <span className="text-2xl">{statusConfig.icone}</span>
+          <div>
+            <p className="font-semibold">{statusConfig.label}</p>
+            <p className="text-sm mt-0.5 opacity-80">{statusConfig.desc}</p>
+            {statusAtual === "pendente" && (
+              <p className="text-xs mt-2 opacity-60">Esta página atualiza automaticamente.</p>
+            )}
+          </div>
+        </div>
+
+        {/* resumo do agendamento */}
+        <div className="bg-[#1a1a1a] p-6 flex flex-col gap-4">
+          <h2 className="text-lg font-bold text-white">Resumo do agendamento</h2>
+          <div className="text-sm text-gray-400 flex flex-col gap-1">
+            <p>Nome: <strong className="text-white">{selecao.nome}</strong></p>
+          </div>
+          <div className="bg-[#2d2d2d] p-4 flex flex-col gap-1.5 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Serviço</span>
+              <span className="text-[#b8944a] font-medium">{selecao.servico}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Data</span>
+              <span className="text-white">{dataFormatada}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Horário</span>
+              <span className="text-white">{selecao.horario}</span>
+            </div>
+            {selecao.preco && (
+              <div className="flex justify-between border-t border-[#3d3d3d] pt-2 mt-1">
+                <span className="text-gray-400">Valor</span>
+                <span className="text-[#b8944a] font-semibold">R$ {selecao.preco}</span>
+              </div>
+            )}
+          </div>
+
+          {statusAtual === "confirmado" && (
+            <a
+              href={`https://wa.me/5511999999999?text=Olá! Quero confirmar meu agendamento:%0A*${selecao.servico}*%0AData: ${dataFormatada}%0AHorário: ${selecao.horario}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="self-start inline-flex items-center px-6 py-3 bg-[#b8944a] text-white text-sm font-medium hover:bg-[#a07d3a] transition"
+            >
+              Falar pelo WhatsApp
+            </a>
+          )}
+        </div>
+
+        <button
+          onClick={() => {
+            setStep("servico");
+            setSelecao({ servico: "", preco: "", data: null, horario: "", nome: "", telefone: "" });
+            setNome("");
+            setTelefone("");
+            setAgendamentoId(null);
+            setStatusAtual("pendente");
+          }}
+          className="text-sm text-gray-400 hover:text-gray-700 transition text-center"
+        >
+          Fazer outro agendamento
+        </button>
       </div>
     </section>
   );

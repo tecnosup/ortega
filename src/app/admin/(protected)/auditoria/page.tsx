@@ -1,38 +1,37 @@
-export const dynamic = "force-dynamic";
+"use client";
 
-import { adminDb } from "@/lib/firebase-admin";
-import { Timestamp } from "firebase-admin/firestore";
+import { useEffect, useState } from "react";
 
+// DEMO MODE: auditoria simulada em memória — conectar ao Firestore na produção
 interface AuditLog {
   id: string;
-  actorEmail: string | null;
+  actorEmail: string;
   action: string;
   entity: string;
   entityId: string;
-  summary?: string;
-  createdAt: Timestamp | null;
+  createdAt: number;
 }
 
-export default async function AuditoriaPage() {
-  const snap = await adminDb
-    .collection("auditLogs")
-    .orderBy("createdAt", "desc")
-    .limit(200)
-    .get();
+const DEMO_LOGS: AuditLog[] = [
+  { id: "1", actorEmail: "admin@ortegabarber.com.br", action: "item.create", entity: "servico", entityId: "abc123", createdAt: Date.now() - 1000 * 60 * 5 },
+  { id: "2", actorEmail: "admin@ortegabarber.com.br", action: "item.update", entity: "servico", entityId: "abc123", createdAt: Date.now() - 1000 * 60 * 30 },
+  { id: "3", actorEmail: "admin@ortegabarber.com.br", action: "settings.update", entity: "settings", entityId: "landing", createdAt: Date.now() - 1000 * 60 * 60 * 2 },
+  { id: "4", actorEmail: "admin@ortegabarber.com.br", action: "item.delete", entity: "servico", entityId: "xyz456", createdAt: Date.now() - 1000 * 60 * 60 * 5 },
+];
 
-  const logs: AuditLog[] = snap.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<AuditLog, "id">),
-  }));
+function formatDate(ts: number) {
+  return new Date(ts).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
 
-  function formatDate(ts: Timestamp | null) {
-    if (!ts) return "—";
-    return ts.toDate().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-  }
+export default function AuditoriaPage() {
+  const [logs] = useState<AuditLog[]>(DEMO_LOGS);
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Auditoria</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">Auditoria</h1>
+      <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-8">
+        Modo demo — logs simulados. Conecte o Firestore para ver ações reais.
+      </p>
 
       {logs.length === 0 ? (
         <p className="text-gray-500 text-sm">Nenhuma ação registrada.</p>
@@ -43,8 +42,7 @@ export default async function AuditoriaPage() {
               <div>
                 <p className="text-sm font-medium text-gray-900">{log.action}</p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {log.actorEmail ?? "—"} · {log.entity} {log.entityId}
-                  {log.summary && ` · ${log.summary}`}
+                  {log.actorEmail} · {log.entity} {log.entityId}
                 </p>
               </div>
               <span className="text-xs text-gray-400 whitespace-nowrap">{formatDate(log.createdAt)}</span>

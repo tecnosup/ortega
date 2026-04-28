@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // DEMO MODE: autenticação desativada para apresentação ao cliente
-export async function middleware(_req: NextRequest) {
+export function proxy(_req: NextRequest) {
   return NextResponse.next();
 }
 

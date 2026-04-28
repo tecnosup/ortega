@@ -1,6 +1,30 @@
 import type { LandingSettings } from "./admin-settings";
 import type { Item } from "./admin-items";
 
+// Horário de funcionamento
+export const HORARIO_FUNCIONAMENTO = {
+  // 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sáb
+  1: { inicio: "09:00", fim: "19:00" },
+  2: { inicio: "09:00", fim: "19:00" },
+  3: { inicio: "09:00", fim: "19:00" },
+  4: { inicio: "09:00", fim: "19:00" },
+  5: { inicio: "09:00", fim: "19:00" },
+  6: { inicio: "09:00", fim: "18:00" },
+} as Record<number, { inicio: string; fim: string }>;
+
+// Agendamentos simulados para demo — chave: "YYYY-MM-DD", valor: array de horários ocupados
+export const AGENDAMENTOS_DEMO: Record<string, string[]> = {
+  "2026-04-28": ["09:00", "09:30", "10:00", "14:00", "14:30"],
+  "2026-04-29": ["09:00", "10:30", "11:00", "15:00", "16:00", "16:30", "17:00"],
+  "2026-04-30": ["09:00", "09:30", "11:00", "13:00", "13:30", "14:00"],
+  "2026-05-02": ["10:00", "10:30", "14:30", "15:00"],
+  "2026-05-03": ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30"],
+  "2026-05-05": ["09:00", "09:30", "10:00", "13:00", "17:00", "17:30", "18:00", "18:30"],
+  "2026-05-06": ["09:00", "09:30", "10:00", "10:30", "11:00", "13:00", "13:30", "14:00", "14:30"],
+  "2026-05-07": ["10:00", "10:30", "11:00", "14:00", "14:30", "15:00"],
+  "2026-05-09": ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30"],
+};
+
 export const demoSettings: LandingSettings = {
   heroTitulo: "Você mais bonito",
   heroSubtitulo: "Cortes precisos, barba impecável e atendimento exclusivo. Na Ortega, cada detalhe importa.",
