@@ -2,9 +2,9 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { ShieldCheck } from "lucide-react";
 
-// DEMO MODE: auditoria simulada em memória — conectar ao Firestore na produção
 interface AuditLog {
   id: string;
   actorEmail: string;
@@ -25,29 +25,42 @@ function formatDate(ts: number) {
   return new Date(ts).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
+const ACTION_COLOR: Record<string, string> = {
+  "item.create": "text-green-400",
+  "item.update": "text-[#b8944a]",
+  "item.delete": "text-red-400",
+  "settings.update": "text-blue-400",
+};
+
 export default function AuditoriaPage() {
   const [logs] = useState<AuditLog[]>(DEMO_LOGS);
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Auditoria</h1>
-      <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-8">
+    <div className="max-w-4xl mx-auto flex flex-col gap-6">
+      <div className="flex items-center gap-3">
+        <ShieldCheck size={22} className="text-[#b8944a]" />
+        <h1 className="text-2xl font-bold text-[#F5E6C8]">Auditoria</h1>
+      </div>
+
+      <p className="text-sm text-[#b8944a]/80 bg-[#b8944a]/10 border border-[#b8944a]/20 rounded-lg px-4 py-2.5">
         Modo demo — logs simulados. Conecte o Firestore para ver ações reais.
       </p>
 
       {logs.length === 0 ? (
         <p className="text-gray-500 text-sm">Nenhuma ação registrada.</p>
       ) : (
-        <div className="bg-white border border-gray-200 rounded divide-y divide-gray-100">
+        <div className="bg-[#111] border border-[#2d2d2d] rounded-lg divide-y divide-[#1a1a1a]">
           {logs.map((log) => (
-            <div key={log.id} className="px-4 py-3 flex items-start justify-between gap-4">
+            <div key={log.id} className="px-5 py-4 flex items-start justify-between gap-4 hover:bg-[#151515] transition">
               <div>
-                <p className="text-sm font-medium text-gray-900">{log.action}</p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {log.actorEmail} · {log.entity} {log.entityId}
+                <p className={`text-sm font-semibold font-mono ${ACTION_COLOR[log.action] ?? "text-[#F5E6C8]"}`}>
+                  {log.action}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {log.actorEmail} · {log.entity} <span className="text-gray-600 font-mono">{log.entityId}</span>
                 </p>
               </div>
-              <span className="text-xs text-gray-400 whitespace-nowrap">{formatDate(log.createdAt)}</span>
+              <span className="text-xs text-gray-600 whitespace-nowrap shrink-0">{formatDate(log.createdAt)}</span>
             </div>
           ))}
         </div>

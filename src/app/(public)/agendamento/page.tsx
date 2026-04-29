@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Tag } from "lucide-react";
 import { HORARIO_FUNCIONAMENTO, AGENDAMENTOS_DEMO, demoServicos } from "@/lib/demo-data";
 import type { Agendamento } from "@/lib/agendamentos";
-import Input from "@/components/ui/Input";
-import Button from "@/components/ui/Button";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -51,22 +49,26 @@ const STATUS_CONFIG = {
   pendente: {
     label: "Aguardando confirmação",
     desc: "O Ortega vai revisar e confirmar em breve.",
-    cor: "bg-yellow-50 border-yellow-200 text-yellow-800",
+    cor: "bg-yellow-900/20 border-yellow-600/40 text-yellow-300",
     icone: "⏳",
   },
   confirmado: {
     label: "Agendamento confirmado!",
     desc: "Seu horário está garantido. Te esperamos!",
-    cor: "bg-green-50 border-green-200 text-green-800",
+    cor: "bg-[#b8944a]/10 border-[#b8944a]/40 text-[#b8944a]",
     icone: "✅",
   },
   cancelado: {
     label: "Agendamento cancelado",
     desc: "Entre em contato para reagendar.",
-    cor: "bg-red-50 border-red-200 text-red-800",
+    cor: "bg-red-900/20 border-red-600/40 text-red-300",
     icone: "❌",
   },
 };
+
+// ─── shared style tokens ─────────────────────────────────────────────────────
+
+const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2.5 text-sm text-[#F5E6C8] placeholder-gray-600 focus:outline-none focus:border-[#b8944a] transition";
 
 // ─── tipos ───────────────────────────────────────────────────────────────────
 
@@ -86,6 +88,27 @@ interface CupomAplicado {
   tipo: "percentual" | "fixo";
   valor: number;
   desconto: number;
+}
+
+// ─── step indicator ──────────────────────────────────────────────────────────
+
+function StepIndicator({ atual }: { atual: 1 | 2 | 3 }) {
+  return (
+    <div className="flex items-center justify-center gap-2 mb-2">
+      {[1, 2, 3].map((n) => (
+        <div key={n} className="flex items-center gap-2">
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+            n < atual ? "bg-[#b8944a] text-[#0A0A0A]" :
+            n === atual ? "bg-[#b8944a]/20 border border-[#b8944a] text-[#b8944a]" :
+            "bg-[#1a1a1a] border border-[#2d2d2d] text-gray-600"
+          }`}>
+            {n < atual ? <Check size={12} /> : n}
+          </div>
+          {n < 3 && <div className={`w-8 h-px transition-all duration-300 ${n < atual ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`} />}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ─── componente principal ────────────────────────────────────────────────────
@@ -112,7 +135,6 @@ export default function AgendamentoPage() {
   const [erroCupom, setErroCupom] = useState("");
   const [validandoCupom, setValidandoCupom] = useState(false);
 
-  // polling de status após agendamento criado
   const pollStatus = useCallback(async (id: string) => {
     const res = await fetch(`/api/agendamentos/${id}`);
     if (!res.ok) return;
@@ -126,7 +148,6 @@ export default function AgendamentoPage() {
     return () => clearInterval(interval);
   }, [agendamentoId, statusAtual, pollStatus]);
 
-  // calendário
   const diasCalendario = useMemo(() => {
     const ano = mesAtual.getFullYear();
     const mes = mesAtual.getMonth();
@@ -230,22 +251,23 @@ export default function AgendamentoPage() {
   // ── STEP: SERVIÇO ──────────────────────────────────────────────────────────
   if (step === "servico") {
     return (
-      <section className="min-h-screen pt-28 pb-24 bg-white">
+      <section className="min-h-screen pt-28 pb-24 bg-[#0A0A0A]">
         <div className="max-w-3xl mx-auto px-6">
           <div className="text-center mb-10">
-            <span className="text-[#b8944a] text-sm font-medium tracking-widest uppercase">Passo 1 de 3</span>
-            <h1 className="text-3xl font-bold text-[#1a1a1a] mt-2">Escolha o serviço</h1>
+            <StepIndicator atual={1} />
+            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-4 block">Passo 1 de 3</span>
+            <h1 className="text-3xl font-bold text-[#F5E6C8] mt-2">Escolha o serviço</h1>
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             {demoServicos.map((s) => (
               <button
                 key={s.id}
                 onClick={() => { setSelecao((sel) => ({ ...sel, servico: s.titulo, preco: s.preco })); setStep("calendario"); }}
-                className="text-left border border-gray-200 p-5 hover:border-[#b8944a] hover:bg-amber-50 transition group"
+                className="text-left border border-[#2d2d2d] bg-[#111] p-5 rounded-lg hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition-all duration-200 group"
               >
-                <p className="font-semibold text-[#1a1a1a] group-hover:text-[#b8944a] transition">{s.titulo}</p>
+                <p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition">{s.titulo}</p>
                 <p className="text-sm text-gray-500 mt-1 leading-relaxed">{s.descricao}</p>
-                <div className="flex gap-4 mt-3 text-xs text-gray-400">
+                <div className="flex gap-4 mt-3 text-xs text-gray-500">
                   {s.preco && <span className="text-[#b8944a] font-semibold">R$ {s.preco}</span>}
                   {s.duracao && <span>{s.duracao}</span>}
                 </div>
@@ -260,30 +282,38 @@ export default function AgendamentoPage() {
   // ── STEP: CALENDÁRIO ───────────────────────────────────────────────────────
   if (step === "calendario") {
     return (
-      <section className="min-h-screen pt-28 pb-24 bg-white">
+      <section className="min-h-screen pt-28 pb-24 bg-[#0A0A0A]">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-8">
-            <span className="text-[#b8944a] text-sm font-medium tracking-widest uppercase">Passo 2 de 3</span>
-            <h1 className="text-3xl font-bold text-[#1a1a1a] mt-2">Escolha data e horário</h1>
+            <StepIndicator atual={2} />
+            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-4 block">Passo 2 de 3</span>
+            <h1 className="text-3xl font-bold text-[#F5E6C8] mt-2">Escolha data e horário</h1>
           </div>
 
           <div className="grid md:grid-cols-[1fr_300px] gap-8">
-            <div className="bg-white border border-gray-200 p-6">
+            {/* calendário */}
+            <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-6">
               <div className="flex items-center justify-between mb-6">
-                <button onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1, 1))} className="p-1 hover:text-[#b8944a] transition">
-                  <ChevronLeft size={20} />
+                <button
+                  onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1, 1))}
+                  className="p-2 text-gray-500 hover:text-[#b8944a] hover:bg-[#b8944a]/10 rounded transition"
+                >
+                  <ChevronLeft size={18} />
                 </button>
-                <h2 className="text-xl font-bold text-[#1a1a1a]">
-                  {MESES[mesAtual.getMonth()]} <span className="text-gray-400 font-normal">{mesAtual.getFullYear()}</span>
+                <h2 className="text-lg font-bold text-[#F5E6C8]">
+                  {MESES[mesAtual.getMonth()]} <span className="text-gray-500 font-normal">{mesAtual.getFullYear()}</span>
                 </h2>
-                <button onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1, 1))} className="p-1 hover:text-[#b8944a] transition">
-                  <ChevronRight size={20} />
+                <button
+                  onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1, 1))}
+                  className="p-2 text-gray-500 hover:text-[#b8944a] hover:bg-[#b8944a]/10 rounded transition"
+                >
+                  <ChevronRight size={18} />
                 </button>
               </div>
 
               <div className="grid grid-cols-7 mb-2">
                 {DIAS_SEMANA.map((d, i) => (
-                  <div key={i} className={`text-center text-xs font-medium py-1 ${i === 0 ? "text-red-400" : "text-gray-400"}`}>{d}</div>
+                  <div key={i} className={`text-center text-xs font-medium py-1 ${i === 0 ? "text-red-400" : "text-gray-600"}`}>{d}</div>
                 ))}
               </div>
 
@@ -303,18 +333,18 @@ export default function AgendamentoPage() {
                       key={i}
                       disabled={desabilitado}
                       onClick={() => selecionarData(cell.dia, cell.mes, cell.ano)}
-                      className={`relative flex flex-col items-center justify-center rounded py-2 text-sm transition
-                        ${!cell.atual ? "text-gray-200" : ""}
-                        ${desabilitado && cell.atual ? "text-gray-300 cursor-not-allowed" : ""}
-                        ${!desabilitado && cell.atual ? "hover:bg-amber-50 cursor-pointer" : ""}
-                        ${selecionado ? "bg-[#1a1a1a] text-white hover:bg-[#1a1a1a]" : ""}
+                      className={`relative flex flex-col items-center justify-center rounded py-2 text-sm transition-all duration-150
+                        ${!cell.atual ? "text-gray-800" : ""}
+                        ${desabilitado && cell.atual ? "text-gray-700 cursor-not-allowed" : ""}
+                        ${!desabilitado && cell.atual ? "text-[#F5E6C8] hover:bg-[#b8944a]/10 cursor-pointer" : ""}
+                        ${selecionado ? "bg-[#b8944a] text-[#0A0A0A] hover:bg-[#b8944a]" : ""}
                       `}
                     >
-                      <span className={selecionado ? "text-white font-bold" : ""}>{cell.dia}</span>
+                      <span className={`font-medium ${selecionado ? "text-[#0A0A0A] font-bold" : ""}`}>{cell.dia}</span>
                       {disp && !selecionado && (
-                        <span className={`mt-0.5 h-1 w-5 rounded-full ${
-                          disp === "livre" ? "bg-green-400" :
-                          disp === "parcial" ? "bg-yellow-400" : "bg-red-300"
+                        <span className={`mt-0.5 h-1 w-4 rounded-full ${
+                          disp === "livre" ? "bg-green-500" :
+                          disp === "parcial" ? "bg-yellow-500" : "bg-red-400"
                         }`} />
                       )}
                     </button>
@@ -322,38 +352,44 @@ export default function AgendamentoPage() {
                 })}
               </div>
 
-              <div className="flex gap-4 mt-4 text-xs text-gray-400">
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-1 rounded-full bg-green-400" /> Disponível</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-1 rounded-full bg-yellow-400" /> Poucos horários</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-1 rounded-full bg-red-300" /> Lotado</span>
+              <div className="flex flex-wrap gap-4 mt-5 pt-4 border-t border-[#1a1a1a] text-xs text-gray-600">
+                <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-1 rounded-full bg-green-500" /> Disponível</span>
+                <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-1 rounded-full bg-yellow-500" /> Poucos horários</span>
+                <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-1 rounded-full bg-red-400" /> Lotado</span>
               </div>
             </div>
 
+            {/* sidebar */}
             <div className="flex flex-col gap-4">
-              <div className="border border-gray-200 p-4">
-                <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Serviço</p>
-                <p className="font-semibold text-[#1a1a1a]">{selecao.servico}</p>
+              <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-4">
+                <p className="text-xs text-gray-600 uppercase tracking-wider mb-1">Serviço selecionado</p>
+                <p className="font-semibold text-[#F5E6C8]">{selecao.servico}</p>
                 {selecao.preco && <p className="text-[#b8944a] text-sm font-medium mt-0.5">R$ {selecao.preco}</p>}
-                <button onClick={() => setStep("servico")} className="text-xs text-gray-400 hover:text-[#b8944a] mt-2 transition">Trocar serviço</button>
+                <button
+                  onClick={() => setStep("servico")}
+                  className="text-xs text-gray-600 hover:text-[#b8944a] mt-2 transition"
+                >
+                  Trocar serviço →
+                </button>
               </div>
 
-              {selecao.data && (
-                <div className="border border-gray-200 p-4">
-                  <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">
-                    Horários para <span className="text-[#b8944a] normal-case font-medium">{dataFormatada}</span>
+              {selecao.data ? (
+                <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-4">
+                  <p className="text-xs text-gray-600 uppercase tracking-wider mb-3">
+                    Horários — <span className="text-[#b8944a] normal-case font-medium">{dataFormatada}</span>
                   </p>
                   {slotsDisponiveis.length === 0 ? (
-                    <p className="text-sm text-gray-400">Sem horários disponíveis. Escolha outra data.</p>
+                    <p className="text-sm text-gray-500">Sem horários disponíveis.<br />Escolha outra data.</p>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
                       {slotsDisponiveis.map((slot) => (
                         <button
                           key={slot}
                           onClick={() => setSelecao((s) => ({ ...s, horario: slot }))}
-                          className={`py-2 text-sm rounded transition border ${
+                          className={`py-2 text-sm rounded transition-all border font-medium ${
                             selecao.horario === slot
-                              ? "bg-[#1a1a1a] text-white border-[#1a1a1a]"
-                              : "border-green-300 bg-green-50 text-green-800 hover:bg-green-100"
+                              ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]"
+                              : "border-[#2d2d2d] text-[#F5E6C8] hover:border-[#b8944a] hover:text-[#b8944a]"
                           }`}
                         >
                           {slot}
@@ -362,13 +398,19 @@ export default function AgendamentoPage() {
                     </div>
                   )}
                 </div>
+              ) : (
+                <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-4 text-center">
+                  <p className="text-sm text-gray-600">Clique em uma data para ver os horários</p>
+                </div>
               )}
 
               {selecao.data && selecao.horario && (
-                <Button onClick={() => setStep("dados")}>Continuar →</Button>
-              )}
-              {!selecao.data && (
-                <p className="text-sm text-gray-400 text-center">Clique em uma data para ver os horários disponíveis</p>
+                <button
+                  onClick={() => setStep("dados")}
+                  className="w-full py-3 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-lg hover:bg-[#c9a84c] transition"
+                >
+                  Continuar →
+                </button>
               )}
             </div>
           </div>
@@ -380,63 +422,67 @@ export default function AgendamentoPage() {
   // ── STEP: DADOS PESSOAIS ───────────────────────────────────────────────────
   if (step === "dados") {
     return (
-      <section className="min-h-screen pt-28 pb-24 bg-white">
+      <section className="min-h-screen pt-28 pb-24 bg-[#0A0A0A]">
         <div className="max-w-xl mx-auto px-6">
           <div className="text-center mb-10">
-            <span className="text-[#b8944a] text-sm font-medium tracking-widest uppercase">Passo 3 de 3</span>
-            <h1 className="text-3xl font-bold text-[#1a1a1a] mt-2">Seus dados</h1>
+            <StepIndicator atual={3} />
+            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-4 block">Passo 3 de 3</span>
+            <h1 className="text-3xl font-bold text-[#F5E6C8] mt-2">Seus dados</h1>
           </div>
 
-          <div className="bg-gray-50 border border-gray-200 p-5 mb-6 flex flex-col gap-1 text-sm">
+          {/* resumo */}
+          <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-5 mb-6 flex flex-col gap-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-500">Serviço</span>
-              <span className="font-medium text-[#1a1a1a]">{selecao.servico}</span>
+              <span className="font-medium text-[#F5E6C8]">{selecao.servico}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Data</span>
-              <span className="font-medium text-[#1a1a1a]">{dataFormatada}</span>
+              <span className="font-medium text-[#F5E6C8]">{dataFormatada}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Horário</span>
-              <span className="font-medium text-[#1a1a1a]">{selecao.horario}</span>
+              <span className="font-medium text-[#F5E6C8]">{selecao.horario}</span>
             </div>
             {selecao.preco && (
-              <div className="flex justify-between border-t border-gray-200 pt-2 mt-1">
+              <div className="flex justify-between border-t border-[#2d2d2d] pt-2 mt-1">
                 <span className="text-gray-500">Valor original</span>
-                <span className={`font-semibold ${cupomAplicado ? "line-through text-gray-400" : "text-[#b8944a]"}`}>
+                <span className={`font-semibold ${cupomAplicado ? "line-through text-gray-600" : "text-[#b8944a]"}`}>
                   R$ {selecao.preco}
                 </span>
               </div>
             )}
             {cupomAplicado && (
               <>
-                <div className="flex justify-between text-green-700">
+                <div className="flex justify-between text-green-400">
                   <span>Cupom <span className="font-mono font-bold">{cupomAplicado.codigo}</span></span>
                   <span>- R$ {cupomAplicado.desconto.toFixed(2).replace(".", ",")}</span>
                 </div>
-                <div className="flex justify-between border-t border-gray-200 pt-2 mt-1">
-                  <span className="text-gray-500 font-medium">Total</span>
+                <div className="flex justify-between border-t border-[#2d2d2d] pt-2 mt-1">
+                  <span className="text-gray-400 font-medium">Total</span>
                   <span className="font-bold text-[#b8944a] text-base">R$ {precoFinal.toFixed(2).replace(".", ",")}</span>
                 </div>
               </>
             )}
           </div>
 
-          {/* campo de cupom */}
-          <div className="flex flex-col gap-2 mb-2">
-            <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Cupom de desconto</label>
+          {/* cupom */}
+          <div className="flex flex-col gap-2 mb-5">
+            <label className="text-xs text-gray-600 font-medium uppercase tracking-wide flex items-center gap-1.5">
+              <Tag size={12} /> Cupom de desconto
+            </label>
             <div className="flex gap-2">
               <input
                 value={codigoCupom}
                 onChange={(e) => { setCodigoCupom(e.target.value.toUpperCase()); setErroCupom(""); setCupomAplicado(null); }}
                 placeholder="ex: ORTEGA10"
                 disabled={!!cupomAplicado}
-                className="flex-1 border border-gray-200 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-[#b8944a] disabled:bg-gray-50"
+                className={`${inp} flex-1 font-mono disabled:opacity-50`}
               />
               {cupomAplicado ? (
                 <button
                   onClick={() => { setCupomAplicado(null); setCodigoCupom(""); }}
-                  className="px-3 py-2 text-xs text-red-500 border border-red-200 rounded hover:bg-red-50 transition"
+                  className="px-3 py-2 text-xs text-red-400 border border-red-800/50 rounded hover:bg-red-900/20 transition"
                 >
                   Remover
                 </button>
@@ -444,30 +490,56 @@ export default function AgendamentoPage() {
                 <button
                   onClick={aplicarCupom}
                   disabled={!codigoCupom.trim() || validandoCupom}
-                  className="px-4 py-2 text-sm bg-[#1a1a1a] text-white rounded hover:bg-[#2d2d2d] transition disabled:opacity-40"
+                  className="px-4 py-2 text-sm bg-[#b8944a]/10 border border-[#b8944a]/40 text-[#b8944a] rounded hover:bg-[#b8944a]/20 transition disabled:opacity-40"
                 >
                   {validandoCupom ? "..." : "Aplicar"}
                 </button>
               )}
             </div>
-            {erroCupom && <p className="text-xs text-red-500">{erroCupom}</p>}
+            {erroCupom && <p className="text-xs text-red-400">{erroCupom}</p>}
             {cupomAplicado && (
-              <p className="text-xs text-green-700 font-medium">
+              <p className="text-xs text-green-400 font-medium">
                 ✓ Cupom aplicado! Desconto de {cupomAplicado.tipo === "percentual" ? `${cupomAplicado.valor}%` : `R$ ${cupomAplicado.valor}`}
               </p>
             )}
           </div>
 
+          {/* formulário */}
           <div className="flex flex-col gap-4">
-            <Input label="Nome completo" placeholder="Seu nome" value={nome} onChange={(e) => setNome(e.target.value)} error={erros.nome} />
-            <Input label="Telefone / WhatsApp" placeholder="(11) 99999-9999" value={telefone} onChange={(e) => setTelefone(e.target.value)} error={erros.telefone} />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-400">Nome completo</label>
+              <input
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                placeholder="Seu nome"
+                className={`${inp} ${erros.nome ? "border-red-500" : ""}`}
+              />
+              {erros.nome && <span className="text-xs text-red-400">{erros.nome}</span>}
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-400">Telefone / WhatsApp</label>
+              <input
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+                placeholder="(11) 99999-9999"
+                className={`${inp} ${erros.telefone ? "border-red-500" : ""}`}
+              />
+              {erros.telefone && <span className="text-xs text-red-400">{erros.telefone}</span>}
+            </div>
             <div className="flex gap-3 mt-2">
-              <button onClick={() => setStep("calendario")} className="flex-1 py-3 border border-gray-200 text-sm text-gray-500 hover:border-gray-400 transition">
+              <button
+                onClick={() => setStep("calendario")}
+                className="flex-1 py-3 border border-[#2d2d2d] text-sm text-gray-500 rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition"
+              >
                 ← Voltar
               </button>
-              <Button onClick={confirmarAgendamento} disabled={salvando} className="flex-1">
+              <button
+                onClick={confirmarAgendamento}
+                disabled={salvando}
+                className="flex-1 py-3 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-lg hover:bg-[#c9a84c] transition disabled:opacity-50"
+              >
                 {salvando ? "Enviando..." : "Confirmar agendamento"}
-              </Button>
+              </button>
             </div>
           </div>
         </div>
@@ -479,9 +551,8 @@ export default function AgendamentoPage() {
   const statusConfig = STATUS_CONFIG[statusAtual as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pendente;
 
   return (
-    <section className="min-h-screen pt-28 pb-24 bg-white">
+    <section className="min-h-screen pt-28 pb-24 bg-[#0A0A0A]">
       <div className="max-w-xl mx-auto px-6 flex flex-col gap-5">
-        {/* card de status — atualiza em tempo real */}
         <div className={`border rounded-lg p-5 flex items-start gap-4 ${statusConfig.cor}`}>
           <span className="text-2xl">{statusConfig.icone}</span>
           <div>
@@ -493,28 +564,27 @@ export default function AgendamentoPage() {
           </div>
         </div>
 
-        {/* resumo do agendamento */}
-        <div className="bg-[#1a1a1a] p-6 flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-white">Resumo do agendamento</h2>
-          <div className="text-sm text-gray-400 flex flex-col gap-1">
-            <p>Nome: <strong className="text-white">{selecao.nome}</strong></p>
+        <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-6 flex flex-col gap-4">
+          <h2 className="text-lg font-bold text-[#F5E6C8]">Resumo do agendamento</h2>
+          <div className="text-sm text-gray-500">
+            <p>Nome: <strong className="text-[#F5E6C8]">{selecao.nome}</strong></p>
           </div>
-          <div className="bg-[#2d2d2d] p-4 flex flex-col gap-1.5 text-sm">
+          <div className="bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg p-4 flex flex-col gap-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-400">Serviço</span>
+              <span className="text-gray-500">Serviço</span>
               <span className="text-[#b8944a] font-medium">{selecao.servico}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400">Data</span>
-              <span className="text-white">{dataFormatada}</span>
+              <span className="text-gray-500">Data</span>
+              <span className="text-[#F5E6C8]">{dataFormatada}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400">Horário</span>
-              <span className="text-white">{selecao.horario}</span>
+              <span className="text-gray-500">Horário</span>
+              <span className="text-[#F5E6C8]">{selecao.horario}</span>
             </div>
             {selecao.preco && (
-              <div className="flex justify-between border-t border-[#3d3d3d] pt-2 mt-1">
-                <span className="text-gray-400">Valor</span>
+              <div className="flex justify-between border-t border-[#2d2d2d] pt-2 mt-1">
+                <span className="text-gray-500">Valor</span>
                 <span className="text-[#b8944a] font-semibold">R$ {selecao.preco}</span>
               </div>
             )}
@@ -525,7 +595,7 @@ export default function AgendamentoPage() {
               href={`https://wa.me/5511999999999?text=Olá! Quero confirmar meu agendamento:%0A*${selecao.servico}*%0AData: ${dataFormatada}%0AHorário: ${selecao.horario}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="self-start inline-flex items-center px-6 py-3 bg-[#b8944a] text-white text-sm font-medium hover:bg-[#a07d3a] transition"
+              className="self-start inline-flex items-center px-6 py-3 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded-lg hover:bg-[#c9a84c] transition"
             >
               Falar pelo WhatsApp
             </a>
@@ -541,7 +611,7 @@ export default function AgendamentoPage() {
             setAgendamentoId(null);
             setStatusAtual("pendente");
           }}
-          className="text-sm text-gray-400 hover:text-gray-700 transition text-center"
+          className="text-sm text-gray-600 hover:text-[#b8944a] transition text-center"
         >
           Fazer outro agendamento
         </button>

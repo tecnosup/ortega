@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { demogetAgendamento, demoatualizarAgendamento, demoexcluirAgendamento } from "@/lib/demo-agendamentos";
+import { getAgendamento, atualizarAgendamento, excluirAgendamento } from "@/lib/agendamentos";
 import type { AgendamentoStatus } from "@/lib/agendamentos";
+
+export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const ag = demogetAgendamento(id);
+  const ag = await getAgendamento(id);
   if (!ag) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
   return NextResponse.json(ag);
 }
@@ -15,14 +17,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const body = await req.json() as { status: AgendamentoStatus };
 
-  if (!["confirmado", "cancelado", "pendente", "concluido", "nao_compareceu"].includes(body.status)) {
+  const VALID_STATUS = ["confirmado", "cancelado", "pendente", "concluido", "nao_compareceu"];
+  if (!VALID_STATUS.includes(body.status)) {
     return NextResponse.json({ error: "Status inválido" }, { status: 400 });
   }
 
-  const ag = demogetAgendamento(id);
+  const ag = await getAgendamento(id);
   if (!ag) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
 
-  demoatualizarAgendamento(id, { status: body.status });
+  await atualizarAgendamento(id, { status: body.status });
 
   let whatsappLink: string | null = null;
   const dataFormatada = new Date(ag.data + "T12:00:00").toLocaleDateString("pt-BR", {
@@ -50,12 +53,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   return NextResponse.json({ ok: true, whatsappLink });
 }
 
-// editar serviço, preço e/ou reagendar (data + horario)
 export async function PUT(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const body = await req.json() as { servico?: string; preco?: string; data?: string; horario?: string };
 
-  const ag = demogetAgendamento(id);
+  const ag = await getAgendamento(id);
   if (!ag) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
 
   const patch: Record<string, string> = {};
@@ -64,9 +66,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (body.data !== undefined) patch.data = body.data;
   if (body.horario !== undefined) patch.horario = body.horario;
 
-  demoatualizarAgendamento(id, patch);
+  await atualizarAgendamento(id, patch);
 
-  // Se houve reagendamento, notifica o cliente via WhatsApp
   const reagendou = body.data !== undefined || body.horario !== undefined;
   let whatsappLink: string | null = null;
 
@@ -91,7 +92,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const ok = demoexcluirAgendamento(id);
-  if (!ok) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
+  const ag = await getAgendamento(id);
+  if (!ag) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
+  await excluirAgendamento(id);
   return NextResponse.json({ ok: true });
 }

@@ -1,4 +1,4 @@
-import { adminDb } from "./firebase-admin";
+import { getAdminDb } from "./firebase-admin";
 
 export type AgendamentoStatus = "pendente" | "confirmado" | "cancelado" | "concluido" | "nao_compareceu";
 
@@ -11,13 +11,15 @@ export interface Agendamento {
   data: string;       // "YYYY-MM-DD"
   horario: string;    // "HH:MM"
   status: AgendamentoStatus;
+  cupom?: string;
+  desconto?: number;
   criadoEm: number;
   atualizadoEm: number;
 }
 
 export interface FechamentoDia {
   id: string;
-  data: string;           // "YYYY-MM-DD"
+  data: string;
   agendamentos: Agendamento[];
   totalServicos: number;
   quantidadeAtendidos: number;
@@ -28,26 +30,33 @@ export async function criarAgendamento(
   data: Omit<Agendamento, "id" | "status" | "criadoEm" | "atualizadoEm">
 ): Promise<string> {
   const now = Date.now();
-  const ref = await adminDb.collection("agendamentos").add({
-    ...data,
-    status: "pendente",
-    criadoEm: now,
-    atualizadoEm: now,
-  });
+  const db = getAdminDb();
+  // Remove campos undefined — Firestore rejeita undefined
+  const doc: Record<string, unknown> = { status: "pendente", criadoEm: now, atualizadoEm: now };
+  for (const [k, v] of Object.entries(data)) {
+    if (v !== undefined) doc[k] = v;
+  }
+  const ref = await db.collection("agendamentos").add(doc);
   return ref.id;
 }
 
 export async function listarAgendamentos(): Promise<Agendamento[]> {
-  const snap = await adminDb
+  const db = getAdminDb();
+  const snap = await db
     .collection("agendamentos")
-    .orderBy("data", "desc")
-    .orderBy("horario", "asc")
+    .orderBy("criadoEm", "desc")
     .get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Agendamento));
+  const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Agendamento));
+  // Ordena em memória: data desc, horario asc
+  return docs.sort((a, b) => {
+    if (a.data !== b.data) return b.data.localeCompare(a.data);
+    return a.horario.localeCompare(b.horario);
+  });
 }
 
 export async function getAgendamento(id: string): Promise<Agendamento | null> {
-  const doc = await adminDb.collection("agendamentos").doc(id).get();
+  const db = getAdminDb();
+  const doc = await db.collection("agendamentos").doc(id).get();
   if (!doc.exists) return null;
   return { id: doc.id, ...doc.data() } as Agendamento;
 }
@@ -56,14 +65,17 @@ export async function atualizarAgendamento(
   id: string,
   data: Partial<Omit<Agendamento, "id" | "criadoEm">>
 ): Promise<void> {
-  await adminDb.collection("agendamentos").doc(id).update({
-    ...data,
-    atualizadoEm: Date.now(),
-  });
+  const db = getAdminDb();
+  const patch: Record<string, unknown> = { atualizadoEm: Date.now() };
+  for (const [k, v] of Object.entries(data)) {
+    if (v !== undefined) patch[k] = v;
+  }
+  await db.collection("agendamentos").doc(id).update(patch);
 }
 
 export async function excluirAgendamento(id: string): Promise<void> {
-  await adminDb.collection("agendamentos").doc(id).delete();
+  const db = getAdminDb();
+  await db.collection("agendamentos").doc(id).delete();
 }
 
 export async function fecharCaixaDia(data: string, agendamentos: Agendamento[]): Promise<string> {
@@ -72,7 +84,8 @@ export async function fecharCaixaDia(data: string, agendamentos: Agendamento[]):
     const val = parseFloat(a.preco.replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
     return sum + val;
   }, 0);
-  const ref = await adminDb.collection("fechamentos").add({
+  const db = getAdminDb();
+  const ref = await db.collection("fechamentos").add({
     data,
     agendamentos: concluidos,
     totalServicos: total,
@@ -83,9 +96,10 @@ export async function fecharCaixaDia(data: string, agendamentos: Agendamento[]):
 }
 
 export async function listarFechamentos(): Promise<FechamentoDia[]> {
-  const snap = await adminDb
+  const db = getAdminDb();
+  const snap = await db
     .collection("fechamentos")
-    .orderBy("data", "desc")
+    .orderBy("fechadoEm", "desc")
     .get();
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as FechamentoDia));
 }
