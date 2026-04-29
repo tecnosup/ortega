@@ -39,3 +39,16 @@ export const adminDb = new Proxy({} as Firestore, {
     return (getAdminDb() as unknown as Record<string, unknown>)[prop as string];
   },
 });
+
+const ADMIN_COOKIE = "base_admin_session";
+
+export async function getSessionUser(req: import("next/server").NextRequest): Promise<{ uid: string; admin: boolean } | null> {
+  const session = req.cookies.get(ADMIN_COOKIE)?.value;
+  if (!session) return null;
+  try {
+    const decoded = await getAdminAuth().verifySessionCookie(session, true);
+    return { uid: decoded.uid, admin: !!decoded.admin };
+  } catch {
+    return null;
+  }
+}

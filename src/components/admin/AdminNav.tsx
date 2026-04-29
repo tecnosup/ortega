@@ -4,12 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { LayoutDashboard, Scissors, Settings, ClipboardList, LogOut, CalendarCheck } from "lucide-react";
+import { LayoutDashboard, Scissors, Settings, ClipboardList, LogOut, CalendarCheck, Tag } from "lucide-react";
 
 const links = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/agendamentos", label: "Agendamentos", icon: CalendarCheck },
   { href: "/admin/itens", label: "Serviços", icon: Scissors },
+  { href: "/admin/cupons", label: "Cupons", icon: Tag },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
   { href: "/admin/auditoria", label: "Auditoria", icon: ClipboardList },
 ];

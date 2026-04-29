@@ -81,6 +81,13 @@ interface Selecao {
   telefone: string;
 }
 
+interface CupomAplicado {
+  codigo: string;
+  tipo: "percentual" | "fixo";
+  valor: number;
+  desconto: number;
+}
+
 // ─── componente principal ────────────────────────────────────────────────────
 
 export default function AgendamentoPage() {
@@ -98,6 +105,12 @@ export default function AgendamentoPage() {
   const [salvando, setSalvando] = useState(false);
   const [agendamentoId, setAgendamentoId] = useState<string | null>(null);
   const [statusAtual, setStatusAtual] = useState<Agendamento["status"]>("pendente");
+
+  // cupom
+  const [codigoCupom, setCodigoCupom] = useState("");
+  const [cupomAplicado, setCupomAplicado] = useState<CupomAplicado | null>(null);
+  const [erroCupom, setErroCupom] = useState("");
+  const [validandoCupom, setValidandoCupom] = useState(false);
 
   // polling de status após agendamento criado
   const pollStatus = useCallback(async (id: string) => {
@@ -140,6 +153,31 @@ export default function AgendamentoPage() {
     setSelecao((s) => ({ ...s, data: d, horario: "" }));
   }
 
+  async function aplicarCupom() {
+    if (!codigoCupom.trim()) return;
+    setValidandoCupom(true);
+    setErroCupom("");
+    const res = await fetch(`/api/cupons?codigo=${encodeURIComponent(codigoCupom.trim())}`);
+    const data = await res.json();
+    setValidandoCupom(false);
+    if (!data.valido) {
+      setCupomAplicado(null);
+      setErroCupom(data.mensagem ?? "Cupom inválido");
+      return;
+    }
+    const precoNum = parseFloat(selecao.preco.replace(",", ".")) || 0;
+    const desconto = data.cupom.tipo === "percentual"
+      ? parseFloat(((precoNum * data.cupom.valor) / 100).toFixed(2))
+      : Math.min(data.cupom.valor, precoNum);
+    setCupomAplicado({ codigo: data.cupom.codigo, tipo: data.cupom.tipo, valor: data.cupom.valor, desconto });
+  }
+
+  const precoFinal = (() => {
+    const base = parseFloat(selecao.preco.replace(",", ".")) || 0;
+    if (!cupomAplicado) return base;
+    return Math.max(base - cupomAplicado.desconto, 0);
+  })();
+
   async function confirmarAgendamento() {
     const e: { nome?: string; telefone?: string } = {};
     if (nome.trim().length < 2) e.nome = "Nome obrigatório";
@@ -153,6 +191,8 @@ export default function AgendamentoPage() {
       selecao.data!.getDate()
     );
 
+    const precoFinalStr = precoFinal > 0 ? precoFinal.toFixed(2).replace(".", ",") : selecao.preco;
+
     const res = await fetch("/api/agendamentos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -160,7 +200,8 @@ export default function AgendamentoPage() {
         nome,
         telefone,
         servico: selecao.servico,
-        preco: selecao.preco,
+        preco: precoFinalStr,
+        cupom: cupomAplicado?.codigo ?? null,
         data: dataKey,
         horario: selecao.horario,
       }),
@@ -361,9 +402,59 @@ export default function AgendamentoPage() {
             </div>
             {selecao.preco && (
               <div className="flex justify-between border-t border-gray-200 pt-2 mt-1">
-                <span className="text-gray-500">Valor</span>
-                <span className="font-semibold text-[#b8944a]">R$ {selecao.preco}</span>
+                <span className="text-gray-500">Valor original</span>
+                <span className={`font-semibold ${cupomAplicado ? "line-through text-gray-400" : "text-[#b8944a]"}`}>
+                  R$ {selecao.preco}
+                </span>
               </div>
+            )}
+            {cupomAplicado && (
+              <>
+                <div className="flex justify-between text-green-700">
+                  <span>Cupom <span className="font-mono font-bold">{cupomAplicado.codigo}</span></span>
+                  <span>- R$ {cupomAplicado.desconto.toFixed(2).replace(".", ",")}</span>
+                </div>
+                <div className="flex justify-between border-t border-gray-200 pt-2 mt-1">
+                  <span className="text-gray-500 font-medium">Total</span>
+                  <span className="font-bold text-[#b8944a] text-base">R$ {precoFinal.toFixed(2).replace(".", ",")}</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* campo de cupom */}
+          <div className="flex flex-col gap-2 mb-2">
+            <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Cupom de desconto</label>
+            <div className="flex gap-2">
+              <input
+                value={codigoCupom}
+                onChange={(e) => { setCodigoCupom(e.target.value.toUpperCase()); setErroCupom(""); setCupomAplicado(null); }}
+                placeholder="ex: ORTEGA10"
+                disabled={!!cupomAplicado}
+                className="flex-1 border border-gray-200 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-[#b8944a] disabled:bg-gray-50"
+              />
+              {cupomAplicado ? (
+                <button
+                  onClick={() => { setCupomAplicado(null); setCodigoCupom(""); }}
+                  className="px-3 py-2 text-xs text-red-500 border border-red-200 rounded hover:bg-red-50 transition"
+                >
+                  Remover
+                </button>
+              ) : (
+                <button
+                  onClick={aplicarCupom}
+                  disabled={!codigoCupom.trim() || validandoCupom}
+                  className="px-4 py-2 text-sm bg-[#1a1a1a] text-white rounded hover:bg-[#2d2d2d] transition disabled:opacity-40"
+                >
+                  {validandoCupom ? "..." : "Aplicar"}
+                </button>
+              )}
+            </div>
+            {erroCupom && <p className="text-xs text-red-500">{erroCupom}</p>}
+            {cupomAplicado && (
+              <p className="text-xs text-green-700 font-medium">
+                ✓ Cupom aplicado! Desconto de {cupomAplicado.tipo === "percentual" ? `${cupomAplicado.valor}%` : `R$ ${cupomAplicado.valor}`}
+              </p>
             )}
           </div>
 
@@ -385,7 +476,7 @@ export default function AgendamentoPage() {
   }
 
   // ── STEP: CONFIRMADO + STATUS ──────────────────────────────────────────────
-  const statusConfig = STATUS_CONFIG[statusAtual];
+  const statusConfig = STATUS_CONFIG[statusAtual as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pendente;
 
   return (
     <section className="min-h-screen pt-28 pb-24 bg-white">

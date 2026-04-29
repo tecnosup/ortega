@@ -48,33 +48,47 @@ export default function Servicos({ items }: ServicosProps) {
   const lista = items.length > 0 ? items : PLACEHOLDER_ITEMS;
 
   return (
-    <section id="servicos" className="py-24 bg-gray-50">
+    <section id="servicos" className="py-28 bg-[#0D0D0D] relative">
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/20 to-transparent" />
+
       <div className="max-w-6xl mx-auto px-6">
-        <div className="text-center mb-12">
-          <span className="text-[#b8944a] text-sm font-medium tracking-widest uppercase">O que fazemos</span>
-          <h2 className="text-3xl font-bold text-[#1a1a1a] mt-2">Nossos serviços</h2>
+        <div className="text-center mb-16">
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <span className="w-8 h-px bg-[#C9A84C]" />
+            <span className="text-[#C9A84C] text-xs font-medium tracking-[0.3em] uppercase">O que fazemos</span>
+            <span className="w-8 h-px bg-[#C9A84C]" />
+          </div>
+          <h2 className="text-4xl font-bold text-[#F5E6C8]">Nossos serviços</h2>
         </div>
+
         <div className="grid md:grid-cols-3 gap-6">
-          {lista.map((item) => (
+          {lista.map((item, idx) => (
             <div
               key={item.id}
-              className="bg-white border border-gray-200 p-6 flex flex-col gap-4 hover:border-[#b8944a] transition"
+              className="relative group bg-[#141414] border border-[#C9A84C]/10 p-7 flex flex-col gap-5 hover:border-[#C9A84C]/50 transition-all duration-500 hover:bg-[#141414]"
             >
-              <div className="w-10 h-10 bg-[#1a1a1a] flex items-center justify-center text-[#b8944a]">
-                <Scissors size={20} />
+              {/* número decorativo */}
+              <span className="absolute top-5 right-6 text-5xl font-black text-[#C9A84C]/5 group-hover:text-[#C9A84C]/10 transition-all select-none">
+                {String(idx + 1).padStart(2, "0")}
+              </span>
+
+              <div className="w-12 h-12 bg-[#C9A84C]/10 border border-[#C9A84C]/20 flex items-center justify-center text-[#C9A84C] group-hover:bg-[#C9A84C]/20 transition-all">
+                <Scissors size={22} />
               </div>
-              <h3 className="font-semibold text-[#1a1a1a] text-lg">{item.titulo}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed flex-1">{item.descricao}</p>
-              <div className="flex items-center gap-4 pt-2 border-t border-gray-100 text-sm text-gray-500">
+
+              <h3 className="font-semibold text-[#F5E6C8] text-lg tracking-wide">{item.titulo}</h3>
+              <p className="text-sm text-[#F5E6C8]/40 leading-relaxed flex-1">{item.descricao}</p>
+
+              <div className="flex items-center gap-5 pt-4 border-t border-[#C9A84C]/10 text-sm">
                 {item.preco && (
-                  <span className="flex items-center gap-1 font-semibold text-[#1a1a1a]">
-                    <Tag size={14} className="text-[#b8944a]" />
+                  <span className="flex items-center gap-1.5 font-bold text-[#C9A84C]">
+                    <Tag size={13} />
                     {item.preco.startsWith("A") ? item.preco : `R$ ${item.preco}`}
                   </span>
                 )}
                 {item.duracao && (
-                  <span className="flex items-center gap-1">
-                    <Clock size={14} className="text-[#b8944a]" />
+                  <span className="flex items-center gap-1.5 text-[#F5E6C8]/30">
+                    <Clock size={13} />
                     {item.duracao}
                   </span>
                 )}
@@ -82,10 +96,11 @@ export default function Servicos({ items }: ServicosProps) {
             </div>
           ))}
         </div>
-        <div className="text-center mt-10">
+
+        <div className="text-center mt-14">
           <a
             href="/agendamento"
-            className="inline-flex items-center px-8 py-3 bg-[#b8944a] text-white text-sm font-medium hover:bg-[#a07d3a] transition"
+            className="inline-flex items-center px-10 py-4 bg-[#C9A84C] text-[#0A0A0A] text-sm font-bold tracking-widest uppercase hover:bg-[#E2C06A] transition-all duration-300"
           >
             Agendar agora
           </a>
