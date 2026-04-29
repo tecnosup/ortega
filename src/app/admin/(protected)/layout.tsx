@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import AdminAuthGuard from "@/components/admin/AdminAuthGuard";
 import AdminNav from "@/components/admin/AdminNav";
 

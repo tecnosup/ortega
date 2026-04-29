@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from "react";
 
 // DEMO MODE: auditoria simulada em memória — conectar ao Firestore na produção
