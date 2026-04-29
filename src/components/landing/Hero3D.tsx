@@ -40,10 +40,18 @@ function Knight() {
   const { scene } = useGLTF("/plated_knight_-_medieval.glb");
   const ref = useRef<THREE.Group>(null!);
 
-  // rotação contínua — 1 volta a cada ~20s
-  useFrame((_, delta) => {
-    if (ref.current) ref.current.rotation.y += delta * 0.32;
-  });
+  // calcula bounding box para normalizar o tamanho do modelo automaticamente
+  const { scale, center } = useMemo(() => {
+    const box = new THREE.Box3().setFromObject(scene);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    // normaliza para caber em ~2.8 unidades de altura
+    const s = 2.8 / maxDim;
+    const c = new THREE.Vector3();
+    box.getCenter(c);
+    return { scale: s, center: c };
+  }, [scene]);
 
   // ajusta materiais para aspecto metálico dramático
   useMemo(() => {
@@ -59,8 +67,13 @@ function Knight() {
     });
   }, [scene]);
 
+  // rotação contínua — 1 volta a cada ~20s
+  useFrame((_, delta) => {
+    if (ref.current) ref.current.rotation.y += delta * 0.32;
+  });
+
   return (
-    <group ref={ref}>
+    <group ref={ref} scale={scale} position={[-center.x * scale, -center.y * scale, -center.z * scale]}>
       <primitive object={scene} />
     </group>
   );
@@ -104,9 +117,9 @@ function Scene() {
 
 export default function Hero3D() {
   return (
-    <div className="w-full h-full" style={{ pointerEvents: "none" }}>
+    <div className="absolute inset-0" style={{ pointerEvents: "none" }}>
       <Canvas
-        camera={{ position: [0, 1.2, 5], fov: 42 }}
+        camera={{ position: [0, 0, 6], fov: 40 }}
         gl={{
           antialias: true,
           alpha: true,
