@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { getPublishedItems } from "@/lib/admin-items";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const items = await getPublishedItems();
-  return NextResponse.json({ items });
+  try {
+    const items = await getPublishedItems();
+    return NextResponse.json({ items });
+  } catch {
+    return NextResponse.json({ items: [] });
+  }
 }

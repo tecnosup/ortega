@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 const FALLBACK = [
   { id: "1", nome: "Ricardo Alves", texto: "Melhor barbearia da região! O Igor tem uma habilidade incrível com a navalha. Saio sempre renovado e bem tratado.", estrelas: 5 },
