@@ -36,10 +36,13 @@ export async function createItemAction(
 ): Promise<ActionResult> {
   const parsed = schema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, error: "Dados inválidos" };
-
-  const actor = await getActor();
-  const id = await createItem(parsed.data);
-  await logAudit({ ...actor, action: "item.create", entity: "item", entityId: id });
+  try {
+    const actor = await getActor();
+    const id = await createItem(parsed.data);
+    await logAudit({ ...actor, action: "item.create", entity: "item", entityId: id });
+  } catch {
+    return { ok: false, error: "Erro ao salvar. Tente novamente." };
+  }
   redirect("/admin/itens");
 }
 
@@ -50,17 +53,24 @@ export async function updateItemAction(
   const id = formData.get("id") as string;
   const parsed = schema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, error: "Dados inválidos" };
-
-  const actor = await getActor();
-  await updateItem(id, parsed.data);
-  await logAudit({ ...actor, action: "item.update", entity: "item", entityId: id });
+  try {
+    const actor = await getActor();
+    await updateItem(id, parsed.data);
+    await logAudit({ ...actor, action: "item.update", entity: "item", entityId: id });
+  } catch {
+    return { ok: false, error: "Erro ao atualizar. Tente novamente." };
+  }
   redirect("/admin/itens");
 }
 
 export async function deleteItemAction(formData: FormData) {
   const id = formData.get("id") as string;
-  const actor = await getActor();
-  await deleteItem(id);
-  await logAudit({ ...actor, action: "item.delete", entity: "item", entityId: id });
+  try {
+    const actor = await getActor();
+    await deleteItem(id);
+    await logAudit({ ...actor, action: "item.delete", entity: "item", entityId: id });
+  } catch {
+    // silencia erro de delete — redireciona de qualquer forma
+  }
   redirect("/admin/itens");
 }

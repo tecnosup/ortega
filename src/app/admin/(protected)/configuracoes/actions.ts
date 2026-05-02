@@ -30,9 +30,13 @@ type ActionResult = { ok: true } | { ok: false; error: string } | null;
 export async function saveConfiguracoesAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
   const parsed = schema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, error: "Dados inválidos" };
-  await updateLandingSettings(parsed.data);
-  const actor = await getActor();
-  await logAudit({ ...actor, action: "settings.update", entity: "settings", entityId: "landing" });
+  try {
+    await updateLandingSettings(parsed.data);
+    const actor = await getActor();
+    await logAudit({ ...actor, action: "settings.update", entity: "settings", entityId: "landing" });
+  } catch {
+    return { ok: false, error: "Erro ao salvar. Tente novamente." };
+  }
   return { ok: true };
 }
 
