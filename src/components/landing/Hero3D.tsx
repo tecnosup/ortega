@@ -59,6 +59,8 @@ function Knight() {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         mesh.castShadow = true;
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
         if (mesh.material) {
           const mat = mesh.material as THREE.MeshStandardMaterial;
           mat.envMapIntensity = 2.0;
@@ -87,7 +89,7 @@ function Scene() {
       <ambientLight intensity={0.15} color="#1a2035" />
 
       {/* luz principal fria — lateral direita, simula luz estelar */}
-      <directionalLight position={[5, 4, 3]} intensity={4.5} color="#D0E0FF" castShadow />
+      <directionalLight position={[5, 4, 3]} intensity={4.5} color="#D0E0FF" />
 
       {/* rim laranja — reflete capa/detalhes */}
       <directionalLight position={[-3, 1, -2]} intensity={2.0} color="#E06820" />
@@ -126,7 +128,6 @@ export default function Hero3D() {
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 1.6,
         }}
-        shadows
         style={{ background: "transparent" }}
       >
         <Scene />
