@@ -36,4 +36,4 @@ export async function saveConfiguracoesAction(_: ActionResult, formData: FormDat
   return { ok: true };
 }
 
-export { saveConfiguracoesAction as updateSettingsAction };
+export const updateSettingsAction = saveConfiguracoesAction;
