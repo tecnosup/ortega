@@ -1,9 +1,7 @@
-"use client";
-
-export const dynamic = 'force-dynamic';
-
-import { useState } from "react";
 import { ShieldCheck } from "lucide-react";
+import { adminDb } from "@/lib/firebase-admin";
+
+export const dynamic = "force-dynamic";
 
 interface AuditLog {
   id: string;
@@ -11,18 +9,7 @@ interface AuditLog {
   action: string;
   entity: string;
   entityId: string;
-  createdAt: number;
-}
-
-const DEMO_LOGS: AuditLog[] = [
-  { id: "1", actorEmail: "admin@ortegabarber.com.br", action: "item.create", entity: "servico", entityId: "abc123", createdAt: Date.now() - 1000 * 60 * 5 },
-  { id: "2", actorEmail: "admin@ortegabarber.com.br", action: "item.update", entity: "servico", entityId: "abc123", createdAt: Date.now() - 1000 * 60 * 30 },
-  { id: "3", actorEmail: "admin@ortegabarber.com.br", action: "settings.update", entity: "settings", entityId: "landing", createdAt: Date.now() - 1000 * 60 * 60 * 2 },
-  { id: "4", actorEmail: "admin@ortegabarber.com.br", action: "item.delete", entity: "servico", entityId: "xyz456", createdAt: Date.now() - 1000 * 60 * 60 * 5 },
-];
-
-function formatDate(ts: number) {
-  return new Date(ts).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  createdAt: { _seconds: number } | number | null;
 }
 
 const ACTION_COLOR: Record<string, string> = {
@@ -32,8 +19,20 @@ const ACTION_COLOR: Record<string, string> = {
   "settings.update": "text-blue-400",
 };
 
-export default function AuditoriaPage() {
-  const [logs] = useState<AuditLog[]>(DEMO_LOGS);
+function formatDate(ts: { _seconds: number } | number | null) {
+  if (!ts) return "—";
+  const ms = typeof ts === "number" ? ts : ts._seconds * 1000;
+  return new Date(ms).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
+export default async function AuditoriaPage() {
+  const snap = await adminDb
+    .collection("auditLogs")
+    .orderBy("createdAt", "desc")
+    .limit(100)
+    .get();
+
+  const logs: AuditLog[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AuditLog));
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-6">
@@ -42,12 +41,8 @@ export default function AuditoriaPage() {
         <h1 className="text-2xl font-bold text-[#F5E6C8]">Auditoria</h1>
       </div>
 
-      <p className="text-sm text-[#b8944a]/80 bg-[#b8944a]/10 border border-[#b8944a]/20 rounded-lg px-4 py-2.5">
-        Modo demo — logs simulados. Conecte o Firestore para ver ações reais.
-      </p>
-
       {logs.length === 0 ? (
-        <p className="text-gray-500 text-sm">Nenhuma ação registrada.</p>
+        <p className="text-gray-500 text-sm">Nenhuma ação registrada ainda.</p>
       ) : (
         <div className="bg-[#111] border border-[#2d2d2d] rounded-lg divide-y divide-[#1a1a1a]">
           {logs.map((log) => (
@@ -57,7 +52,8 @@ export default function AuditoriaPage() {
                   {log.action}
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {log.actorEmail} · {log.entity} <span className="text-gray-600 font-mono">{log.entityId}</span>
+                  {log.actorEmail} · {log.entity}{" "}
+                  <span className="text-gray-600 font-mono">{log.entityId}</span>
                 </p>
               </div>
               <span className="text-xs text-gray-600 whitespace-nowrap shrink-0">{formatDate(log.createdAt)}</span>

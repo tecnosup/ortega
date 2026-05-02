@@ -1,51 +1,70 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { demoServicos } from "@/lib/demo-data";
+export const dynamic = "force-dynamic";
+
+import { useActionState, useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { updateItemAction } from "../../actions";
+import type { Item } from "@/lib/admin-items";
 
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] placeholder-gray-600 focus:outline-none focus:border-[#b8944a] transition";
 
 export default function EditarItemPage() {
-  const router = useRouter();
   const params = useParams();
   const id = params.id as string;
 
-  const item = demoServicos.find((s) => s.id === id);
-  const [salvando, setSalvando] = useState(false);
+  const [item, setItem] = useState<Item | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [imageUrl, setImageUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [state, formAction, pending] = useActionState(updateItemAction, null);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setSalvando(true);
-    await new Promise((r) => setTimeout(r, 400));
-    setSalvando(false);
-    router.push("/admin/itens");
+  useEffect(() => {
+    fetch(`/api/admin/itens/${id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setItem(data.item);
+        setImageUrl(data.item?.imagem ?? "");
+        setLoading(false);
+      });
+  }, [id]);
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+    const data = await res.json();
+    if (data.url) setImageUrl(data.url);
+    setUploading(false);
   }
 
-  if (!item) {
-    return (
-      <div className="max-w-xl mx-auto">
-        <p className="text-gray-500 text-sm">Serviço não encontrado.</p>
-      </div>
-    );
-  }
+  if (loading) return <p className="text-gray-500 text-sm">Carregando...</p>;
+  if (!item) return <p className="text-gray-500 text-sm">Serviço não encontrado.</p>;
 
   return (
     <div className="max-w-xl mx-auto flex flex-col gap-6">
       <h1 className="text-2xl font-bold text-[#F5E6C8]">Editar serviço</h1>
 
-      <p className="text-sm text-[#b8944a]/80 bg-[#b8944a]/10 border border-[#b8944a]/20 rounded-lg px-4 py-2.5">
-        Modo demo — alterações não são persistidas. Conecte o Firestore para salvar de verdade.
-      </p>
+      <form action={formAction} className="flex flex-col gap-5">
+        <input type="hidden" name="id" value={item.id} />
+        <input type="hidden" name="imagem" value={imageUrl} />
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Título *</label>
-          <input name="titulo" defaultValue={item.titulo} required className={inp} />
+          <input name="titulo" required defaultValue={item.titulo} className={inp} />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Descrição</label>
           <textarea name="descricao" rows={3} defaultValue={item.descricao} className={`${inp} resize-none`} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-400">Imagem</label>
+          {imageUrl && <img src={imageUrl} alt="preview" className="w-32 h-20 object-cover rounded border border-[#2d2d2d] mb-1" />}
+          <input type="file" accept="image/*" onChange={handleUpload} className="text-sm text-gray-500 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-[#1a1a1a] file:text-gray-400 hover:file:bg-[#252525]" />
+          {uploading && <span className="text-xs text-gray-500">Enviando...</span>}
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Preço</label>
@@ -66,12 +85,17 @@ export default function EditarItemPage() {
           <label className="text-sm font-medium text-gray-400">Ordem</label>
           <input name="order" type="number" defaultValue={item.order} className={inp} />
         </div>
+
+        {state && !state.ok && (
+          <p className="text-sm text-red-400">{state.error}</p>
+        )}
+
         <button
           type="submit"
-          disabled={salvando}
+          disabled={pending || uploading}
           className="py-3 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded hover:bg-[#c9a84c] transition disabled:opacity-50"
         >
-          {salvando ? "Salvando..." : "Salvar alterações"}
+          {pending ? "Salvando..." : "Salvar alterações"}
         </button>
       </form>
     </div>

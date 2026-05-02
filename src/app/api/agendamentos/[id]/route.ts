@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAgendamento, atualizarAgendamento, excluirAgendamento } from "@/lib/agendamentos";
 import type { AgendamentoStatus } from "@/lib/agendamentos";
+import { getSessionUser } from "@/lib/firebase-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
+  const user = await getSessionUser(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   const body = await req.json() as { status: AgendamentoStatus };
 
@@ -54,6 +57,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
+  const user = await getSessionUser(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   const body = await req.json() as { servico?: string; preco?: string; data?: string; horario?: string };
 
@@ -90,7 +95,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
   return NextResponse.json({ ok: true, whatsappLink });
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
+  const user = await getSessionUser(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   const ag = await getAgendamento(id);
   if (!ag) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });

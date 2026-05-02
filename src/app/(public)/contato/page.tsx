@@ -24,27 +24,31 @@ export default function ContatoPage() {
   });
 
   async function onSubmit(data: FormData) {
-    await fetch("/api/contato", {
+    const res = await fetch("/api/contato", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    // TODO: plugar fluxo de conversão — WhatsApp, gateway, agendamento, e-mail, etc.
+    const json = await res.json();
+    if (json.whatsappUrl) window.open(json.whatsappUrl, "_blank");
     setSent(true);
   }
 
   return (
-    <section className="min-h-screen pt-28 pb-24 bg-white">
-      <div className="max-w-xl mx-auto px-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Contato</h1>
-        <p className="text-gray-500 mb-10">
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+    <section className="min-h-screen pt-24 pb-16 bg-[#0A0A0A]">
+      <div className="max-w-xl mx-auto px-4 sm:px-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mb-2">Contato</h1>
+        <p className="text-[#F5E6C8]/50 mb-8 text-sm sm:text-base">
+          Preencha o formulário e entraremos em contato pelo WhatsApp.
         </p>
 
         {sent ? (
-          <p className="text-gray-900 font-medium">Mensagem enviada! Em breve entraremos em contato.</p>
+          <div className="bg-[#b8944a]/10 border border-[#b8944a]/30 rounded-lg px-5 py-6 text-center">
+            <p className="text-[#b8944a] font-semibold text-lg mb-1">Mensagem enviada!</p>
+            <p className="text-[#F5E6C8]/60 text-sm">Em breve entraremos em contato pelo WhatsApp.</p>
+          </div>
         ) : (
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 sm:gap-5">
             <Input label="Nome" placeholder="Seu nome" {...register("nome")} error={errors.nome?.message} />
             <Input label="E-mail" type="email" placeholder="seu@email.com" {...register("email")} error={errors.email?.message} />
             <Input label="Telefone" placeholder="(11) 99999-9999" {...register("telefone")} error={errors.telefone?.message} />

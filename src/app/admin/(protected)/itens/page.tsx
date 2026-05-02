@@ -1,20 +1,12 @@
-"use client";
-
-export const dynamic = 'force-dynamic';
-
-import { useState } from "react";
+import { getItems } from "@/lib/admin-items";
+import { deleteItemAction } from "./actions";
 import Link from "next/link";
 import { Plus, Edit2, Trash2, Layers } from "lucide-react";
-import type { Item } from "@/lib/admin-items";
-import { demoServicos } from "@/lib/demo-data";
 
-export default function ItensPage() {
-  const [items, setItems] = useState<Item[]>(demoServicos);
+export const dynamic = "force-dynamic";
 
-  function excluir(id: string) {
-    if (!confirm("Remover este serviço?")) return;
-    setItems((prev) => prev.filter((i) => i.id !== id));
-  }
+export default async function ItensPage() {
+  const items = await getItems();
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-6">
@@ -30,10 +22,6 @@ export default function ItensPage() {
           <Plus size={16} /> Novo serviço
         </Link>
       </div>
-
-      <p className="text-sm text-[#b8944a]/80 bg-[#b8944a]/10 border border-[#b8944a]/20 rounded-lg px-4 py-2.5">
-        Modo demo — alterações não são persistidas. Conecte o Firestore para salvar de verdade.
-      </p>
 
       {items.length === 0 ? (
         <p className="text-gray-500 text-sm">Nenhum serviço cadastrado.</p>
@@ -59,12 +47,16 @@ export default function ItensPage() {
                 >
                   <Edit2 size={12} /> Editar
                 </Link>
-                <button
-                  onClick={() => excluir(item.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2d2d2d] text-gray-500 text-xs rounded hover:border-red-700 hover:text-red-400 transition"
-                >
-                  <Trash2 size={12} /> Excluir
-                </button>
+                <form action={deleteItemAction}>
+                  <input type="hidden" name="id" value={item.id} />
+                  <button
+                    type="submit"
+                    onClick={(e) => { if (!confirm("Remover este serviço?")) e.preventDefault(); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2d2d2d] text-gray-500 text-xs rounded hover:border-red-700 hover:text-red-400 transition"
+                  >
+                    <Trash2 size={12} /> Excluir
+                  </button>
+                </form>
               </div>
             </div>
           ))}

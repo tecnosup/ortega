@@ -1,33 +1,36 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useActionState, useState } from "react";
+import { createItemAction } from "../actions";
 
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] placeholder-gray-600 focus:outline-none focus:border-[#b8944a] transition";
 
 export default function NovoItemPage() {
-  const router = useRouter();
-  const [salvando, setSalvando] = useState(false);
+  const [state, formAction, pending] = useActionState(createItemAction, null);
+  const [imageUrl, setImageUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setSalvando(true);
-    await new Promise((r) => setTimeout(r, 400));
-    setSalvando(false);
-    router.push("/admin/itens");
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+    const data = await res.json();
+    if (data.url) setImageUrl(data.url);
+    setUploading(false);
   }
 
   return (
     <div className="max-w-xl mx-auto flex flex-col gap-6">
       <h1 className="text-2xl font-bold text-[#F5E6C8]">Novo serviço</h1>
 
-      <p className="text-sm text-[#b8944a]/80 bg-[#b8944a]/10 border border-[#b8944a]/20 rounded-lg px-4 py-2.5">
-        Modo demo — serviço não será salvo. Conecte o Firestore para persistir.
-      </p>
+      <form action={formAction} className="flex flex-col gap-5">
+        <input type="hidden" name="imagem" value={imageUrl} />
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Título *</label>
           <input name="titulo" required placeholder="ex: Corte degradê" className={inp} />
@@ -35,6 +38,12 @@ export default function NovoItemPage() {
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Descrição</label>
           <textarea name="descricao" rows={3} placeholder="Descrição do serviço..." className={`${inp} resize-none`} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-400">Imagem</label>
+          {imageUrl && <img src={imageUrl} alt="preview" className="w-32 h-20 object-cover rounded border border-[#2d2d2d] mb-1" />}
+          <input type="file" accept="image/*" onChange={handleUpload} className="text-sm text-gray-500 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-[#1a1a1a] file:text-gray-400 hover:file:bg-[#252525]" />
+          {uploading && <span className="text-xs text-gray-500">Enviando...</span>}
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Preço</label>
@@ -55,12 +64,17 @@ export default function NovoItemPage() {
           <label className="text-sm font-medium text-gray-400">Ordem</label>
           <input name="order" type="number" defaultValue={0} className={inp} />
         </div>
+
+        {state && !state.ok && (
+          <p className="text-sm text-red-400">{state.error}</p>
+        )}
+
         <button
           type="submit"
-          disabled={salvando}
+          disabled={pending || uploading}
           className="py-3 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded hover:bg-[#c9a84c] transition disabled:opacity-50"
         >
-          {salvando ? "Salvando..." : "Salvar serviço"}
+          {pending ? "Salvando..." : "Salvar serviço"}
         </button>
       </form>
     </div>

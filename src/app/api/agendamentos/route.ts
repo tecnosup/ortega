@@ -21,7 +21,11 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ id });
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const data = req.nextUrl.searchParams.get("data");
   const agendamentos = await listarAgendamentos();
+  if (data) {
+    return NextResponse.json(agendamentos.filter((a) => a.data === data && a.status !== "cancelado"));
+  }
   return NextResponse.json(agendamentos);
 }

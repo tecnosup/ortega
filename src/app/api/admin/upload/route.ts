@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cloudinary } from "@/lib/cloudinary";
+import { getSessionUser } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
+  const user = await getSessionUser(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
 

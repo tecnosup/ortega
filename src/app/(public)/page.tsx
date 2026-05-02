@@ -3,11 +3,16 @@ import Sobre from "@/components/landing/Sobre";
 import Servicos from "@/components/landing/Servicos";
 import Depoimentos from "@/components/landing/Depoimentos";
 import CtaFinal from "@/components/landing/CtaFinal";
-import { demoSettings, demoServicos } from "@/lib/demo-data";
+import { getLandingSettings } from "@/lib/admin-settings";
+import { getPublishedItems } from "@/lib/admin-items";
 
-export default function HomePage() {
-  const settings = demoSettings;
-  const items = demoServicos;
+export const revalidate = 60;
+
+export default async function HomePage() {
+  const [settings, items] = await Promise.all([
+    getLandingSettings(),
+    getPublishedItems(),
+  ]);
 
   return (
     <>

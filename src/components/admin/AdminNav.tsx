@@ -15,19 +15,22 @@ const links = [
   { href: "/admin/agendamentos",  label: "Agendamentos", icon: CalendarCheck   },
   { href: "/admin/itens",         label: "Serviços",     icon: Scissors        },
   { href: "/admin/cupons",        label: "Cupons",       icon: Tag             },
-  { href: "/admin/configuracoes", label: "Configurações",icon: Settings        },
+  { href: "/admin/configuracoes", label: "Config",       icon: Settings        },
   { href: "/admin/auditoria",     label: "Auditoria",    icon: ClipboardList   },
 ];
+
+// links que aparecem na bottom bar mobile (os 4 mais usados)
+const bottomLinks = links.slice(0, 4);
+// "Mais" abre drawer com o restante
+const drawerLinks = links;
 
 export default function AdminNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
-  // fecha o drawer ao navegar
   useEffect(() => { setOpen(false); }, [pathname]);
 
-  // bloqueia scroll do body quando drawer aberto
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
@@ -39,31 +42,25 @@ export default function AdminNav() {
     router.replace("/admin/login");
   }
 
-  const navContent = (
+  const sidebarContent = (
     <div className="flex flex-col h-full">
-      <div className="p-6 border-b border-[#2d2d2d] flex items-center justify-between">
-        <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">
-          Ortega Barber
-        </span>
-        {/* botão fechar — só aparece no drawer mobile */}
-        <button
-          onClick={() => setOpen(false)}
-          className="md:hidden p-1 text-gray-500 hover:text-white transition"
-        >
-          <X size={20} />
+      <div className="p-5 border-b border-[#2d2d2d] flex items-center justify-between">
+        <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega Barber</span>
+        <button onClick={() => setOpen(false)} className="md:hidden p-1.5 text-gray-500 hover:text-white transition rounded-lg hover:bg-[#2d2d2d]">
+          <X size={18} />
         </button>
       </div>
 
-      <nav className="flex-1 p-4 flex flex-col gap-1">
+      <nav className="flex-1 p-3 flex flex-col gap-0.5">
         {links.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded text-sm transition ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
                 active
-                  ? "bg-[#2d2d2d] text-[#b8944a] font-medium"
+                  ? "bg-[#b8944a]/15 text-[#b8944a] font-medium"
                   : "text-gray-400 hover:text-white hover:bg-[#2d2d2d]"
               }`}
             >
@@ -74,10 +71,10 @@ export default function AdminNav() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-[#2d2d2d]">
+      <div className="p-3 border-t border-[#2d2d2d]">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2 text-sm text-gray-400 hover:text-red-400 transition w-full"
+          className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-400 hover:text-red-400 hover:bg-red-900/10 transition w-full rounded-lg"
         >
           <LogOut size={16} />
           Sair
@@ -90,38 +87,63 @@ export default function AdminNav() {
     <>
       {/* ── DESKTOP: sidebar fixa ── */}
       <aside className="hidden md:flex w-56 bg-[#111] border-r border-[#2d2d2d] flex-col min-h-screen shrink-0">
-        {navContent}
+        {sidebarContent}
       </aside>
 
-      {/* ── MOBILE: topbar com hamburger ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#111] border-b border-[#2d2d2d] flex items-center justify-between px-4 h-14">
-        <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">
-          Ortega Barber
-        </span>
+      {/* ── MOBILE: topbar com título + botão menu ── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-b border-[#2d2d2d] flex items-center justify-between px-4 h-14">
+        <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega</span>
         <button
           onClick={() => setOpen(true)}
           className="p-2 text-gray-400 hover:text-white transition"
-          aria-label="Abrir menu"
+          aria-label="Menu"
         >
           <Menu size={22} />
         </button>
       </div>
 
-      {/* ── MOBILE: overlay escuro ── */}
+      {/* ── MOBILE: bottom navigation bar ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-t border-[#2d2d2d] flex items-stretch h-16 safe-area-inset-bottom">
+        {bottomLinks.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition ${
+                active ? "text-[#b8944a]" : "text-gray-600 hover:text-gray-400"
+              }`}
+            >
+              <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
+              <span>{label}</span>
+            </Link>
+          );
+        })}
+        {/* botão "Mais" para o drawer */}
+        <button
+          onClick={() => setOpen(true)}
+          className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-gray-600 hover:text-gray-400 transition"
+        >
+          <Menu size={20} strokeWidth={1.8} />
+          <span>Mais</span>
+        </button>
+      </nav>
+
+      {/* ── MOBILE: overlay ── */}
       {open && (
         <div
-          className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          className="md:hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
           onClick={() => setOpen(false)}
         />
       )}
 
-      {/* ── MOBILE: drawer deslizante ── */}
+      {/* ── MOBILE: drawer lateral completo ── */}
       <aside
-        className={`md:hidden fixed top-0 left-0 z-50 h-full w-64 bg-[#111] border-r border-[#2d2d2d] flex flex-col transition-transform duration-300 ${
+        className={`md:hidden fixed top-0 left-0 z-50 h-full w-72 bg-[#111] border-r border-[#2d2d2d] flex flex-col transition-transform duration-300 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {navContent}
+        {sidebarContent}
       </aside>
     </>
   );

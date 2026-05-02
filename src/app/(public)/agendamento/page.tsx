@@ -2,10 +2,11 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Check, Tag } from "lucide-react";
-import { HORARIO_FUNCIONAMENTO, AGENDAMENTOS_DEMO, demoServicos } from "@/lib/demo-data";
+import { HORARIO_FUNCIONAMENTO } from "@/lib/demo-data";
+import type { Item } from "@/lib/admin-items";
 import type { Agendamento } from "@/lib/agendamentos";
 
-// ─── helpers ────────────────────────────────────────────────────────────────
+// ─── helpers ─────────────────────────────────────────────────────────────────
 
 function toDateKey(year: number, month: number, day: number) {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -22,24 +23,6 @@ function gerarSlots(inicio: string, fim: string): string[] {
     mins += 30;
   }
   return slots;
-}
-
-function getSlotsDisponiveis(dateKey: string, diaSemana: number): string[] {
-  const horario = HORARIO_FUNCIONAMENTO[diaSemana];
-  if (!horario) return [];
-  const todos = gerarSlots(horario.inicio, horario.fim);
-  const ocupados = AGENDAMENTOS_DEMO[dateKey] ?? [];
-  return todos.filter((s) => !ocupados.includes(s));
-}
-
-function getDisponibilidade(dateKey: string, diaSemana: number): "livre" | "parcial" | "lotado" | "fechado" {
-  const horario = HORARIO_FUNCIONAMENTO[diaSemana];
-  if (!horario) return "fechado";
-  const todos = gerarSlots(horario.inicio, horario.fim);
-  const disponiveis = getSlotsDisponiveis(dateKey, diaSemana);
-  if (disponiveis.length === 0) return "lotado";
-  if (disponiveis.length < todos.length * 0.4) return "parcial";
-  return "livre";
 }
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -66,11 +49,7 @@ const STATUS_CONFIG = {
   },
 };
 
-// ─── shared style tokens ─────────────────────────────────────────────────────
-
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2.5 text-sm text-[#F5E6C8] placeholder-gray-600 focus:outline-none focus:border-[#b8944a] transition";
-
-// ─── tipos ───────────────────────────────────────────────────────────────────
 
 type Step = "servico" | "calendario" | "dados" | "confirmado";
 
@@ -89,8 +68,6 @@ interface CupomAplicado {
   valor: number;
   desconto: number;
 }
-
-// ─── step indicator ──────────────────────────────────────────────────────────
 
 function StepIndicator({ atual }: { atual: 1 | 2 | 3 }) {
   return (
@@ -111,13 +88,15 @@ function StepIndicator({ atual }: { atual: 1 | 2 | 3 }) {
   );
 }
 
-// ─── componente principal ────────────────────────────────────────────────────
+// ─── componente principal ─────────────────────────────────────────────────────
 
 export default function AgendamentoPage() {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
   const [step, setStep] = useState<Step>("servico");
+  const [servicos, setServicos] = useState<Item[]>([]);
+  const [whatsappNumber, setWhatsappNumber] = useState("5511999999999");
   const [selecao, setSelecao] = useState<Selecao>({
     servico: "", preco: "", data: null, horario: "", nome: "", telefone: "",
   });
@@ -129,11 +108,53 @@ export default function AgendamentoPage() {
   const [agendamentoId, setAgendamentoId] = useState<string | null>(null);
   const [statusAtual, setStatusAtual] = useState<Agendamento["status"]>("pendente");
 
+  // slots ocupados por data (cache local)
+  const [slotsOcupados, setSlotsOcupados] = useState<Record<string, string[]>>({});
+  const [carregandoSlots, setCarregandoSlots] = useState(false);
+
   // cupom
   const [codigoCupom, setCodigoCupom] = useState("");
   const [cupomAplicado, setCupomAplicado] = useState<CupomAplicado | null>(null);
   const [erroCupom, setErroCupom] = useState("");
   const [validandoCupom, setValidandoCupom] = useState(false);
+
+  // busca serviços e settings ao montar
+  useEffect(() => {
+    fetch("/api/publico/servicos")
+      .then((r) => r.json())
+      .then((d) => setServicos(d.items ?? []));
+    fetch("/api/publico/settings")
+      .then((r) => r.json())
+      .then((d) => { if (d.whatsappNumber) setWhatsappNumber(d.whatsappNumber); });
+  }, []);
+
+  // busca slots ocupados quando muda de data
+  const buscarSlots = useCallback(async (dateKey: string) => {
+    if (slotsOcupados[dateKey] !== undefined) return;
+    setCarregandoSlots(true);
+    try {
+      const [slotsRes, agendRes] = await Promise.all([
+        fetch(`/api/slots?data=${dateKey}`),
+        fetch(`/api/agendamentos?data=${dateKey}`),
+      ]);
+      const slotsData = await slotsRes.json();
+      const agendData = await agendRes.json();
+      const bloqueados: string[] = slotsData.bloqueados ?? [];
+      const agendados: string[] = Array.isArray(agendData)
+        ? agendData.map((a: Agendamento) => a.horario)
+        : [];
+      setSlotsOcupados((prev) => ({ ...prev, [dateKey]: [...new Set([...bloqueados, ...agendados])] }));
+    } finally {
+      setCarregandoSlots(false);
+    }
+  }, [slotsOcupados]);
+
+  useEffect(() => {
+    if (selecao.data) {
+      const key = toDateKey(selecao.data.getFullYear(), selecao.data.getMonth(), selecao.data.getDate());
+      buscarSlots(key);
+    }
+  }, [selecao.data, buscarSlots]);
 
   const pollStatus = useCallback(async (id: string) => {
     const res = await fetch(`/api/agendamentos/${id}`);
@@ -154,7 +175,6 @@ export default function AgendamentoPage() {
     const primeiroDia = new Date(ano, mes, 1).getDay();
     const ultimoDia = new Date(ano, mes + 1, 0).getDate();
     const dias: Array<{ dia: number; mes: number; ano: number; atual: boolean }> = [];
-
     const ultimoDiaMesAnterior = new Date(ano, mes, 0).getDate();
     for (let i = primeiroDia - 1; i >= 0; i--) {
       dias.push({ dia: ultimoDiaMesAnterior - i, mes: mes - 1, ano, atual: false });
@@ -167,6 +187,24 @@ export default function AgendamentoPage() {
     }
     return dias;
   }, [mesAtual]);
+
+  function getSlotsDisponiveis(dateKey: string, diaSemana: number): string[] {
+    const horario = HORARIO_FUNCIONAMENTO[diaSemana];
+    if (!horario) return [];
+    const todos = gerarSlots(horario.inicio, horario.fim);
+    const ocupados = slotsOcupados[dateKey] ?? [];
+    return todos.filter((s) => !ocupados.includes(s));
+  }
+
+  function getDisponibilidade(dateKey: string, diaSemana: number): "livre" | "parcial" | "lotado" | "fechado" {
+    const horario = HORARIO_FUNCIONAMENTO[diaSemana];
+    if (!horario) return "fechado";
+    const todos = gerarSlots(horario.inicio, horario.fim);
+    const disponiveis = getSlotsDisponiveis(dateKey, diaSemana);
+    if (disponiveis.length === 0) return "lotado";
+    if (disponiveis.length < todos.length * 0.4) return "parcial";
+    return "livre";
+  }
 
   function selecionarData(dia: number, mes: number, ano: number) {
     const d = new Date(ano, mes, dia);
@@ -211,15 +249,13 @@ export default function AgendamentoPage() {
       selecao.data!.getMonth(),
       selecao.data!.getDate()
     );
-
     const precoFinalStr = precoFinal > 0 ? precoFinal.toFixed(2).replace(".", ",") : selecao.preco;
 
     const res = await fetch("/api/agendamentos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        nome,
-        telefone,
+        nome, telefone,
         servico: selecao.servico,
         preco: precoFinalStr,
         cupom: cupomAplicado?.codigo ?? null,
@@ -233,6 +269,12 @@ export default function AgendamentoPage() {
     setSelecao((s) => ({ ...s, nome, telefone }));
     setAgendamentoId(data.id);
     setStatusAtual("pendente");
+    // invalida cache do slot que acabou de ser ocupado
+    setSlotsOcupados((prev) => {
+      const prev2 = { ...prev };
+      delete prev2[dataKey];
+      return prev2;
+    });
     setStep("confirmado");
   }
 
@@ -248,76 +290,97 @@ export default function AgendamentoPage() {
     ? selecao.data.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })
     : null;
 
-  // ── STEP: SERVIÇO ──────────────────────────────────────────────────────────
+  // ── STEP: SERVIÇO ─────────────────────────────────────────────────────────
   if (step === "servico") {
     return (
-      <section className="min-h-screen pt-28 pb-24 bg-[#0A0A0A]">
-        <div className="max-w-3xl mx-auto px-6">
-          <div className="text-center mb-10">
+      <section className="min-h-screen pt-20 pb-10 bg-[#0A0A0A]">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-8">
             <StepIndicator atual={1} />
-            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-4 block">Passo 1 de 3</span>
-            <h1 className="text-3xl font-bold text-[#F5E6C8] mt-2">Escolha o serviço</h1>
+            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 1 de 3</span>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Escolha o serviço</h1>
           </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            {demoServicos.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => { setSelecao((sel) => ({ ...sel, servico: s.titulo, preco: s.preco })); setStep("calendario"); }}
-                className="text-left border border-[#2d2d2d] bg-[#111] p-5 rounded-lg hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition-all duration-200 group"
-              >
-                <p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition">{s.titulo}</p>
-                <p className="text-sm text-gray-500 mt-1 leading-relaxed">{s.descricao}</p>
-                <div className="flex gap-4 mt-3 text-xs text-gray-500">
-                  {s.preco && <span className="text-[#b8944a] font-semibold">R$ {s.preco}</span>}
-                  {s.duracao && <span>{s.duracao}</span>}
-                </div>
-              </button>
-            ))}
-          </div>
+          {servicos.length === 0 ? (
+            <p className="text-center text-gray-500 text-sm py-10">Carregando serviços...</p>
+          ) : (
+            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3 sm:gap-4">
+              {servicos.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => { setSelecao((sel) => ({ ...sel, servico: s.titulo, preco: s.preco })); setStep("calendario"); }}
+                  className="text-left border border-[#2d2d2d] bg-[#111] p-4 sm:p-5 rounded-xl active:scale-[0.98] hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition-all duration-200 group"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition">{s.titulo}</p>
+                      <p className="text-sm text-gray-500 mt-1 leading-relaxed line-clamp-2">{s.descricao}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      {s.preco && <p className="text-[#b8944a] font-bold text-sm">R$ {s.preco}</p>}
+                      {s.duracao && <p className="text-xs text-gray-600 mt-0.5">{s.duracao}</p>}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </section>
     );
   }
 
-  // ── STEP: CALENDÁRIO ───────────────────────────────────────────────────────
+  // ── STEP: CALENDÁRIO ──────────────────────────────────────────────────────
   if (step === "calendario") {
     return (
-      <section className="min-h-screen pt-28 pb-24 bg-[#0A0A0A]">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center mb-8">
+      <section className="min-h-screen pt-20 pb-10 bg-[#0A0A0A]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-6">
             <StepIndicator atual={2} />
-            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-4 block">Passo 2 de 3</span>
-            <h1 className="text-3xl font-bold text-[#F5E6C8] mt-2">Escolha data e horário</h1>
+            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 2 de 3</span>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Data e horário</h1>
           </div>
 
-          <div className="grid md:grid-cols-[1fr_300px] gap-8">
+          {/* serviço selecionado — pill no topo em mobile */}
+          <div className="flex items-center justify-between bg-[#111] border border-[#2d2d2d] rounded-xl px-4 py-3 mb-4">
+            <div>
+              <p className="text-xs text-gray-600 uppercase tracking-wider">Serviço</p>
+              <p className="font-semibold text-[#F5E6C8] text-sm">{selecao.servico}
+                {selecao.preco && <span className="text-[#b8944a] ml-2">R$ {selecao.preco}</span>}
+              </p>
+            </div>
+            <button onClick={() => setStep("servico")} className="text-xs text-gray-600 hover:text-[#b8944a] transition px-2 py-1">
+              Trocar
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-4 md:gap-6">
             {/* calendário */}
-            <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-6">
-              <div className="flex items-center justify-between mb-6">
+            <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-4">
                 <button
                   onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1, 1))}
-                  className="p-2 text-gray-500 hover:text-[#b8944a] hover:bg-[#b8944a]/10 rounded transition"
+                  className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-[#b8944a] hover:bg-[#b8944a]/10 rounded-lg transition"
                 >
-                  <ChevronLeft size={18} />
+                  <ChevronLeft size={20} />
                 </button>
-                <h2 className="text-lg font-bold text-[#F5E6C8]">
+                <h2 className="text-base font-bold text-[#F5E6C8]">
                   {MESES[mesAtual.getMonth()]} <span className="text-gray-500 font-normal">{mesAtual.getFullYear()}</span>
                 </h2>
                 <button
                   onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1, 1))}
-                  className="p-2 text-gray-500 hover:text-[#b8944a] hover:bg-[#b8944a]/10 rounded transition"
+                  className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-[#b8944a] hover:bg-[#b8944a]/10 rounded-lg transition"
                 >
-                  <ChevronRight size={18} />
+                  <ChevronRight size={20} />
                 </button>
               </div>
 
-              <div className="grid grid-cols-7 mb-2">
+              <div className="grid grid-cols-7 mb-1">
                 {DIAS_SEMANA.map((d, i) => (
                   <div key={i} className={`text-center text-xs font-medium py-1 ${i === 0 ? "text-red-400" : "text-gray-600"}`}>{d}</div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
                 {diasCalendario.map((cell, i) => {
                   const cellDate = new Date(cell.ano, cell.mes, cell.dia);
                   cellDate.setHours(0, 0, 0, 0);
@@ -333,16 +396,16 @@ export default function AgendamentoPage() {
                       key={i}
                       disabled={desabilitado}
                       onClick={() => selecionarData(cell.dia, cell.mes, cell.ano)}
-                      className={`relative flex flex-col items-center justify-center rounded py-2 text-sm transition-all duration-150
+                      className={`relative flex flex-col items-center justify-center rounded-lg h-10 sm:h-11 text-sm transition-all duration-150 active:scale-95
                         ${!cell.atual ? "text-gray-800" : ""}
                         ${desabilitado && cell.atual ? "text-gray-700 cursor-not-allowed" : ""}
                         ${!desabilitado && cell.atual ? "text-[#F5E6C8] hover:bg-[#b8944a]/10 cursor-pointer" : ""}
                         ${selecionado ? "bg-[#b8944a] text-[#0A0A0A] hover:bg-[#b8944a]" : ""}
                       `}
                     >
-                      <span className={`font-medium ${selecionado ? "text-[#0A0A0A] font-bold" : ""}`}>{cell.dia}</span>
+                      <span className={`text-sm font-medium ${selecionado ? "text-[#0A0A0A] font-bold" : ""}`}>{cell.dia}</span>
                       {disp && !selecionado && (
-                        <span className={`mt-0.5 h-1 w-4 rounded-full ${
+                        <span className={`mt-0.5 h-1 w-3 rounded-full ${
                           disp === "livre" ? "bg-green-500" :
                           disp === "parcial" ? "bg-yellow-500" : "bg-red-400"
                         }`} />
@@ -352,41 +415,31 @@ export default function AgendamentoPage() {
                 })}
               </div>
 
-              <div className="flex flex-wrap gap-4 mt-5 pt-4 border-t border-[#1a1a1a] text-xs text-gray-600">
+              <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-[#1a1a1a] text-xs text-gray-600">
                 <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-1 rounded-full bg-green-500" /> Disponível</span>
                 <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-1 rounded-full bg-yellow-500" /> Poucos horários</span>
                 <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-1 rounded-full bg-red-400" /> Lotado</span>
               </div>
             </div>
 
-            {/* sidebar */}
-            <div className="flex flex-col gap-4">
-              <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-4">
-                <p className="text-xs text-gray-600 uppercase tracking-wider mb-1">Serviço selecionado</p>
-                <p className="font-semibold text-[#F5E6C8]">{selecao.servico}</p>
-                {selecao.preco && <p className="text-[#b8944a] text-sm font-medium mt-0.5">R$ {selecao.preco}</p>}
-                <button
-                  onClick={() => setStep("servico")}
-                  className="text-xs text-gray-600 hover:text-[#b8944a] mt-2 transition"
-                >
-                  Trocar serviço →
-                </button>
-              </div>
-
+            {/* horários */}
+            <div className="flex flex-col gap-3">
               {selecao.data ? (
-                <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-4">
+                <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
                   <p className="text-xs text-gray-600 uppercase tracking-wider mb-3">
-                    Horários — <span className="text-[#b8944a] normal-case font-medium">{dataFormatada}</span>
+                    <span className="text-[#b8944a] normal-case font-medium capitalize">{dataFormatada}</span>
                   </p>
-                  {slotsDisponiveis.length === 0 ? (
-                    <p className="text-sm text-gray-500">Sem horários disponíveis.<br />Escolha outra data.</p>
+                  {carregandoSlots ? (
+                    <p className="text-sm text-gray-600 py-4 text-center">Carregando...</p>
+                  ) : slotsDisponiveis.length === 0 ? (
+                    <p className="text-sm text-gray-500 py-4 text-center">Sem horários disponíveis.<br />Escolha outra data.</p>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-2 gap-2">
                       {slotsDisponiveis.map((slot) => (
                         <button
                           key={slot}
                           onClick={() => setSelecao((s) => ({ ...s, horario: slot }))}
-                          className={`py-2 text-sm rounded transition-all border font-medium ${
+                          className={`py-2.5 text-sm rounded-lg transition-all border font-medium active:scale-95 ${
                             selecao.horario === slot
                               ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]"
                               : "border-[#2d2d2d] text-[#F5E6C8] hover:border-[#b8944a] hover:text-[#b8944a]"
@@ -399,15 +452,15 @@ export default function AgendamentoPage() {
                   )}
                 </div>
               ) : (
-                <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-4 text-center">
-                  <p className="text-sm text-gray-600">Clique em uma data para ver os horários</p>
+                <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-6 text-center">
+                  <p className="text-sm text-gray-600">Selecione uma data para ver os horários</p>
                 </div>
               )}
 
               {selecao.data && selecao.horario && (
                 <button
                   onClick={() => setStep("dados")}
-                  className="w-full py-3 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-lg hover:bg-[#c9a84c] transition"
+                  className="w-full py-4 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-xl hover:bg-[#c9a84c] transition active:scale-[0.98]"
                 >
                   Continuar →
                 </button>
@@ -419,26 +472,26 @@ export default function AgendamentoPage() {
     );
   }
 
-  // ── STEP: DADOS PESSOAIS ───────────────────────────────────────────────────
+  // ── STEP: DADOS PESSOAIS ──────────────────────────────────────────────────
   if (step === "dados") {
     return (
-      <section className="min-h-screen pt-28 pb-24 bg-[#0A0A0A]">
-        <div className="max-w-xl mx-auto px-6">
-          <div className="text-center mb-10">
+      <section className="min-h-screen pt-20 pb-10 bg-[#0A0A0A]">
+        <div className="max-w-xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-6">
             <StepIndicator atual={3} />
-            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-4 block">Passo 3 de 3</span>
-            <h1 className="text-3xl font-bold text-[#F5E6C8] mt-2">Seus dados</h1>
+            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 3 de 3</span>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Seus dados</h1>
           </div>
 
-          {/* resumo */}
-          <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-5 mb-6 flex flex-col gap-1.5 text-sm">
+          {/* resumo compacto */}
+          <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 mb-5 flex flex-col gap-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-500">Serviço</span>
               <span className="font-medium text-[#F5E6C8]">{selecao.servico}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Data</span>
-              <span className="font-medium text-[#F5E6C8]">{dataFormatada}</span>
+              <span className="font-medium text-[#F5E6C8] capitalize">{dataFormatada}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Horário</span>
@@ -446,7 +499,7 @@ export default function AgendamentoPage() {
             </div>
             {selecao.preco && (
               <div className="flex justify-between border-t border-[#2d2d2d] pt-2 mt-1">
-                <span className="text-gray-500">Valor original</span>
+                <span className="text-gray-500">Valor</span>
                 <span className={`font-semibold ${cupomAplicado ? "line-through text-gray-600" : "text-[#b8944a]"}`}>
                   R$ {selecao.preco}
                 </span>
@@ -477,68 +530,40 @@ export default function AgendamentoPage() {
                 onChange={(e) => { setCodigoCupom(e.target.value.toUpperCase()); setErroCupom(""); setCupomAplicado(null); }}
                 placeholder="ex: ORTEGA10"
                 disabled={!!cupomAplicado}
-                className={`${inp} flex-1 font-mono disabled:opacity-50`}
+                className={`${inp} flex-1 font-mono text-sm disabled:opacity-50`}
               />
               {cupomAplicado ? (
-                <button
-                  onClick={() => { setCupomAplicado(null); setCodigoCupom(""); }}
-                  className="px-3 py-2 text-xs text-red-400 border border-red-800/50 rounded hover:bg-red-900/20 transition"
-                >
+                <button onClick={() => { setCupomAplicado(null); setCodigoCupom(""); }} className="px-3 py-2.5 text-xs text-red-400 border border-red-800/50 rounded-lg hover:bg-red-900/20 transition">
                   Remover
                 </button>
               ) : (
-                <button
-                  onClick={aplicarCupom}
-                  disabled={!codigoCupom.trim() || validandoCupom}
-                  className="px-4 py-2 text-sm bg-[#b8944a]/10 border border-[#b8944a]/40 text-[#b8944a] rounded hover:bg-[#b8944a]/20 transition disabled:opacity-40"
-                >
+                <button onClick={aplicarCupom} disabled={!codigoCupom.trim() || validandoCupom} className="px-4 py-2.5 text-sm bg-[#b8944a]/10 border border-[#b8944a]/40 text-[#b8944a] rounded-lg hover:bg-[#b8944a]/20 transition disabled:opacity-40">
                   {validandoCupom ? "..." : "Aplicar"}
                 </button>
               )}
             </div>
             {erroCupom && <p className="text-xs text-red-400">{erroCupom}</p>}
-            {cupomAplicado && (
-              <p className="text-xs text-green-400 font-medium">
-                ✓ Cupom aplicado! Desconto de {cupomAplicado.tipo === "percentual" ? `${cupomAplicado.valor}%` : `R$ ${cupomAplicado.valor}`}
-              </p>
-            )}
+            {cupomAplicado && <p className="text-xs text-green-400 font-medium">✓ Desconto de {cupomAplicado.tipo === "percentual" ? `${cupomAplicado.valor}%` : `R$ ${cupomAplicado.valor}`} aplicado</p>}
           </div>
 
           {/* formulário */}
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-400">Nome completo</label>
-              <input
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                placeholder="Seu nome"
-                className={`${inp} ${erros.nome ? "border-red-500" : ""}`}
-              />
+              <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome" className={`${inp} ${erros.nome ? "border-red-500" : ""}`} />
               {erros.nome && <span className="text-xs text-red-400">{erros.nome}</span>}
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-400">Telefone / WhatsApp</label>
-              <input
-                value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
-                placeholder="(11) 99999-9999"
-                className={`${inp} ${erros.telefone ? "border-red-500" : ""}`}
-              />
+              <input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(11) 99999-9999" inputMode="tel" className={`${inp} ${erros.telefone ? "border-red-500" : ""}`} />
               {erros.telefone && <span className="text-xs text-red-400">{erros.telefone}</span>}
             </div>
-            <div className="flex gap-3 mt-2">
-              <button
-                onClick={() => setStep("calendario")}
-                className="flex-1 py-3 border border-[#2d2d2d] text-sm text-gray-500 rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition"
-              >
+            <div className="flex gap-3 mt-1">
+              <button onClick={() => setStep("calendario")} className="flex-1 py-3.5 border border-[#2d2d2d] text-sm text-gray-500 rounded-xl hover:border-[#b8944a] hover:text-[#b8944a] transition active:scale-[0.98]">
                 ← Voltar
               </button>
-              <button
-                onClick={confirmarAgendamento}
-                disabled={salvando}
-                className="flex-1 py-3 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-lg hover:bg-[#c9a84c] transition disabled:opacity-50"
-              >
-                {salvando ? "Enviando..." : "Confirmar agendamento"}
+              <button onClick={confirmarAgendamento} disabled={salvando} className="flex-1 py-3.5 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-xl hover:bg-[#c9a84c] transition disabled:opacity-50 active:scale-[0.98]">
+                {salvando ? "Enviando..." : "Confirmar"}
               </button>
             </div>
           </div>
@@ -547,20 +572,18 @@ export default function AgendamentoPage() {
     );
   }
 
-  // ── STEP: CONFIRMADO + STATUS ──────────────────────────────────────────────
+  // ── STEP: CONFIRMADO + STATUS ─────────────────────────────────────────────
   const statusConfig = STATUS_CONFIG[statusAtual as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pendente;
 
   return (
-    <section className="min-h-screen pt-28 pb-24 bg-[#0A0A0A]">
-      <div className="max-w-xl mx-auto px-6 flex flex-col gap-5">
+    <section className="min-h-screen pt-20 pb-10 bg-[#0A0A0A]">
+      <div className="max-w-xl mx-auto px-4 sm:px-6 flex flex-col gap-4">
         <div className={`border rounded-lg p-5 flex items-start gap-4 ${statusConfig.cor}`}>
           <span className="text-2xl">{statusConfig.icone}</span>
           <div>
             <p className="font-semibold">{statusConfig.label}</p>
             <p className="text-sm mt-0.5 opacity-80">{statusConfig.desc}</p>
-            {statusAtual === "pendente" && (
-              <p className="text-xs mt-2 opacity-60">Esta página atualiza automaticamente.</p>
-            )}
+            {statusAtual === "pendente" && <p className="text-xs mt-2 opacity-60">Esta página atualiza automaticamente.</p>}
           </div>
         </div>
 
@@ -592,7 +615,7 @@ export default function AgendamentoPage() {
 
           {statusAtual === "confirmado" && (
             <a
-              href={`https://wa.me/5511999999999?text=Olá! Quero confirmar meu agendamento:%0A*${selecao.servico}*%0AData: ${dataFormatada}%0AHorário: ${selecao.horario}`}
+              href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Olá! Quero confirmar meu agendamento:\n*${selecao.servico}*\nData: ${dataFormatada}\nHorário: ${selecao.horario}`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="self-start inline-flex items-center px-6 py-3 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded-lg hover:bg-[#c9a84c] transition"

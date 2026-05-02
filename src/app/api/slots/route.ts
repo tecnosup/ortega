@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebase-admin";
+import { getAdminDb, getSessionUser } from "@/lib/firebase-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +16,8 @@ export async function GET(req: NextRequest) {
 
 // POST /api/slots { data, horario, acao: "bloquear" | "desbloquear" }
 export async function POST(req: NextRequest) {
+  const user = await getSessionUser(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { data, horario, acao } = await req.json() as {
     data: string;
     horario: string;

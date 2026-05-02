@@ -13,7 +13,7 @@ const DEFAULTS: LandingSettings = {
   heroSubtitulo: "Cortes precisos, barba impecável e atendimento exclusivo. Na Ortega, cada detalhe importa.",
   sobreTexto:
     "A Ortega Barber nasceu da paixão pelo artesanato da barbearia tradicional aliado ao estilo contemporâneo. Em nosso espaço, você encontra profissionais dedicados, ambiente premium e os melhores produtos do mercado.",
-  whatsappNumber: "5511999999999",
+  whatsappNumber: "5512982585538",
   emailContato: "contato@ortegabarber.com.br",
 };
 
