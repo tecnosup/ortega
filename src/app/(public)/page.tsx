@@ -10,8 +10,14 @@ export const revalidate = 60;
 
 export default async function HomePage() {
   const [settings, items] = await Promise.all([
-    getLandingSettings(),
-    getPublishedItems(),
+    getLandingSettings().catch(() => ({
+      heroTitulo: "Ortega Barber",
+      heroSubtitulo: "Tradição e estilo em cada corte",
+      sobreTexto: "",
+      whatsappNumber: "5512982585538",
+      emailContato: "",
+    })),
+    getPublishedItems().catch(() => []),
   ]);
 
   return (
