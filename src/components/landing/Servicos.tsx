@@ -5,14 +5,8 @@ interface ServicosProps {
   items: Item[];
 }
 
-const PLACEHOLDER_ITEMS: Item[] = [
-  { id: "1", titulo: "Corte Clássico", descricao: "Corte masculino tradicional com acabamento impecável. Inclui lavagem e finalização.", imagem: "", preco: "55", duracao: "45 min", status: "published", order: 1, createdAt: 0, updatedAt: 0 },
-  { id: "2", titulo: "Barba Completa", descricao: "Modelagem e aparagem de barba com navalha, toalha quente e hidratação.", imagem: "", preco: "45", duracao: "35 min", status: "published", order: 2, createdAt: 0, updatedAt: 0 },
-  { id: "3", titulo: "Combo Corte + Barba", descricao: "O pacote completo: corte, barba e hidratação capilar.", imagem: "", preco: "90", duracao: "75 min", status: "published", order: 3, createdAt: 0, updatedAt: 0 },
-];
-
 export default function Servicos({ items }: ServicosProps) {
-  const lista = items.length > 0 ? items : PLACEHOLDER_ITEMS;
+  const lista = items;
 
   return (
     <section id="servicos" className="py-20 md:py-28 bg-[#0D0D0D] relative">
