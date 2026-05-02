@@ -6,7 +6,7 @@ import { Plus, Edit2, Trash2, Layers } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function ItensPage() {
-  const items = await getItems();
+  const items = await getItems().catch(() => []);
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-6">

@@ -26,13 +26,17 @@ function formatDate(ts: { _seconds: number } | number | null) {
 }
 
 export default async function AuditoriaPage() {
-  const snap = await adminDb
-    .collection("auditLogs")
-    .orderBy("createdAt", "desc")
-    .limit(100)
-    .get();
-
-  const logs: AuditLog[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AuditLog));
+  let logs: AuditLog[] = [];
+  try {
+    const snap = await adminDb
+      .collection("auditLogs")
+      .orderBy("createdAt", "desc")
+      .limit(100)
+      .get();
+    logs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AuditLog));
+  } catch {
+    // silencia erro de índice/conexão
+  }
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-6">

@@ -1,5 +1,4 @@
 import { adminDb } from "./firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
 
 export interface Item {
   id: string;
