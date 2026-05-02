@@ -1,7 +1,7 @@
 import { getItems } from "@/lib/admin-items";
-import { deleteItemAction } from "./actions";
 import Link from "next/link";
-import { Plus, Edit2, Trash2, Layers } from "lucide-react";
+import { Plus, Edit2, Layers } from "lucide-react";
+import DeleteButton from "./DeleteButton";
 
 export const dynamic = "force-dynamic";
 
@@ -47,16 +47,7 @@ export default async function ItensPage() {
                 >
                   <Edit2 size={12} /> Editar
                 </Link>
-                <form action={deleteItemAction}>
-                  <input type="hidden" name="id" value={item.id} />
-                  <button
-                    type="submit"
-                    onClick={(e) => { if (!confirm("Remover este serviço?")) e.preventDefault(); }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2d2d2d] text-gray-500 text-xs rounded hover:border-red-700 hover:text-red-400 transition"
-                  >
-                    <Trash2 size={12} /> Excluir
-                  </button>
-                </form>
+                <DeleteButton id={item.id} />
               </div>
             </div>
           ))}
