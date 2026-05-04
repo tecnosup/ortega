@@ -121,7 +121,13 @@ function ReagendarModal({ ag, dataSelecionada, slotsLivres, onConfirm, onCancel 
 }) {
   const [novaData, setNovaData] = useState(dataSelecionada);
   const [novoHorario, setNovoHorario] = useState(slotsLivres[0] ?? ag.horario);
-  const slotsParaData = novaData === dataSelecionada ? slotsLivres : gerarSlots(novaData);
+  const hojeKey = toDateKey(new Date());
+  const minutosAgora = new Date().getHours() * 60 + new Date().getMinutes();
+  const slotsParaData = (novaData === dataSelecionada ? slotsLivres : gerarSlots(novaData)).filter((s) => {
+    if (novaData !== hojeKey) return true;
+    const [h, m] = s.split(":").map(Number);
+    return h * 60 + m > minutosAgora;
+  });
   const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] w-full";
 
   return (
@@ -168,6 +174,7 @@ export default function AgendamentosAdminPage() {
   const [slotsBloqueados, setSlotsBloqueados] = useState<string[]>([]);
   const [walkInHorario, setWalkInHorario] = useState<string | null>(null);
   const [reagendarAg, setReagendarAg] = useState<Agendamento | null>(null);
+  const [notificacaoLink, setNotificacaoLink] = useState<string | null>(null);
   const [aba, setAba] = useState<"lista" | "grade">("lista");
 
   const carregar = useCallback(async () => {
@@ -257,7 +264,7 @@ export default function AgendamentosAdminPage() {
     const data = await res.json();
     setReagendarAg(null);
     carregar();
-    if (data.whatsappLink) window.open(data.whatsappLink, "_blank");
+    if (data.whatsappLink) setNotificacaoLink(data.whatsappLink);
   }
 
   function confirmarModal() {
@@ -292,6 +299,19 @@ export default function AgendamentosAdminPage() {
       {modal && <Modal {...modalConfig[modal.tipo]} onConfirm={confirmarModal} onCancel={() => setModal(null)} />}
       {walkInHorario && <WalkInModal horario={walkInHorario} dataSelecionada={dataSelecionada} onConfirm={criarWalkIn} onCancel={() => setWalkInHorario(null)} />}
       {reagendarAg && <ReagendarModal ag={reagendarAg} dataSelecionada={dataSelecionada} slotsLivres={slotsLivresDia} onConfirm={reagendar} onCancel={() => setReagendarAg(null)} />}
+      {notificacaoLink && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-[#1a2a1a] border border-green-700/60 text-green-300 rounded-xl px-4 py-3 shadow-xl max-w-xs">
+          <MessageCircle size={18} className="shrink-0 text-green-400" />
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-medium">Reagendamento salvo</span>
+            <span className="text-xs text-green-400/70">Notifique o cliente pelo WhatsApp</span>
+          </div>
+          <div className="flex gap-2 ml-auto">
+            <a href={notificacaoLink} target="_blank" rel="noreferrer" onClick={() => setNotificacaoLink(null)} className="text-xs bg-green-700 hover:bg-green-600 text-white rounded px-2 py-1 transition">Enviar</a>
+            <button onClick={() => setNotificacaoLink(null)} className="text-xs text-gray-500 hover:text-gray-300 transition"><X size={14} /></button>
+          </div>
+        </div>
+      )}
 
       {/* cabeçalho */}
       <div className="flex items-center justify-between mb-6">

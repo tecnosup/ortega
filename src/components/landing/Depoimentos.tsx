@@ -1,23 +1,25 @@
-"use client";
-
-import { useEffect, useState } from "react";
-
-interface Depoimento {
-  id: string;
-  nome: string;
-  texto: string;
-  estrelas: number;
-}
+const DEPOIMENTOS = [
+  {
+    id: "1",
+    nome: "Rafael Mendes",
+    texto: "Melhor barbearia da região. O corte ficou exatamente como pedi, ambiente top e atendimento impecável. Já virei cliente fixo.",
+    estrelas: 5,
+  },
+  {
+    id: "2",
+    nome: "Lucas Ferreira",
+    texto: "Fui pela primeira vez indicado por um amigo e não me arrependi. O barbeiro foi atencioso, tirou minhas dúvidas e o resultado superou o que eu esperava.",
+    estrelas: 5,
+  },
+  {
+    id: "3",
+    nome: "Diego Alves",
+    texto: "Agendei pelo site em menos de dois minutos, fui atendido no horário certinho. Corte e barba alinhados, saí de lá outro homem.",
+    estrelas: 5,
+  },
+];
 
 export default function Depoimentos() {
-  const [depoimentos, setDepoimentos] = useState<Depoimento[]>([]);
-
-  useEffect(() => {
-    fetch("/api/publico/depoimentos")
-      .then((r) => r.json())
-      .then((d) => setDepoimentos(d.depoimentos ?? []));
-  }, []);
-
   return (
     <section id="depoimentos" className="py-20 md:py-28 bg-[#0A0A0A] relative">
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/20 to-transparent" />
@@ -35,7 +37,7 @@ export default function Depoimentos() {
 
         {/* mobile: scroll horizontal snap / tablet+: grid */}
         <div className="flex md:grid md:grid-cols-3 gap-4 md:gap-6 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0">
-          {depoimentos.map((d) => (
+          {DEPOIMENTOS.map((d) => (
             <div
               key={d.id}
               className="relative bg-[#141414] border border-[#C9A84C]/10 p-6 flex flex-col gap-4 hover:border-[#C9A84C]/30 transition-all shrink-0 w-[80vw] sm:w-[60vw] md:w-auto snap-center"

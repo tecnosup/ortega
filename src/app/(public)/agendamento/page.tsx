@@ -193,7 +193,17 @@ export default function AgendamentoPage() {
     if (!horario) return [];
     const todos = gerarSlots(horario.inicio, horario.fim);
     const ocupados = slotsOcupados[dateKey] ?? [];
-    return todos.filter((s) => !ocupados.includes(s));
+    const agora = new Date();
+    const hojeKey = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}-${String(agora.getDate()).padStart(2, "0")}`;
+    const minutosAgora = agora.getHours() * 60 + agora.getMinutes();
+    return todos.filter((s) => {
+      if (ocupados.includes(s)) return false;
+      if (dateKey === hojeKey) {
+        const [h, m] = s.split(":").map(Number);
+        if (h * 60 + m <= minutosAgora) return false;
+      }
+      return true;
+    });
   }
 
   function getDisponibilidade(dateKey: string, diaSemana: number): "livre" | "parcial" | "lotado" | "fechado" {
