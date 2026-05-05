@@ -93,7 +93,7 @@ export default function Hero({ titulo, subtitulo, whatsappNumber }: HeroProps) {
           <div className="flex flex-row gap-3">
             <a
               href="/agendamento"
-              className="flex-1 sm:flex-none inline-flex items-center justify-center px-7 py-3.5 bg-[#C9A84C] text-[#0A0A0A] text-sm font-bold tracking-widest uppercase hover:bg-[#E2C06A] transition-all duration-300"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center px-8 py-4 bg-[#C9A84C] text-[#0A0A0A] text-sm font-black tracking-widest uppercase shadow-[0_0_24px_rgba(201,168,76,0.35)] hover:bg-[#E2C06A] hover:shadow-[0_0_32px_rgba(201,168,76,0.55)] active:scale-[0.97] transition-all duration-300"
             >
               Agendar
             </a>
@@ -101,7 +101,7 @@ export default function Hero({ titulo, subtitulo, whatsappNumber }: HeroProps) {
               href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 sm:flex-none inline-flex items-center justify-center px-7 py-3.5 border border-[#C9A84C]/50 text-[#C9A84C] text-sm tracking-wider uppercase hover:border-[#C9A84C] hover:bg-[#C9A84C]/08 transition-all duration-300"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center px-8 py-4 border-2 border-[#C9A84C] text-[#C9A84C] text-sm font-bold tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] active:scale-[0.97] transition-all duration-300"
             >
               WhatsApp
             </a>

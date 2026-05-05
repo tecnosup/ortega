@@ -34,7 +34,7 @@ export default function CtaFinal() {
         <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs sm:max-w-none sm:w-auto justify-center">
           <a
             href="/agendamento"
-            className="inline-flex items-center justify-center px-8 py-4 bg-[#C9A84C] text-[#0A0A0A] text-sm font-bold tracking-widest uppercase active:scale-[0.97] transition-all duration-300"
+            className="inline-flex items-center justify-center px-10 py-4 bg-[#C9A84C] text-[#0A0A0A] text-sm font-black tracking-widest uppercase shadow-[0_0_28px_rgba(201,168,76,0.4)] hover:bg-[#E2C06A] hover:shadow-[0_0_40px_rgba(201,168,76,0.6)] active:scale-[0.97] transition-all duration-300"
           >
             Agendar horário
           </a>
@@ -43,7 +43,7 @@ export default function CtaFinal() {
               href={`https://wa.me/${whatsapp}?text=${encodeURIComponent("Olá! Gostaria de agendar um horário na Ortega Barber.")}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center px-8 py-4 border border-[#C9A84C]/40 text-[#C9A84C] text-sm tracking-wider uppercase active:scale-[0.97] transition-all duration-300"
+              className="inline-flex items-center justify-center px-10 py-4 border-2 border-[#C9A84C] text-[#C9A84C] text-sm font-bold tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] active:scale-[0.97] transition-all duration-300"
             >
               WhatsApp
             </a>

@@ -93,7 +93,7 @@ export default function Servicos({ items, descontos }: ServicosProps) {
         <div className="text-center mt-10 md:mt-14">
           <a
             href="/agendamento"
-            className="inline-flex items-center px-8 py-4 md:px-10 bg-[#C9A84C] text-[#0A0A0A] text-sm font-bold tracking-widest uppercase hover:bg-[#E2C06A] transition-all duration-300"
+            className="inline-flex items-center px-10 py-4 md:px-12 bg-[#C9A84C] text-[#0A0A0A] text-sm font-black tracking-widest uppercase shadow-[0_0_24px_rgba(201,168,76,0.35)] hover:bg-[#E2C06A] hover:shadow-[0_0_36px_rgba(201,168,76,0.55)] active:scale-[0.97] transition-all duration-300"
           >
             Agendar agora
           </a>

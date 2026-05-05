@@ -92,7 +92,7 @@ export default function Produtos({ produtos, descontos, whatsappNumber }: Produt
                       href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Olá! Tenho interesse no produto: ${produto.titulo}`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-1 w-full inline-flex items-center justify-center py-2 bg-[#C9A84C] text-[#0A0A0A] text-xs font-bold tracking-wider uppercase hover:bg-[#E2C06A] transition-all duration-300"
+                      className="mt-1 w-full inline-flex items-center justify-center py-2.5 bg-[#C9A84C] text-[#0A0A0A] text-xs font-black tracking-wider uppercase shadow-[0_0_16px_rgba(201,168,76,0.3)] hover:bg-[#E2C06A] hover:shadow-[0_0_24px_rgba(201,168,76,0.5)] active:scale-[0.97] transition-all duration-300"
                     >
                       Comprar
                     </a>
