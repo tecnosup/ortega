@@ -90,20 +90,28 @@ export default function Hero({ titulo, subtitulo, whatsappNumber }: HeroProps) {
           </div>
 
           {/* CTAs */}
-          <div className="flex flex-row gap-3">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-row gap-3">
+              <a
+                href="/agendamento"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center px-8 py-4 bg-[#C9A84C] text-[#0A0A0A] text-sm font-black tracking-widest uppercase shadow-[0_0_24px_rgba(201,168,76,0.35)] hover:bg-[#E2C06A] hover:shadow-[0_0_32px_rgba(201,168,76,0.55)] active:scale-[0.97] transition-all duration-300"
+              >
+                Agendar
+              </a>
+              <a
+                href={whatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center px-8 py-4 border-2 border-[#C9A84C] text-[#C9A84C] text-sm font-bold tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] active:scale-[0.97] transition-all duration-300"
+              >
+                WhatsApp
+              </a>
+            </div>
             <a
-              href="/agendamento"
-              className="flex-1 sm:flex-none inline-flex items-center justify-center px-8 py-4 bg-[#C9A84C] text-[#0A0A0A] text-sm font-black tracking-widest uppercase shadow-[0_0_24px_rgba(201,168,76,0.35)] hover:bg-[#E2C06A] hover:shadow-[0_0_32px_rgba(201,168,76,0.55)] active:scale-[0.97] transition-all duration-300"
+              href="/agendamento/status"
+              className="text-xs text-[#F5E6C8]/40 hover:text-[#C9A84C]/70 transition text-center sm:text-left tracking-wide"
             >
-              Agendar
-            </a>
-            <a
-              href={whatsappHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 sm:flex-none inline-flex items-center justify-center px-8 py-4 border-2 border-[#C9A84C] text-[#C9A84C] text-sm font-bold tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] active:scale-[0.97] transition-all duration-300"
-            >
-              WhatsApp
+              Ver status do meu agendamento →
             </a>
           </div>
 

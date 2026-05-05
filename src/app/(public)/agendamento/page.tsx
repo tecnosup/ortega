@@ -635,19 +635,27 @@ export default function AgendamentoPage() {
           )}
         </div>
 
-        <button
-          onClick={() => {
-            setStep("servico");
-            setSelecao({ servico: "", preco: "", data: null, horario: "", nome: "", telefone: "" });
-            setNome("");
-            setTelefone("");
-            setAgendamentoId(null);
-            setStatusAtual("pendente");
-          }}
-          className="text-sm text-gray-600 hover:text-[#b8944a] transition text-center"
-        >
-          Fazer outro agendamento
-        </button>
+        <div className="flex flex-col gap-2 items-center">
+          <button
+            onClick={() => {
+              setStep("servico");
+              setSelecao({ servico: "", preco: "", data: null, horario: "", nome: "", telefone: "" });
+              setNome("");
+              setTelefone("");
+              setAgendamentoId(null);
+              setStatusAtual("pendente");
+            }}
+            className="text-sm text-gray-600 hover:text-[#b8944a] transition"
+          >
+            Fazer outro agendamento
+          </button>
+          <a
+            href={`/agendamento/status?tel=${encodeURIComponent(selecao.telefone)}`}
+            className="text-sm text-gray-600 hover:text-[#b8944a] transition"
+          >
+            Ver todos os meus agendamentos →
+          </a>
+        </div>
       </div>
     </section>
   );
