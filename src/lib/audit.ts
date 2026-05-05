@@ -8,6 +8,8 @@ interface AuditParams {
   entity: string;
   entityId: string;
   summary?: string;
+  snapshot?: Record<string, unknown> | object;
+  snapshotAntes?: Record<string, unknown> | object;
 }
 
 export async function logAudit(params: AuditParams) {

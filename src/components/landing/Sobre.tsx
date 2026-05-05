@@ -13,7 +13,7 @@ export default function Sobre({ texto }: SobreProps) {
           <div className="absolute -inset-1 bg-gradient-to-br from-[#C9A84C]/30 via-transparent to-[#C9A84C]/10 rounded-sm" />
           <div className="relative w-full h-56 sm:h-72 md:h-80 overflow-hidden border border-[#C9A84C]/20">
             <img
-              src="https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?w=800&q=80"
+              src="https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=800&q=80"
               alt="Interior da barbearia Ortega"
               className="w-full h-full object-cover opacity-80"
             />
@@ -28,7 +28,10 @@ export default function Sobre({ texto }: SobreProps) {
             <span className="w-8 h-px bg-[#C9A84C]" />
             <span className="text-[#C9A84C] text-xs font-medium tracking-[0.3em] uppercase">Nossa história</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#F5E6C8] leading-tight">
+          <h2
+            className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#F5E6C8] leading-tight"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
             Sobre a<br />
             <span className="text-[#C9A84C]">Ortega</span>
           </h2>

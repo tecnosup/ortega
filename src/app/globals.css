@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;0,800;1,700&display=swap");
 @import "tailwindcss";
 
 @theme inline {
@@ -15,6 +15,7 @@
   --color-border:           #2A2A2A;
   --color-foreground:       #F5E6C8;
   --font-sans:              "Poppins", sans-serif;
+  --font-serif:             "Playfair Display", Georgia, serif;
 }
 
 :root {

@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createItem, updateItem, deleteItem } from "@/lib/admin-items";
+import { createItem, updateItem, deleteItem, getItemById } from "@/lib/admin-items";
 import { logAudit } from "@/lib/audit";
 import { adminAuth } from "@/lib/firebase-admin";
 import { cookies } from "next/headers";
@@ -39,7 +39,7 @@ export async function createItemAction(
   try {
     const actor = await getActor();
     const id = await createItem(parsed.data);
-    await logAudit({ ...actor, action: "item.create", entity: "item", entityId: id });
+    await logAudit({ ...actor, action: "item.create", entity: "item", entityId: id, snapshot: parsed.data });
   } catch {
     return { ok: false, error: "Erro ao salvar. Tente novamente." };
   }
@@ -55,8 +55,9 @@ export async function updateItemAction(
   if (!parsed.success) return { ok: false, error: "Dados inválidos" };
   try {
     const actor = await getActor();
+    const before = await getItemById(id);
     await updateItem(id, parsed.data);
-    await logAudit({ ...actor, action: "item.update", entity: "item", entityId: id });
+    await logAudit({ ...actor, action: "item.update", entity: "item", entityId: id, snapshot: parsed.data, snapshotAntes: before ?? undefined });
   } catch {
     return { ok: false, error: "Erro ao atualizar. Tente novamente." };
   }
@@ -67,8 +68,9 @@ export async function deleteItemAction(formData: FormData) {
   const id = formData.get("id") as string;
   try {
     const actor = await getActor();
+    const before = await getItemById(id);
     await deleteItem(id);
-    await logAudit({ ...actor, action: "item.delete", entity: "item", entityId: id });
+    await logAudit({ ...actor, action: "item.delete", entity: "item", entityId: id, snapshot: before ?? undefined, snapshotAntes: before ?? undefined });
   } catch {
     // silencia erro de delete — redireciona de qualquer forma
   }

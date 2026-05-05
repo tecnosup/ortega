@@ -32,7 +32,10 @@ export default function Depoimentos() {
             <span className="text-[#C9A84C] text-xs font-medium tracking-[0.3em] uppercase">Clientes</span>
             <span className="w-8 h-px bg-[#C9A84C]" />
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#F5E6C8]">O que dizem sobre nós</h2>
+          <h2
+            className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#F5E6C8]"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >O que dizem sobre nós</h2>
         </div>
 
         {/* mobile: scroll horizontal snap / tablet+: grid */}

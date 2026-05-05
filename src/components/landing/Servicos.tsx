@@ -19,7 +19,10 @@ export default function Servicos({ items }: ServicosProps) {
             <span className="text-[#C9A84C] text-xs font-medium tracking-[0.3em] uppercase">O que fazemos</span>
             <span className="w-8 h-px bg-[#C9A84C]" />
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#F5E6C8]">Nossos serviços</h2>
+          <h2
+            className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#F5E6C8]"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >Nossos serviços</h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5 md:gap-6">

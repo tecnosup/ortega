@@ -19,7 +19,10 @@ export default function CtaFinal() {
       <div className="relative max-w-2xl mx-auto px-6 sm:px-8 text-center flex flex-col gap-6 md:gap-8 items-center">
         <div className="w-16 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/40 to-transparent" />
 
-        <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[#F5E6C8] leading-snug">
+        <h2
+          className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[#F5E6C8] leading-snug"
+          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+        >
           Pronto para uma nova{" "}
           <span className="text-[#C9A84C]">versão de você?</span>
         </h2>
