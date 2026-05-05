@@ -41,7 +41,8 @@ export async function getPublishedProdutos(): Promise<Produto[]> {
   const snap = await adminDb
     .collection("produtos")
     .where("status", "==", "published")
-    .orderBy("order")
     .get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Produto));
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as Produto))
+    .sort((a, b) => a.order - b.order);
 }

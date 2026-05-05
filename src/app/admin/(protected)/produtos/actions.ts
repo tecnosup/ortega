@@ -46,8 +46,8 @@ export async function createProdutoAction(
       entityId: id,
       snapshot: parsed.data,
     });
-  } catch {
-    return { ok: false, error: "Erro ao salvar. Tente novamente." };
+  } catch (e) {
+    return { ok: false, error: `Erro ao salvar: ${e instanceof Error ? e.message : String(e)}` };
   }
   redirect("/admin/produtos");
 }

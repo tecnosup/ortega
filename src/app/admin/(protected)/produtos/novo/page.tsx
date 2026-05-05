@@ -18,7 +18,7 @@ export default function NovoProdutoPage() {
     setUploading(true);
     const fd = new FormData();
     fd.append("file", file);
-    const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+    const res = await fetch("/api/admin/upload", { method: "POST", body: fd, credentials: "include" });
     const data = await res.json();
     if (data.url) setImageUrl(data.url);
     setUploading(false);
