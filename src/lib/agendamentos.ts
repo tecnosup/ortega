@@ -13,6 +13,7 @@ export interface Agendamento {
   status: AgendamentoStatus;
   cupom?: string;
   desconto?: number;
+  visualizadoAdmin?: boolean;
   criadoEm: number;
   atualizadoEm: number;
 }
@@ -32,7 +33,7 @@ export async function criarAgendamento(
   const now = Date.now();
   const db = getAdminDb();
   // Remove campos undefined — Firestore rejeita undefined
-  const doc: Record<string, unknown> = { status: "pendente", criadoEm: now, atualizadoEm: now };
+  const doc: Record<string, unknown> = { status: "pendente", visualizadoAdmin: false, criadoEm: now, atualizadoEm: now };
   for (const [k, v] of Object.entries(data)) {
     if (v !== undefined) doc[k] = v;
   }

@@ -7,12 +7,13 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
   LayoutDashboard, Scissors, Settings, ClipboardList,
-  LogOut, CalendarCheck, Tag, Menu, X, ShoppingBag,
+  LogOut, CalendarCheck, Tag, Menu, X, ShoppingBag, TrendingUp,
 } from "lucide-react";
 
 const links = [
   { href: "/admin",               label: "Dashboard",    icon: LayoutDashboard },
   { href: "/admin/agendamentos",  label: "Agendamentos", icon: CalendarCheck   },
+  { href: "/admin/financeiro",    label: "Financeiro",   icon: TrendingUp      },
   { href: "/admin/itens",         label: "Serviços",     icon: Scissors        },
   { href: "/admin/produtos",      label: "Produtos",     icon: ShoppingBag     },
   { href: "/admin/descontos",     label: "Descontos",    icon: Tag             },
