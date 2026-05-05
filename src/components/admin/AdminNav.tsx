@@ -7,7 +7,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
   LayoutDashboard, Scissors, Settings, ClipboardList,
-  LogOut, CalendarCheck, Tag, Menu, X, ShoppingBag, TrendingUp,
+  LogOut, CalendarCheck, Tag, Menu, X, ShoppingBag, TrendingUp, ExternalLink,
 } from "lucide-react";
 
 const links = [
@@ -92,16 +92,16 @@ export default function AdminNav() {
         {sidebarContent}
       </aside>
 
-      {/* ── MOBILE: topbar com título + botão menu ── */}
+      {/* ── MOBILE: topbar com título + link para o site ── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-b border-[#2d2d2d] flex items-center justify-between px-4 h-14">
         <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega</span>
-        <button
-          onClick={() => setOpen(true)}
-          className="p-2 text-gray-400 hover:text-white transition"
-          aria-label="Menu"
+        <Link
+          href="/"
+          className="p-2 text-gray-400 hover:text-[#b8944a] transition"
+          aria-label="Ver site"
         >
-          <Menu size={22} />
-        </button>
+          <ExternalLink size={18} />
+        </Link>
       </div>
 
       {/* ── MOBILE: bottom navigation bar ── */}
