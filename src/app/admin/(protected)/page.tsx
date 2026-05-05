@@ -10,6 +10,10 @@ import {
   Lock, ArrowUpRight, ArrowDownRight, Minus,
   Receipt, Plus, Edit2, Trash2, ToggleLeft, ToggleRight,
 } from "lucide-react";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell, Legend,
+} from "recharts";
 import type { Agendamento, FechamentoDia } from "@/lib/agendamentos";
 import type { Gasto, CategoriaGasto, FrequenciaGasto } from "@/lib/gastos-tipos";
 import { CATEGORIA_LABEL, FREQUENCIA_LABEL, gastoMensalEquivalente } from "@/lib/gastos-tipos";
@@ -400,80 +404,170 @@ export default function AdminDashboard() {
       })()}
 
       {/* ═══ FINANCEIRO ══════════════════════════════════════════════════════ */}
-      {aba === "financeiro" && (
-        <>
-          <div className="flex gap-2 flex-wrap">
-            {(Object.keys(PERIODO_LABEL) as Periodo[]).map((p) => (
-              <button key={p} onClick={() => setPeriodo(p)}
-                className={`px-3 py-1.5 text-sm rounded-full border transition ${periodo === p ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-bold" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a]"}`}>
-                {PERIODO_LABEL[p]}
-              </button>
-            ))}
-          </div>
+      {aba === "financeiro" && (() => {
+        const gastosAtivos = gastos.filter((g) => g.ativo);
+        const totalMensalGastos = gastosAtivos.reduce((s, g) => s + gastoMensalEquivalente(g), 0);
+        const lucroEstimado = totalPeriodo - totalMensalGastos;
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className={`${card} p-5 col-span-2 md:col-span-1`}>
-              <div className="w-9 h-9 rounded-lg bg-[#b8944a]/10 flex items-center justify-center text-[#b8944a] mb-3"><DollarSign size={18} /></div>
-              <p className="text-xs text-gray-500 mb-0.5">Faturamento</p>
-              <p className="text-2xl font-bold text-[#F5E6C8]">{brl(totalPeriodo)}</p>
-              {varPct !== null && (
-                <div className={`flex items-center gap-1 mt-1 text-xs ${varPct > 0 ? "text-green-400" : varPct < 0 ? "text-red-400" : "text-gray-500"}`}>
-                  {varPct > 0 ? <ArrowUpRight size={12} /> : varPct < 0 ? <ArrowDownRight size={12} /> : <Minus size={12} />}
-                  {varPct > 0 ? "+" : ""}{varPct.toFixed(1)}% vs período anterior
+        // dados para gráfico de área acumulada
+        const dadosGrafico = fechsPeriodo.map((f, i) => {
+          const acumulado = fechsPeriodo.slice(0, i + 1).reduce((s, x) => s + x.totalServicos, 0);
+          const dataLabel = new Date(f.data + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+          return { data: dataLabel, valor: f.totalServicos, acumulado };
+        });
+
+        // dados para donut de gastos
+        const porCategoria: Record<string, number> = {};
+        gastosAtivos.forEach((g) => {
+          const cat = CATEGORIA_LABEL[g.categoria];
+          porCategoria[cat] = (porCategoria[cat] ?? 0) + gastoMensalEquivalente(g);
+        });
+        const donutData = Object.entries(porCategoria).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
+        const DONUT_COLORS = ["#C9A84C", "#a07830", "#6b5020", "#8b6914", "#d4b060", "#e8c878", "#f0d890"];
+
+        const melhorDia = fechsPeriodo.length > 0
+          ? fechsPeriodo.reduce((a, b) => b.totalServicos > a.totalServicos ? b : a)
+          : null;
+
+        return (
+          <>
+            {/* filtro de período */}
+            <div className="flex gap-2 flex-wrap">
+              {(Object.keys(PERIODO_LABEL) as Periodo[]).map((p) => (
+                <button key={p} onClick={() => setPeriodo(p)}
+                  className={`px-3 py-1.5 text-sm rounded-full border transition ${periodo === p ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-bold" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a]"}`}>
+                  {PERIODO_LABEL[p]}
+                </button>
+              ))}
+            </div>
+
+            {/* KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className={`${card} p-5`}>
+                <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-2">Faturamento este mês</p>
+                <p className="text-3xl font-bold text-[#F5E6C8]">{brl(totalPeriodo)}</p>
+                {varPct !== null && (
+                  <div className={`flex items-center gap-1 mt-2 text-xs ${varPct > 0 ? "text-green-400" : varPct < 0 ? "text-red-400" : "text-gray-500"}`}>
+                    {varPct > 0 ? <ArrowUpRight size={12} /> : varPct < 0 ? <ArrowDownRight size={12} /> : <Minus size={12} />}
+                    {varPct > 0 ? "+" : ""}{varPct.toFixed(1)}% vs anterior
+                  </div>
+                )}
+              </div>
+              <div className={`${card} p-5`}>
+                <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-2">Gastos recorrentes/mês</p>
+                <p className="text-3xl font-bold text-[#F5E6C8]">{brl(totalMensalGastos)}</p>
+              </div>
+              <div className={`${card} p-5 border ${lucroEstimado >= 0 ? "border-green-800/40" : "border-red-800/40"}`}>
+                <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-2">Lucro estimado</p>
+                <p className={`text-3xl font-bold ${lucroEstimado >= 0 ? "text-green-400" : "text-red-400"}`}>{brl(lucroEstimado)}</p>
+              </div>
+              <div className={`${card} p-5`}>
+                <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-2">Receita total (pedidos)</p>
+                <p className="text-3xl font-bold text-[#F5E6C8]">{brl(fechamentos.reduce((s, f) => s + f.totalServicos, 0))}</p>
+              </div>
+            </div>
+
+            {/* gráfico principal */}
+            <div className={`${card} p-6`}>
+              <div className="flex items-start justify-between mb-1">
+                <div>
+                  <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500">Faturamento por fechamento de caixa</p>
+                  <p className="text-xs text-gray-600 mt-0.5">Receita acumulada</p>
+                  <p className="text-2xl font-bold text-[#F5E6C8] mt-1">{brl(totalPeriodo)}</p>
+                  {melhorDia && (
+                    <p className="text-xs text-[#b8944a] mt-0.5">
+                      Melhor mês: {new Date(melhorDia.data + "T12:00:00").toLocaleDateString("pt-BR", { month: "short" })} · {brl(melhorDia.totalServicos)}
+                    </p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500">Gastos/mês</p>
+                  <p className="text-lg font-bold text-gray-400 mt-1">{brl(totalMensalGastos)}</p>
+                </div>
+              </div>
+
+              {fechsPeriodo.length === 0 ? (
+                <p className="text-sm text-gray-500 py-16 text-center">Nenhum fechamento de caixa no período.</p>
+              ) : (
+                <div className="mt-4 h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={dadosGrafico} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gradFat" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#C9A84C" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#C9A84C" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e1e1e" vertical={false} />
+                      <XAxis dataKey="data" tick={{ fill: "#555", fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: "#555", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$${(v/1000).toFixed(1)}k`} width={42} />
+                      <Tooltip
+                        contentStyle={{ background: "#111", border: "1px solid #2d2d2d", borderRadius: 6, fontSize: 12 }}
+                        labelStyle={{ color: "#F5E6C8", marginBottom: 4 }}
+                        formatter={(value) => [brl(Number(value)), "Faturamento"]}
+                      />
+                      <Area type="monotone" dataKey="acumulado" stroke="#C9A84C" strokeWidth={2} fill="url(#gradFat)" dot={false} activeDot={{ r: 4, fill: "#C9A84C" }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
               )}
             </div>
-            <div className={`${card} p-5`}>
-              <div className="w-9 h-9 rounded-lg bg-blue-900/20 flex items-center justify-center text-blue-400 mb-3"><Scissors size={18} /></div>
-              <p className="text-xs text-gray-500 mb-0.5">Serviços</p>
-              <p className="text-2xl font-bold text-[#F5E6C8]">{servicosPeriodo}</p>
-              <p className="text-xs text-gray-500 mt-1">{fechsPeriodo.length} dias com caixa fechado</p>
-            </div>
-            <div className={`${card} p-5`}>
-              <div className="w-9 h-9 rounded-lg bg-green-900/20 flex items-center justify-center text-green-400 mb-3"><TrendingUp size={18} /></div>
-              <p className="text-xs text-gray-500 mb-0.5">Ticket médio</p>
-              <p className="text-2xl font-bold text-[#F5E6C8]">{brl(ticketPeriodo)}</p>
-            </div>
-            {fechsPeriodo.length > 0 && (() => {
-              const melhor = fechsPeriodo.reduce((a, b) => b.totalServicos > a.totalServicos ? b : a);
-              const dataLabel = new Date(melhor.data + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-              return (
-                <div className={`${card} p-5`}>
-                  <div className="w-9 h-9 rounded-lg bg-purple-900/20 flex items-center justify-center text-purple-400 mb-3"><BarChart2 size={18} /></div>
-                  <p className="text-xs text-gray-500 mb-0.5">Melhor dia</p>
-                  <p className="text-2xl font-bold text-[#F5E6C8]">{dataLabel}</p>
-                  <p className="text-xs text-gray-500 mt-1">{brl(melhor.totalServicos)}</p>
-                </div>
-              );
-            })()}
-          </div>
 
-          <div className={`${card} p-5`}>
-            <h2 className="font-semibold text-[#F5E6C8] flex items-center gap-2 mb-5"><TrendingUp size={16} className="text-[#b8944a]" /> Faturamento por dia</h2>
-            {fechsPeriodo.length === 0 ? (
-              <p className="text-sm text-gray-500 py-12 text-center">Nenhum fechamento de caixa no período selecionado.</p>
-            ) : (
-              <div className="flex items-end gap-1.5 h-40">
-                {fechsPeriodo.map((f) => {
-                  const altura = Math.max((f.totalServicos / maxFatPeriodo) * 100, 3);
-                  const dataLabel = new Date(f.data + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-                  const isMelhor = f.totalServicos === maxFatPeriodo;
-                  return (
-                    <div key={f.id} className="flex-1 flex flex-col items-center gap-1 group">
-                      <span className="text-[9px] text-gray-500 opacity-0 group-hover:opacity-100 transition">{brl(f.totalServicos)}</span>
-                      <div className={`w-full rounded-t transition ${isMelhor ? "bg-[#b8944a]" : "bg-[#b8944a]/30 group-hover:bg-[#b8944a]/60"}`} style={{ height: `${altura}%` }} title={`${dataLabel} · ${brl(f.totalServicos)}`} />
-                      <span className="text-[9px] text-gray-500">{dataLabel}</span>
-                    </div>
-                  );
-                })}
+            {/* gráfico donut + fechamentos */}
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className={`${card} p-6`}>
+                <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-4">Gastos por categoria (ativos)</p>
+                {donutData.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-12 text-center">Nenhum gasto ativo cadastrado.</p>
+                ) : (
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={donutData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={3} dataKey="value">
+                          {donutData.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ background: "#111", border: "1px solid #2d2d2d", borderRadius: 6, fontSize: 12 }}
+                          formatter={(value) => [brl(Number(value)), "Gasto/mês"]}
+                        />
+                        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, color: "#888" }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className={`${card} p-5`}>
-              <h2 className="font-semibold text-[#F5E6C8] flex items-center gap-2 mb-4"><Scissors size={16} className="text-[#b8944a]" /> Serviços no período</h2>
-              {rankServicos.length === 0 ? <p className="text-sm text-gray-500 py-8 text-center">Nenhum serviço concluído no período.</p> : (
+              <div className={`${card} p-6`}>
+                <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-4">Fechamentos de caixa</p>
+                {fechsPeriodo.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-12 text-center">Nenhum fechamento no período.</p>
+                ) : (
+                  <div className="flex flex-col divide-y divide-[#1a1a1a]">
+                    {[...fechsPeriodo].reverse().map((f) => {
+                      const dataLabel = new Date(f.data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
+                      return (
+                        <div key={f.id} className="flex items-center justify-between py-2.5">
+                          <div>
+                            <p className="text-sm font-medium text-[#F5E6C8] capitalize">{dataLabel}</p>
+                            <p className="text-xs text-gray-500">{f.quantidadeAtendidos} serviço{f.quantidadeAtendidos !== 1 ? "s" : ""}</p>
+                          </div>
+                          <span className="text-sm font-bold text-[#b8944a]">{brl(f.totalServicos)}</span>
+                        </div>
+                      );
+                    })}
+                    <div className="flex items-center justify-between pt-3">
+                      <span className="text-sm font-semibold text-gray-400">Total</span>
+                      <span className="text-sm font-bold text-[#F5E6C8]">{brl(totalPeriodo)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ranking de serviços */}
+            {rankServicos.length > 0 && (
+              <div className={`${card} p-6`}>
+                <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-4">Serviços no período</p>
                 <div className="flex flex-col gap-3">
                   {rankServicos.map(([servico, dados], idx) => {
                     const pct = (dados.quantidade / rankServicos[0][1].quantidade) * 100;
@@ -481,35 +575,23 @@ export default function AdminDashboard() {
                       <div key={servico} className="flex items-center gap-3">
                         <span className="text-xs text-gray-600 w-4">{idx + 1}</span>
                         <div className="flex-1">
-                          <div className="flex justify-between text-xs mb-0.5"><span className="font-medium text-[#F5E6C8]">{servico}</span><span className="text-gray-500">{dados.quantidade}x · {brl(dados.total)}</span></div>
-                          <div className="h-1.5 bg-[#1a1a1a] rounded-full overflow-hidden"><div className="h-full bg-[#b8944a] rounded-full" style={{ width: `${pct}%` }} /></div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="font-medium text-[#F5E6C8]">{servico}</span>
+                            <span className="text-gray-500">{dados.quantidade}x · {brl(dados.total)}</span>
+                          </div>
+                          <div className="h-1.5 bg-[#1a1a1a] rounded-full overflow-hidden">
+                            <div className="h-full bg-[#b8944a] rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          </div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              )}
-            </div>
-            <div className={`${card} p-5`}>
-              <h2 className="font-semibold text-[#F5E6C8] flex items-center gap-2 mb-4"><Lock size={16} className="text-[#b8944a]" /> Fechamentos de caixa</h2>
-              {fechsPeriodo.length === 0 ? <p className="text-sm text-gray-500 py-8 text-center">Nenhum fechamento no período.</p> : (
-                <div className="flex flex-col divide-y divide-[#1a1a1a]">
-                  {[...fechsPeriodo].reverse().map((f) => {
-                    const dataLabel = new Date(f.data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
-                    return (
-                      <div key={f.id} className="flex items-center justify-between py-2.5">
-                        <div><p className="text-sm font-medium text-[#F5E6C8] capitalize">{dataLabel}</p><p className="text-xs text-gray-500">{f.quantidadeAtendidos} serviço{f.quantidadeAtendidos !== 1 ? "s" : ""}</p></div>
-                        <span className="text-sm font-bold text-[#b8944a]">{brl(f.totalServicos)}</span>
-                      </div>
-                    );
-                  })}
-                  <div className="flex items-center justify-between pt-3"><span className="text-sm font-semibold text-gray-400">Total</span><span className="text-sm font-bold text-[#F5E6C8]">{brl(totalPeriodo)}</span></div>
-                </div>
-              )}
-            </div>
-          </div>
-        </>
-      )}
+              </div>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }
