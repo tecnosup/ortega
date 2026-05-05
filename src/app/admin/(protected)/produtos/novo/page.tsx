@@ -19,14 +19,24 @@ export default function NovoProdutoPage() {
     setUploading(true);
     setUploadError("");
     try {
+      // Busca assinatura no servidor (sem enviar o arquivo)
+      const sigRes = await fetch("/api/admin/upload", { credentials: "include" });
+      if (!sigRes.ok) { setUploadError("Não autorizado"); return; }
+      const { signature, timestamp, apiKey, cloudName, folder } = await sigRes.json();
+
+      // Upload direto ao Cloudinary (não passa pela Vercel)
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/admin/upload", { method: "POST", body: fd, credentials: "include" });
-      const data = await res.json();
-      if (data.url) {
-        setImageUrl(data.url);
+      fd.append("api_key", apiKey);
+      fd.append("timestamp", String(timestamp));
+      fd.append("signature", signature);
+      fd.append("folder", folder);
+      const upRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: "POST", body: fd });
+      const data = await upRes.json();
+      if (data.secure_url) {
+        setImageUrl(data.secure_url);
       } else {
-        setUploadError(data.error ?? `Erro ${res.status}`);
+        setUploadError(data.error?.message ?? "Erro no upload");
       }
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : "Erro de rede");

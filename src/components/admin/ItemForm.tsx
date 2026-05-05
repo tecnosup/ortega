@@ -22,12 +22,22 @@ export default function ItemForm({ action, item }: ItemFormProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
-    const data = await res.json();
-    if (data.url) setImageUrl(data.url);
-    setUploading(false);
+    try {
+      const sigRes = await fetch("/api/admin/upload", { credentials: "include" });
+      if (!sigRes.ok) return;
+      const { signature, timestamp, apiKey, cloudName, folder } = await sigRes.json();
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("api_key", apiKey);
+      fd.append("timestamp", String(timestamp));
+      fd.append("signature", signature);
+      fd.append("folder", folder);
+      const upRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: "POST", body: fd });
+      const data = await upRes.json();
+      if (data.secure_url) setImageUrl(data.secure_url);
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (

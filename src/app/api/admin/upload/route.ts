@@ -2,28 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { cloudinary } from "@/lib/cloudinary";
 import { getSessionUser } from "@/lib/firebase-admin";
 
-export async function POST(req: NextRequest) {
+// Returns a signed upload params so the browser uploads directly to Cloudinary,
+// avoiding Vercel's 4.5MB body limit.
+export async function GET(req: NextRequest) {
   const user = await getSessionUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const formData = await req.formData();
-  const file = formData.get("file") as File | null;
 
-  if (!file) return NextResponse.json({ error: "Arquivo ausente" }, { status: 400 });
+  const timestamp = Math.round(Date.now() / 1000);
+  const paramsToSign = { folder: "ortega", timestamp };
+  const signature = cloudinary.utils.api_sign_request(paramsToSign, process.env.CLOUDINARY_API_SECRET!);
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-
-  try {
-    const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
-      cloudinary.uploader
-        .upload_stream({ folder: "base" }, (err, res) => {
-          if (err || !res) return reject(err);
-          resolve(res);
-        })
-        .end(buffer);
-    });
-
-    return NextResponse.json({ url: result.secure_url });
-  } catch {
-    return NextResponse.json({ error: "Erro no upload" }, { status: 500 });
-  }
+  return NextResponse.json({
+    signature,
+    timestamp,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    folder: "ortega",
+  });
 }

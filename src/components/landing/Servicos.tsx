@@ -1,11 +1,19 @@
 import { Scissors, Clock, Tag } from "lucide-react";
 import type { Item } from "@/lib/admin-items";
+import type { Desconto } from "@/lib/admin-descontos";
 
 interface ServicosProps {
   items: Item[];
+  descontos?: Map<string, Desconto>;
 }
 
-export default function Servicos({ items }: ServicosProps) {
+function precoComDesconto(preco: string, pct: number) {
+  const num = parseFloat(preco.replace(",", "."));
+  if (isNaN(num)) return null;
+  return (num * (1 - pct / 100)).toFixed(2).replace(".", ",");
+}
+
+export default function Servicos({ items, descontos }: ServicosProps) {
   const lista = items;
 
   return (
@@ -26,38 +34,60 @@ export default function Servicos({ items }: ServicosProps) {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
-          {lista.map((item, idx) => (
-            <div
-              key={item.id}
-              className="relative group bg-[#141414] border border-[#C9A84C]/10 p-5 sm:p-6 md:p-7 flex flex-col gap-4 hover:border-[#C9A84C]/50 transition-all duration-500"
-            >
-              <span className="absolute top-4 right-5 text-4xl md:text-5xl font-black text-[#C9A84C]/5 group-hover:text-[#C9A84C]/10 transition-all select-none">
-                {String(idx + 1).padStart(2, "0")}
-              </span>
+          {lista.map((item, idx) => {
+            const desconto = descontos?.get(item.id);
+            const precoOriginal = item.preco;
+            const precoFinal = desconto && precoOriginal && !precoOriginal.startsWith("A")
+              ? precoComDesconto(precoOriginal, desconto.percentual)
+              : null;
 
-              <div className="w-10 h-10 md:w-12 md:h-12 bg-[#C9A84C]/10 border border-[#C9A84C]/20 flex items-center justify-center text-[#C9A84C] group-hover:bg-[#C9A84C]/20 transition-all">
-                <Scissors size={20} />
-              </div>
-
-              <h3 className="font-semibold text-[#F5E6C8] text-base md:text-lg tracking-wide">{item.titulo}</h3>
-              <p className="text-sm text-[#F5E6C8]/40 leading-relaxed flex-1">{item.descricao}</p>
-
-              <div className="flex items-center gap-4 pt-3 border-t border-[#C9A84C]/10 text-sm">
-                {item.preco && (
-                  <span className="flex items-center gap-1.5 font-bold text-[#C9A84C]">
-                    <Tag size={13} />
-                    {item.preco.startsWith("A") ? item.preco : `R$ ${item.preco}`}
+            return (
+              <div
+                key={item.id}
+                className="relative group bg-[#141414] border border-[#C9A84C]/10 p-5 sm:p-6 md:p-7 flex flex-col gap-4 hover:border-[#C9A84C]/50 transition-all duration-500"
+              >
+                {desconto && (
+                  <span className="absolute top-3 left-3 bg-[#C9A84C] text-[#0A0A0A] text-[10px] font-black px-2 py-0.5 tracking-wider uppercase">
+                    -{desconto.percentual}%
                   </span>
                 )}
-                {item.duracao && (
-                  <span className="flex items-center gap-1.5 text-[#F5E6C8]/30">
-                    <Clock size={13} />
-                    {item.duracao}
-                  </span>
-                )}
+                <span className="absolute top-4 right-5 text-4xl md:text-5xl font-black text-[#C9A84C]/5 group-hover:text-[#C9A84C]/10 transition-all select-none">
+                  {String(idx + 1).padStart(2, "0")}
+                </span>
+
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-[#C9A84C]/10 border border-[#C9A84C]/20 flex items-center justify-center text-[#C9A84C] group-hover:bg-[#C9A84C]/20 transition-all">
+                  <Scissors size={20} />
+                </div>
+
+                <h3 className="font-semibold text-[#F5E6C8] text-base md:text-lg tracking-wide">{item.titulo}</h3>
+                <p className="text-sm text-[#F5E6C8]/40 leading-relaxed flex-1">{item.descricao}</p>
+
+                <div className="flex items-center gap-4 pt-3 border-t border-[#C9A84C]/10 text-sm">
+                  {precoOriginal && (
+                    <span className="flex items-center gap-1.5">
+                      <Tag size={13} className="text-[#C9A84C]" />
+                      {precoFinal ? (
+                        <>
+                          <span className="line-through text-[#F5E6C8]/30">R$ {precoOriginal}</span>
+                          <span className="font-bold text-[#C9A84C]">R$ {precoFinal}</span>
+                        </>
+                      ) : (
+                        <span className="font-bold text-[#C9A84C]">
+                          {precoOriginal.startsWith("A") ? precoOriginal : `R$ ${precoOriginal}`}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                  {item.duracao && (
+                    <span className="flex items-center gap-1.5 text-[#F5E6C8]/30">
+                      <Clock size={13} />
+                      {item.duracao}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="text-center mt-10 md:mt-14">

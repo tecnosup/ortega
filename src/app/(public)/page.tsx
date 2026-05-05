@@ -7,11 +7,13 @@ import CtaFinal from "@/components/landing/CtaFinal";
 import { getLandingSettings } from "@/lib/admin-settings";
 import { getPublishedItems } from "@/lib/admin-items";
 import { getPublishedProdutos } from "@/lib/admin-produtos";
+import { getActiveDescontos } from "@/lib/admin-descontos";
+import type { Desconto } from "@/lib/admin-descontos";
 
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [settings, items, produtos] = await Promise.all([
+  const [settings, items, produtos, descontosList] = await Promise.all([
     getLandingSettings().catch(() => ({
       heroTitulo: "Ortega Barber",
       heroSubtitulo: "Tradição e estilo em cada corte",
@@ -21,7 +23,10 @@ export default async function HomePage() {
     })),
     getPublishedItems().catch(() => []),
     getPublishedProdutos().catch(() => []),
+    getActiveDescontos().catch(() => []),
   ]);
+
+  const descontos = new Map<string, Desconto>(descontosList.map((d) => [d.entityId, d]));
 
   return (
     <>
@@ -31,8 +36,8 @@ export default async function HomePage() {
         whatsappNumber={settings.whatsappNumber}
       />
       <Sobre texto={settings.sobreTexto} />
-      <Servicos items={items} />
-      <Produtos produtos={produtos} />
+      <Servicos items={items} descontos={descontos} />
+      <Produtos produtos={produtos} descontos={descontos} />
       <Depoimentos />
       <CtaFinal />
     </>

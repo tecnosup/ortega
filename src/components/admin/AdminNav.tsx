@@ -15,7 +15,7 @@ const links = [
   { href: "/admin/agendamentos",  label: "Agendamentos", icon: CalendarCheck   },
   { href: "/admin/itens",         label: "Serviços",     icon: Scissors        },
   { href: "/admin/produtos",      label: "Produtos",     icon: ShoppingBag     },
-  { href: "/admin/cupons",        label: "Cupons",       icon: Tag             },
+  { href: "/admin/descontos",     label: "Descontos",    icon: Tag             },
   { href: "/admin/configuracoes", label: "Config",       icon: Settings        },
   { href: "/admin/auditoria",     label: "Auditoria",    icon: ClipboardList   },
 ];
