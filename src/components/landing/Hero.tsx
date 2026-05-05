@@ -14,7 +14,7 @@ export default function Hero({ titulo, subtitulo, whatsappNumber }: HeroProps) {
     : "#";
 
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden bg-[#0A0A0A]">
+    <section className="relative md:min-h-screen flex items-center overflow-hidden bg-[#0A0A0A]">
 
       {/* foto de fundo */}
       <div className="absolute inset-0">
@@ -42,7 +42,7 @@ export default function Hero({ titulo, subtitulo, whatsappNumber }: HeroProps) {
       <div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-[#C9A84C]/40 to-transparent" />
 
       {/* conteúdo */}
-      <div className="relative z-10 w-full max-w-6xl mx-auto px-6 sm:px-8 pt-28 pb-16 md:pt-0 md:pb-0 md:min-h-screen flex flex-col md:flex-row md:items-center md:gap-0">
+      <div className="relative z-10 w-full max-w-6xl mx-auto px-6 sm:px-8 pt-24 pb-12 md:pt-0 md:pb-0 md:min-h-screen flex flex-col md:flex-row md:items-center md:gap-0">
 
         {/* coluna texto — ocupa 55% no desktop */}
         <div className="w-full md:w-[55%] flex flex-col gap-6 md:gap-8 md:py-32">
