@@ -37,7 +37,7 @@ export default async function HomePage() {
       />
       <Sobre texto={settings.sobreTexto} />
       <Servicos items={items} descontos={descontos} />
-      <Produtos produtos={produtos} descontos={descontos} />
+      <Produtos produtos={produtos} descontos={descontos} whatsappNumber={settings.whatsappNumber} />
       <Depoimentos />
       <CtaFinal />
     </>

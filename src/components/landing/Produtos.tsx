@@ -5,6 +5,7 @@ import type { Desconto } from "@/lib/admin-descontos";
 interface ProdutosProps {
   produtos: Produto[];
   descontos?: Map<string, Desconto>;
+  whatsappNumber?: string;
 }
 
 function precoComDesconto(preco: string, pct: number) {
@@ -13,7 +14,7 @@ function precoComDesconto(preco: string, pct: number) {
   return (num * (1 - pct / 100)).toFixed(2).replace(".", ",");
 }
 
-export default function Produtos({ produtos, descontos }: ProdutosProps) {
+export default function Produtos({ produtos, descontos, whatsappNumber }: ProdutosProps) {
   if (produtos.length === 0) return null;
 
   return (
@@ -72,7 +73,7 @@ export default function Produtos({ produtos, descontos }: ProdutosProps) {
                     <p className="text-xs text-[#F5E6C8]/35 leading-relaxed flex-1">{produto.descricao}</p>
                   )}
                   {precoOriginal && (
-                    <div className="flex items-center gap-1.5 mt-auto pt-2 border-t border-[#C9A84C]/10">
+                    <div className="flex items-center gap-1.5 pt-2 border-t border-[#C9A84C]/10">
                       <Tag size={11} className="text-[#C9A84C]" />
                       {precoFinal ? (
                         <span className="flex items-center gap-1.5">
@@ -85,6 +86,16 @@ export default function Produtos({ produtos, descontos }: ProdutosProps) {
                         </span>
                       )}
                     </div>
+                  )}
+                  {whatsappNumber && (
+                    <a
+                      href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Olá! Tenho interesse no produto: ${produto.titulo}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 w-full inline-flex items-center justify-center py-2 bg-[#C9A84C] text-[#0A0A0A] text-xs font-bold tracking-wider uppercase hover:bg-[#E2C06A] transition-all duration-300"
+                    >
+                      Comprar
+                    </a>
                   )}
                 </div>
               </div>
