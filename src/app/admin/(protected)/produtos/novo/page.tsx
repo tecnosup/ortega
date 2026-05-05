@@ -11,17 +11,28 @@ export default function NovoProdutoPage() {
   const [state, formAction, pending] = useActionState(createProdutoAction, null);
   const [imageUrl, setImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/admin/upload", { method: "POST", body: fd, credentials: "include" });
-    const data = await res.json();
-    if (data.url) setImageUrl(data.url);
-    setUploading(false);
+    setUploadError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/upload", { method: "POST", body: fd, credentials: "include" });
+      const data = await res.json();
+      if (data.url) {
+        setImageUrl(data.url);
+      } else {
+        setUploadError(data.error ?? `Erro ${res.status}`);
+      }
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Erro de rede");
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
@@ -44,6 +55,7 @@ export default function NovoProdutoPage() {
           {imageUrl && <img src={imageUrl} alt="preview" className="w-32 h-32 object-cover rounded border border-[#2d2d2d] mb-1" />}
           <input type="file" accept="image/*" onChange={handleUpload} className="text-sm text-gray-500 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-[#1a1a1a] file:text-gray-400 hover:file:bg-[#252525]" />
           {uploading && <span className="text-xs text-gray-500">Enviando...</span>}
+          {uploadError && <span className="text-xs text-red-400">{uploadError}</span>}
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Preço</label>
