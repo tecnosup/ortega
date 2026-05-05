@@ -32,8 +32,8 @@ export default function Sobre({ texto }: SobreProps) {
             className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#F5E6C8] leading-tight"
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
-            Sobre a<br />
-            <span className="text-[#C9A84C]">Ortega</span>
+            Sobre o<br />
+            <span className="text-[#C9A84C]">Ortega Barber</span>
           </h2>
           <p className="text-sm sm:text-base text-[#F5E6C8]/60 leading-relaxed">{texto}</p>
 
