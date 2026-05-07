@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,10 @@ function normalizeTelefone(t: string) {
 }
 
 export async function GET(req: NextRequest) {
+  if (!rateLimit(`agendamento-status:${getClientIp(req)}`, 10, 60_000)) {
+    return NextResponse.json({ error: "Muitas tentativas. Tente novamente em instantes." }, { status: 429 });
+  }
+
   const telefone = req.nextUrl.searchParams.get("telefone");
   if (!telefone || normalizeTelefone(telefone).length < 8)
     return NextResponse.json({ error: "Telefone inválido" }, { status: 400 });
