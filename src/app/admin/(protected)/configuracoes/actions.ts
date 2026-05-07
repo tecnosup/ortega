@@ -9,7 +9,10 @@ import { cookies } from "next/headers";
 const schema = z.object({
   heroTitulo: z.string().min(1),
   heroSubtitulo: z.string().min(1),
+  heroImagemFundo: z.string().default(""),
+  heroImagemRetrato: z.string().default(""),
   sobreTexto: z.string().min(1),
+  sobreImagem: z.string().default(""),
   whatsappNumber: z.string().default(""),
   emailContato: z.string().default(""),
 });

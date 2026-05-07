@@ -17,7 +17,10 @@ export default async function HomePage() {
     getLandingSettings().catch(() => ({
       heroTitulo: "Ortega Barber",
       heroSubtitulo: "Tradição e estilo em cada corte",
+      heroImagemFundo: "",
+      heroImagemRetrato: "",
       sobreTexto: "",
+      sobreImagem: "",
       whatsappNumber: "5512982585538",
       emailContato: "",
     })),
@@ -34,8 +37,10 @@ export default async function HomePage() {
         titulo={settings.heroTitulo}
         subtitulo={settings.heroSubtitulo}
         whatsappNumber={settings.whatsappNumber}
+        imagemFundo={settings.heroImagemFundo}
+        imagemRetrato={settings.heroImagemRetrato}
       />
-      <Sobre texto={settings.sobreTexto} />
+      <Sobre texto={settings.sobreTexto} imagem={settings.sobreImagem} />
       <Servicos items={items} descontos={descontos} />
       <Produtos produtos={produtos} descontos={descontos} whatsappNumber={settings.whatsappNumber} />
       <Depoimentos />

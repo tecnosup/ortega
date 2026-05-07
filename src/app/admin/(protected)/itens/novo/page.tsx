@@ -17,18 +17,12 @@ export default function NovoItemPage() {
     if (!file) return;
     setUploading(true);
     try {
-      const sigRes = await fetch("/api/admin/upload", { credentials: "include" });
-      if (!sigRes.ok) return;
-      const { signature, timestamp, apiKey, cloudName, folder } = await sigRes.json();
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("api_key", apiKey);
-      fd.append("timestamp", String(timestamp));
-      fd.append("signature", signature);
-      fd.append("folder", folder);
-      const upRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: "POST", body: fd });
-      const data = await upRes.json();
-      if (data.secure_url) setImageUrl(data.secure_url);
+      fd.append("folder", "ortega/itens");
+      const res = await fetch("/api/admin/upload", { method: "POST", body: fd, credentials: "include" });
+      const data = await res.json();
+      if (res.ok && data.url) setImageUrl(data.url);
     } finally {
       setUploading(false);
     }

@@ -6,9 +6,11 @@ interface HeroProps {
   titulo: string;
   subtitulo: string;
   whatsappNumber: string;
+  imagemFundo?: string;
+  imagemRetrato?: string;
 }
 
-export default function Hero({ titulo, subtitulo, whatsappNumber }: HeroProps) {
+export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, imagemRetrato }: HeroProps) {
   const whatsappHref = whatsappNumber
     ? `https://wa.me/${whatsappNumber}?text=Olá! Gostaria de agendar um horário na Ortega Barber.`
     : "#";
@@ -19,7 +21,7 @@ export default function Hero({ titulo, subtitulo, whatsappNumber }: HeroProps) {
       {/* foto de fundo */}
       <div className="absolute inset-0">
         <img
-          src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1600&q=85"
+          src={imagemFundo || "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1600&q=85"}
           alt=""
           className="w-full h-full object-cover object-center opacity-30"
         />
@@ -136,7 +138,7 @@ export default function Hero({ titulo, subtitulo, whatsappNumber }: HeroProps) {
             <div className="absolute -inset-6 border border-[#C9A84C]/08" />
             <div className="relative overflow-hidden aspect-[3/4]">
               <img
-                src="https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=800&q=85"
+                src={imagemRetrato || "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=800&q=85"}
                 alt="Barbeiro Ortega"
                 className="w-full h-full object-cover"
               />

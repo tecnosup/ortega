@@ -1,8 +1,9 @@
 interface SobreProps {
   texto: string;
+  imagem?: string;
 }
 
-export default function Sobre({ texto }: SobreProps) {
+export default function Sobre({ texto, imagem }: SobreProps) {
   return (
     <section id="sobre" className="py-20 md:py-28 bg-[#0A0A0A] relative overflow-hidden">
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/30 to-transparent" />
@@ -13,7 +14,7 @@ export default function Sobre({ texto }: SobreProps) {
           <div className="absolute -inset-1 bg-gradient-to-br from-[#C9A84C]/30 via-transparent to-[#C9A84C]/10 rounded-sm" />
           <div className="relative w-full h-56 sm:h-72 md:h-80 overflow-hidden border border-[#C9A84C]/20">
             <img
-              src="https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=800&q=80"
+              src={imagem || "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=800&q=80"}
               alt="Interior da barbearia Ortega"
               className="w-full h-full object-cover opacity-80"
             />
