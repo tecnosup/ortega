@@ -22,7 +22,7 @@ export function usePushNotifications() {
     setStatus("loading");
     try {
       // registra service worker de push separado do next-pwa
-      const reg = await navigator.serviceWorker.register("/sw-push.js", { scope: "/admin" });
+      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
       await navigator.serviceWorker.ready;
 
       const permission = await Notification.requestPermission();
@@ -55,7 +55,7 @@ export function usePushNotifications() {
 
   async function unsubscribe() {
     try {
-      const reg = await navigator.serviceWorker.getRegistration("/admin");
+      const reg = await navigator.serviceWorker.getRegistration("/");
       if (!reg) return;
       const sub = await reg.pushManager.getSubscription();
       if (!sub) return;
