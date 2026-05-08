@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { criarAgendamento, listarAgendamentos } from "@/lib/agendamentos";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { sendPushToAll } from "@/lib/web-push";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,13 @@ export async function POST(req: NextRequest) {
   if (desconto !== undefined && desconto !== null) payload.desconto = desconto;
 
   const id = await criarAgendamento(payload);
+
+  // push em background — não bloqueia resposta ao cliente
+  sendPushToAll(
+    "Novo agendamento",
+    `${nomeSanitizado} — ${servicoSanitizado} em ${data} às ${horario}`
+  ).catch(() => {});
+
   return NextResponse.json({ id });
 }
 
