@@ -183,27 +183,27 @@ export default function FinanceiroPage() {
             ))}
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className={`${card} p-5`}>
-              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-2">Faturamento este mês</p>
-              <p className="text-3xl font-bold text-[#F5E6C8]">{brl(totalPeriodo)}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className={`${card} p-3.5`}>
+              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Faturamento este mês</p>
+              <p className="text-xl font-bold text-[#F5E6C8]">{brl(totalPeriodo)}</p>
               {varPct !== null && (
-                <p className={`text-xs mt-2 ${varPct > 0 ? "text-green-400" : varPct < 0 ? "text-red-400" : "text-gray-500"}`}>
+                <p className={`text-xs mt-1 ${varPct > 0 ? "text-green-400" : varPct < 0 ? "text-red-400" : "text-gray-500"}`}>
                   {varPct > 0 ? "↑" : "↓"} {Math.abs(varPct).toFixed(1)}% vs anterior
                 </p>
               )}
             </div>
-            <div className={`${card} p-5`}>
-              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-2">Gastos recorrentes/mês</p>
-              <p className="text-3xl font-bold text-[#F5E6C8]">{brl(totalMensalGastos)}</p>
+            <div className={`${card} p-3.5`}>
+              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Gastos recorrentes/mês</p>
+              <p className="text-xl font-bold text-[#F5E6C8]">{brl(totalMensalGastos)}</p>
             </div>
-            <div className={`${card} p-5 border ${lucroEstimado >= 0 ? "border-green-800/40" : "border-red-800/40"}`}>
-              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-2">Lucro estimado</p>
-              <p className={`text-3xl font-bold ${lucroEstimado >= 0 ? "text-green-400" : "text-red-400"}`}>{brl(lucroEstimado)}</p>
+            <div className={`${card} p-3.5 border ${lucroEstimado >= 0 ? "border-green-800/40" : "border-red-800/40"}`}>
+              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Lucro estimado</p>
+              <p className={`text-xl font-bold ${lucroEstimado >= 0 ? "text-green-400" : "text-red-400"}`}>{brl(lucroEstimado)}</p>
             </div>
-            <div className={`${card} p-5`}>
-              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-2">Receita total (pedidos)</p>
-              <p className="text-3xl font-bold text-[#F5E6C8]">{brl(fechamentos.reduce((s, f) => s + f.totalServicos, 0))}</p>
+            <div className={`${card} p-3.5`}>
+              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Receita total (pedidos)</p>
+              <p className="text-xl font-bold text-[#F5E6C8]">{brl(fechamentos.reduce((s, f) => s + f.totalServicos, 0))}</p>
             </div>
           </div>
 
@@ -305,12 +305,12 @@ export default function FinanceiroPage() {
         const maxCat = Math.max(...Object.values(porCategoria), 1);
         return (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className={`${card} p-5`}><p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-2">Gastos mensais</p><p className="text-3xl font-bold text-[#F5E6C8]">{brl(totalMensalGastos)}</p><p className="text-xs text-gray-500 mt-1">{gastosAtivos.length} ativo{gastosAtivos.length !== 1 ? "s" : ""}</p></div>
-              <div className={`${card} p-5`}><p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-2">Faturamento do mês</p><p className="text-3xl font-bold text-[#F5E6C8]">{brl(fechamentos.filter((f) => { const d = new Date(f.data + "T12:00:00"); const n = new Date(); return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear(); }).reduce((s, f) => s + f.totalServicos, 0))}</p></div>
-              <div className={`bg-[#111] border ${lucroEstimado >= 0 ? "border-green-800/40" : "border-red-800/40"} rounded-lg p-5 col-span-2 md:col-span-1`}>
-                <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-2">Lucro estimado</p>
-                <p className={`text-3xl font-bold ${lucroEstimado >= 0 ? "text-green-400" : "text-red-400"}`}>{brl(lucroEstimado)}</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className={`${card} p-3.5`}><p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Gastos mensais</p><p className="text-xl font-bold text-[#F5E6C8]">{brl(totalMensalGastos)}</p><p className="text-xs text-gray-500 mt-1">{gastosAtivos.length} ativo{gastosAtivos.length !== 1 ? "s" : ""}</p></div>
+              <div className={`${card} p-3.5`}><p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Faturamento do mês</p><p className="text-xl font-bold text-[#F5E6C8]">{brl(fechamentos.filter((f) => { const d = new Date(f.data + "T12:00:00"); const n = new Date(); return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear(); }).reduce((s, f) => s + f.totalServicos, 0))}</p></div>
+              <div className={`bg-[#111] border ${lucroEstimado >= 0 ? "border-green-800/40" : "border-red-800/40"} rounded-lg p-3.5 col-span-2 md:col-span-1`}>
+                <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Lucro estimado</p>
+                <p className={`text-xl font-bold ${lucroEstimado >= 0 ? "text-green-400" : "text-red-400"}`}>{brl(lucroEstimado)}</p>
               </div>
             </div>
 
