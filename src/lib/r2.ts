@@ -98,7 +98,7 @@ export async function uploadToR2(
       "x-amz-date": amzDate,
       Authorization: authorization,
     },
-    body: buffer,
+    body: new Uint8Array(buffer),
   });
 
   if (!res.ok) {
