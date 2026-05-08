@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState, useCallback } from "react";
 import {
-  TrendingUp, DollarSign, Receipt, BarChart2, Plus, Edit2, Trash2, ToggleLeft, ToggleRight,
+  Receipt, Plus, Edit2, Trash2, ToggleLeft, ToggleRight,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -65,7 +65,6 @@ export default function FinanceiroPage() {
   const [fechamentos, setFechamentos] = useState<FechamentoDia[]>([]);
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [aba, setAba] = useState<"financeiro" | "gastos">("financeiro");
   const [periodo, setPeriodo] = useState<Periodo>("mes_atual");
   const [mostraFormGasto, setMostraFormGasto] = useState(false);
   const [editandoGasto, setEditandoGasto] = useState<Gasto | null>(null);
@@ -155,218 +154,202 @@ export default function FinanceiroPage() {
 
   if (carregando) return <div className="flex items-center justify-center h-64 text-gray-500 text-sm">Carregando...</div>;
 
-  const abaBtn = (id: typeof aba, label: string) => (
-    <button onClick={() => setAba(id)} className={`px-4 py-1.5 text-sm font-medium rounded transition ${aba === id ? "bg-[#1a1a1a] text-[#b8944a]" : "text-gray-500 hover:text-gray-300"}`}>{label}</button>
-  );
+  const maxCat = Math.max(...Object.values(porCategoria), 1);
 
   return (
-    <div className="max-w-5xl mx-auto flex flex-col gap-6">
+    <div className="max-w-5xl mx-auto flex flex-col gap-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[#F5E6C8]">Financeiro</h1>
-        <p className="text-sm text-gray-500">Visão geral de faturamento, gastos e lucro estimado.</p>
+        <h1 className="text-xl font-bold text-[#F5E6C8]">Financeiro</h1>
+        <p className="text-xs text-gray-500 hidden sm:block">Faturamento, gastos e lucro estimado</p>
       </div>
 
-      <div className={`flex gap-1 ${card} p-1 w-fit`}>
-        {abaBtn("financeiro", "Financeiro")}
-        {abaBtn("gastos", "Gastos")}
+      {/* ── Período ── */}
+      <div className="flex gap-2 flex-wrap">
+        {(Object.keys(PERIODO_LABEL) as Periodo[]).map((p) => (
+          <button key={p} onClick={() => setPeriodo(p)}
+            className={`px-3 py-1 text-xs rounded-full border transition ${periodo === p ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-bold" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a]"}`}>
+            {PERIODO_LABEL[p]}
+          </button>
+        ))}
       </div>
 
-      {/* ── ABA FINANCEIRO ── */}
-      {aba === "financeiro" && (
-        <>
-          <div className="flex gap-2 flex-wrap">
-            {(Object.keys(PERIODO_LABEL) as Periodo[]).map((p) => (
-              <button key={p} onClick={() => setPeriodo(p)}
-                className={`px-3 py-1.5 text-sm rounded-full border transition ${periodo === p ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-bold" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a]"}`}>
-                {PERIODO_LABEL[p]}
-              </button>
-            ))}
-          </div>
+      {/* ── KPIs ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className={`${card} p-3.5`}>
+          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Faturamento</p>
+          <p className="text-xl font-bold text-[#F5E6C8]">{brl(totalPeriodo)}</p>
+          {varPct !== null && (
+            <p className={`text-xs mt-1 ${varPct > 0 ? "text-green-400" : varPct < 0 ? "text-red-400" : "text-gray-500"}`}>
+              {varPct > 0 ? "↑" : "↓"} {Math.abs(varPct).toFixed(1)}% vs anterior
+            </p>
+          )}
+        </div>
+        <div className={`${card} p-3.5`}>
+          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Gastos/mês</p>
+          <p className="text-xl font-bold text-[#F5E6C8]">{brl(totalMensalGastos)}</p>
+          <p className="text-xs text-gray-500 mt-1">{gastosAtivos.length} ativo{gastosAtivos.length !== 1 ? "s" : ""}</p>
+        </div>
+        <div className={`${card} p-3.5 border ${lucroEstimado >= 0 ? "border-green-800/40" : "border-red-800/40"}`}>
+          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Lucro estimado</p>
+          <p className={`text-xl font-bold ${lucroEstimado >= 0 ? "text-green-400" : "text-red-400"}`}>{brl(lucroEstimado)}</p>
+        </div>
+        <div className={`${card} p-3.5`}>
+          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Receita total</p>
+          <p className="text-xl font-bold text-[#F5E6C8]">{brl(fechamentos.reduce((s, f) => s + f.totalServicos, 0))}</p>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className={`${card} p-3.5`}>
-              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Faturamento este mês</p>
-              <p className="text-xl font-bold text-[#F5E6C8]">{brl(totalPeriodo)}</p>
-              {varPct !== null && (
-                <p className={`text-xs mt-1 ${varPct > 0 ? "text-green-400" : varPct < 0 ? "text-red-400" : "text-gray-500"}`}>
-                  {varPct > 0 ? "↑" : "↓"} {Math.abs(varPct).toFixed(1)}% vs anterior
-                </p>
-              )}
-            </div>
-            <div className={`${card} p-3.5`}>
-              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Gastos recorrentes/mês</p>
-              <p className="text-xl font-bold text-[#F5E6C8]">{brl(totalMensalGastos)}</p>
-            </div>
-            <div className={`${card} p-3.5 border ${lucroEstimado >= 0 ? "border-green-800/40" : "border-red-800/40"}`}>
-              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Lucro estimado</p>
-              <p className={`text-xl font-bold ${lucroEstimado >= 0 ? "text-green-400" : "text-red-400"}`}>{brl(lucroEstimado)}</p>
-            </div>
-            <div className={`${card} p-3.5`}>
-              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Receita total (pedidos)</p>
-              <p className="text-xl font-bold text-[#F5E6C8]">{brl(fechamentos.reduce((s, f) => s + f.totalServicos, 0))}</p>
-            </div>
+      {/* ── Gráfico ── */}
+      <div className={`${card} p-4`}>
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500">Faturamento acumulado</p>
+            <p className="text-lg font-bold text-[#F5E6C8] mt-0.5">{brl(totalPeriodo)}</p>
+            {melhorDia && <p className="text-xs text-[#b8944a] mt-0.5">Melhor dia: {new Date(melhorDia.data + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} · {brl(melhorDia.totalServicos)}</p>}
           </div>
-
-          <div className={`${card} p-6`}>
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500">Faturamento por fechamento de caixa</p>
-                <p className="text-2xl font-bold text-[#F5E6C8] mt-1">{brl(totalPeriodo)}</p>
-                {melhorDia && <p className="text-xs text-[#b8944a] mt-0.5">Melhor dia: {new Date(melhorDia.data + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} · {brl(melhorDia.totalServicos)}</p>}
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500">Gastos/mês</p>
-                <p className="text-lg font-bold text-gray-400 mt-1">{brl(totalMensalGastos)}</p>
-              </div>
-            </div>
-            {fechsPeriodo.length === 0 ? (
-              <p className="text-sm text-gray-500 py-16 text-center">Nenhum fechamento de caixa no período.</p>
-            ) : (
-              <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={dadosGrafico} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gradFin" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#C9A84C" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#C9A84C" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e1e1e" vertical={false} />
-                    <XAxis dataKey="data" tick={{ fill: "#555", fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: "#555", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$${(v / 1000).toFixed(1)}k`} width={42} />
-                    <Tooltip contentStyle={{ background: "#111", border: "1px solid #2d2d2d", borderRadius: 6, fontSize: 12 }} labelStyle={{ color: "#F5E6C8", marginBottom: 4 }} formatter={(v) => [brl(Number(v)), "Acumulado"]} />
-                    <Area type="monotone" dataKey="acumulado" stroke="#C9A84C" strokeWidth={2} fill="url(#gradFin)" dot={false} activeDot={{ r: 4, fill: "#C9A84C" }} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+          <div className="text-right">
+            <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500">Gastos/mês</p>
+            <p className="text-base font-bold text-gray-400 mt-0.5">{brl(totalMensalGastos)}</p>
           </div>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className={`${card} p-6`}>
-              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-4">Gastos por categoria (ativos)</p>
-              {donutData.length === 0 ? <p className="text-sm text-gray-500 py-12 text-center">Nenhum gasto ativo.</p> : (
-                <div className="h-52">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={donutData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
-                        {donutData.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
-                      </Pie>
-                      <Tooltip contentStyle={{ background: "#111", border: "1px solid #2d2d2d", borderRadius: 6, fontSize: 12 }} formatter={(v) => [brl(Number(v)), "Gasto/mês"]} />
-                      <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, color: "#888" }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </div>
-            <div className={`${card} p-6`}>
-              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-4">Fechamentos de caixa</p>
-              {fechsPeriodo.length === 0 ? <p className="text-sm text-gray-500 py-12 text-center">Nenhum fechamento no período.</p> : (
-                <div className="flex flex-col divide-y divide-[#1a1a1a]">
-                  {[...fechsPeriodo].reverse().map((f) => (
-                    <div key={f.id} className="flex items-center justify-between py-2.5">
-                      <div>
-                        <p className="text-sm font-medium text-[#F5E6C8] capitalize">{new Date(f.data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}</p>
-                        <p className="text-xs text-gray-500">{f.quantidadeAtendidos} serviço{f.quantidadeAtendidos !== 1 ? "s" : ""}</p>
-                      </div>
-                      <span className="text-sm font-bold text-[#b8944a]">{brl(f.totalServicos)}</span>
-                    </div>
-                  ))}
-                  <div className="flex items-center justify-between pt-3"><span className="text-sm font-semibold text-gray-400">Total</span><span className="text-sm font-bold text-[#F5E6C8]">{brl(totalPeriodo)}</span></div>
-                </div>
-              )}
-            </div>
+        </div>
+        {fechsPeriodo.length === 0 ? (
+          <p className="text-sm text-gray-500 py-12 text-center">Nenhum fechamento de caixa no período.</p>
+        ) : (
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={dadosGrafico} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gradFin" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#C9A84C" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#C9A84C" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e1e1e" vertical={false} />
+                <XAxis dataKey="data" tick={{ fill: "#555", fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "#555", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$${(v / 1000).toFixed(1)}k`} width={42} />
+                <Tooltip contentStyle={{ background: "#111", border: "1px solid #2d2d2d", borderRadius: 6, fontSize: 12 }} labelStyle={{ color: "#F5E6C8", marginBottom: 4 }} formatter={(v) => [brl(Number(v)), "Acumulado"]} />
+                <Area type="monotone" dataKey="acumulado" stroke="#C9A84C" strokeWidth={2} fill="url(#gradFin)" dot={false} activeDot={{ r: 4, fill: "#C9A84C" }} />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
+        )}
+      </div>
 
-          {rankServicos.length > 0 && (
-            <div className={`${card} p-6`}>
-              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-4">Serviços no período</p>
-              <div className="flex flex-col gap-3">
-                {rankServicos.map(([servico, dados], idx) => {
-                  const pct = (dados.quantidade / rankServicos[0][1].quantidade) * 100;
-                  return (
-                    <div key={servico} className="flex items-center gap-3">
-                      <span className="text-xs text-gray-600 w-4">{idx + 1}</span>
-                      <div className="flex-1">
-                        <div className="flex justify-between text-xs mb-1"><span className="font-medium text-[#F5E6C8]">{servico}</span><span className="text-gray-500">{dados.quantidade}x · {brl(dados.total)}</span></div>
-                        <div className="h-1.5 bg-[#1a1a1a] rounded-full overflow-hidden"><div className="h-full bg-[#b8944a] rounded-full" style={{ width: `${pct}%` }} /></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+      {/* ── Gráfico de pizza + Fechamentos ── */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className={`${card} p-4`}>
+          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-3">Gastos por categoria</p>
+          {donutData.length === 0 ? <p className="text-sm text-gray-500 py-10 text-center">Nenhum gasto ativo.</p> : (
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={donutData} cx="50%" cy="50%" innerRadius={45} outerRadius={68} paddingAngle={3} dataKey="value">
+                    {donutData.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: "#111", border: "1px solid #2d2d2d", borderRadius: 6, fontSize: 12 }} formatter={(v) => [brl(Number(v)), "Gasto/mês"]} />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, color: "#888" }} />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
           )}
-        </>
+        </div>
+        <div className={`${card} p-4`}>
+          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-3">Fechamentos de caixa</p>
+          {fechsPeriodo.length === 0 ? <p className="text-sm text-gray-500 py-10 text-center">Nenhum fechamento no período.</p> : (
+            <div className="flex flex-col divide-y divide-[#1a1a1a]">
+              {[...fechsPeriodo].reverse().map((f) => (
+                <div key={f.id} className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="text-sm font-medium text-[#F5E6C8] capitalize">{new Date(f.data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}</p>
+                    <p className="text-xs text-gray-500">{f.quantidadeAtendidos} serviço{f.quantidadeAtendidos !== 1 ? "s" : ""}</p>
+                  </div>
+                  <span className="text-sm font-bold text-[#b8944a]">{brl(f.totalServicos)}</span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between pt-2"><span className="text-xs font-semibold text-gray-400">Total</span><span className="text-sm font-bold text-[#F5E6C8]">{brl(totalPeriodo)}</span></div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Serviços no período ── */}
+      {rankServicos.length > 0 && (
+        <div className={`${card} p-4`}>
+          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-3">Serviços no período</p>
+          <div className="flex flex-col gap-2.5">
+            {rankServicos.map(([servico, dados], idx) => {
+              const pct = (dados.quantidade / rankServicos[0][1].quantidade) * 100;
+              return (
+                <div key={servico} className="flex items-center gap-3">
+                  <span className="text-xs text-gray-600 w-4">{idx + 1}</span>
+                  <div className="flex-1">
+                    <div className="flex justify-between text-xs mb-0.5"><span className="font-medium text-[#F5E6C8]">{servico}</span><span className="text-gray-500">{dados.quantidade}x · {brl(dados.total)}</span></div>
+                    <div className="h-1.5 bg-[#1a1a1a] rounded-full overflow-hidden"><div className="h-full bg-[#b8944a] rounded-full" style={{ width: `${pct}%` }} /></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
 
-      {/* ── ABA GASTOS ── */}
-      {aba === "gastos" && (() => {
-        const maxCat = Math.max(...Object.values(porCategoria), 1);
-        return (
-          <>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <div className={`${card} p-3.5`}><p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Gastos mensais</p><p className="text-xl font-bold text-[#F5E6C8]">{brl(totalMensalGastos)}</p><p className="text-xs text-gray-500 mt-1">{gastosAtivos.length} ativo{gastosAtivos.length !== 1 ? "s" : ""}</p></div>
-              <div className={`${card} p-3.5`}><p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Faturamento do mês</p><p className="text-xl font-bold text-[#F5E6C8]">{brl(fechamentos.filter((f) => { const d = new Date(f.data + "T12:00:00"); const n = new Date(); return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear(); }).reduce((s, f) => s + f.totalServicos, 0))}</p></div>
-              <div className={`bg-[#111] border ${lucroEstimado >= 0 ? "border-green-800/40" : "border-red-800/40"} rounded-lg p-3.5 col-span-2 md:col-span-1`}>
-                <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Lucro estimado</p>
-                <p className={`text-xl font-bold ${lucroEstimado >= 0 ? "text-green-400" : "text-red-400"}`}>{brl(lucroEstimado)}</p>
-              </div>
-            </div>
+      {/* ── Divisor ── */}
+      <div className="border-t border-[#2d2d2d] pt-1">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Gastos recorrentes</p>
+      </div>
 
-            {Object.keys(porCategoria).length > 0 && (
-              <div className={`${card} p-5`}>
-                <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-4">Gastos por categoria</p>
-                <div className="flex flex-col gap-3">
-                  {Object.entries(porCategoria).sort((a, b) => b[1] - a[1]).map(([cat, val]) => (
-                    <div key={cat} className="flex items-center gap-3">
-                      <span className="text-xs text-gray-500 w-24 shrink-0">{cat}</span>
-                      <div className="flex-1 h-2 bg-[#1a1a1a] rounded-full overflow-hidden"><div className="h-full bg-red-500/60 rounded-full" style={{ width: `${(val / maxCat) * 100}%` }} /></div>
-                      <span className="text-xs font-medium text-gray-400 w-24 text-right shrink-0">{brl(val)}/mês</span>
-                    </div>
-                  ))}
+      {/* ── Gastos por categoria barra ── */}
+      {Object.keys(porCategoria).length > 0 && (
+        <div className={`${card} p-4`}>
+          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-3">Por categoria</p>
+          <div className="flex flex-col gap-2.5">
+            {Object.entries(porCategoria).sort((a, b) => b[1] - a[1]).map(([cat, val]) => (
+              <div key={cat} className="flex items-center gap-3">
+                <span className="text-xs text-gray-500 w-24 shrink-0">{cat}</span>
+                <div className="flex-1 h-1.5 bg-[#1a1a1a] rounded-full overflow-hidden"><div className="h-full bg-red-500/60 rounded-full" style={{ width: `${(val / maxCat) * 100}%` }} /></div>
+                <span className="text-xs font-medium text-gray-400 w-20 text-right shrink-0">{brl(val)}/mês</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Lista de gastos ── */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-[#F5E6C8]">Todos os gastos</p>
+        <button onClick={() => { setEditandoGasto(null); setMostraFormGasto(true); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#b8944a] text-[#0A0A0A] text-xs font-bold rounded hover:bg-[#c9a84c] transition"><Plus size={13} /> Novo gasto</button>
+      </div>
+      {mostraFormGasto && !editandoGasto && <FormGasto onSalvar={salvarGasto} onCancelar={() => setMostraFormGasto(false)} salvando={salvandoGasto} />}
+      {editandoGasto && <FormGasto inicial={editandoGasto} onSalvar={salvarGasto} onCancelar={() => setEditandoGasto(null)} salvando={salvandoGasto} />}
+
+      {gastos.length === 0 ? (
+        <div className={`${card} p-10 text-center`}><Receipt size={24} className="text-gray-600 mx-auto mb-2" /><p className="text-sm text-gray-500">Nenhum gasto cadastrado.</p></div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {gastos.map((g) => (
+            <div key={g.id} className={`${card} p-3.5 flex items-center gap-3 ${!g.ativo ? "opacity-50" : ""}`}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-[#F5E6C8] text-sm">{g.descricao}</span>
+                  <span className="text-xs px-1.5 py-0.5 bg-[#1a1a1a] text-gray-400 rounded-full">{CATEGORIA_LABEL[g.categoria]}</span>
+                  <span className="text-xs px-1.5 py-0.5 bg-blue-900/20 text-blue-400 rounded-full">{FREQUENCIA_LABEL[g.frequencia]}</span>
+                  {!g.ativo && <span className="text-xs px-1.5 py-0.5 bg-[#1a1a1a] text-gray-600 rounded-full">inativo</span>}
                 </div>
+                {g.vencimento && <p className="text-xs text-gray-500 mt-0.5">Vence dia {g.vencimento}</p>}
               </div>
-            )}
-
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-[#F5E6C8]">Gastos recorrentes</h2>
-              <button onClick={() => { setEditandoGasto(null); setMostraFormGasto(true); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#b8944a] text-[#0A0A0A] text-xs font-bold rounded hover:bg-[#c9a84c] transition"><Plus size={14} /> Novo gasto</button>
+              <div className="text-right shrink-0">
+                <p className="font-bold text-red-400 text-sm">{brl(g.valor)}</p>
+                {g.frequencia !== "mensal" && g.ativo && <p className="text-xs text-gray-500">{brl(gastoMensalEquivalente(g))}/mês</p>}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => toggleGasto(g)} className={`p-1.5 rounded transition ${g.ativo ? "text-green-400 hover:text-green-300" : "text-gray-600 hover:text-gray-400"}`}>{g.ativo ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}</button>
+                <button onClick={() => { setMostraFormGasto(false); setEditandoGasto(g); }} className="p-1.5 text-gray-500 hover:text-gray-300 rounded transition"><Edit2 size={13} /></button>
+                <button onClick={() => excluirGasto(g.id)} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition"><Trash2 size={13} /></button>
+              </div>
             </div>
-            {mostraFormGasto && !editandoGasto && <FormGasto onSalvar={salvarGasto} onCancelar={() => setMostraFormGasto(false)} salvando={salvandoGasto} />}
-            {editandoGasto && <FormGasto inicial={editandoGasto} onSalvar={salvarGasto} onCancelar={() => setEditandoGasto(null)} salvando={salvandoGasto} />}
-
-            {gastos.length === 0 ? (
-              <div className={`${card} p-12 text-center`}><Receipt size={28} className="text-gray-600 mx-auto mb-2" /><p className="text-sm text-gray-500">Nenhum gasto cadastrado.</p></div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {gastos.map((g) => (
-                  <div key={g.id} className={`${card} p-4 flex items-center gap-3 ${!g.ativo ? "opacity-50" : ""}`}>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-[#F5E6C8] text-sm">{g.descricao}</span>
-                        <span className="text-xs px-2 py-0.5 bg-[#1a1a1a] text-gray-400 rounded-full">{CATEGORIA_LABEL[g.categoria]}</span>
-                        <span className="text-xs px-2 py-0.5 bg-blue-900/20 text-blue-400 rounded-full">{FREQUENCIA_LABEL[g.frequencia]}</span>
-                        {!g.ativo && <span className="text-xs px-2 py-0.5 bg-[#1a1a1a] text-gray-600 rounded-full">inativo</span>}
-                      </div>
-                      {g.vencimento && <p className="text-xs text-gray-500 mt-0.5">Vence dia {g.vencimento}</p>}
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-bold text-red-400 text-sm">{brl(g.valor)}</p>
-                      {g.frequencia !== "mensal" && g.ativo && <p className="text-xs text-gray-500">{brl(gastoMensalEquivalente(g))}/mês</p>}
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button onClick={() => toggleGasto(g)} className={`p-1.5 rounded transition ${g.ativo ? "text-green-400 hover:text-green-300" : "text-gray-600 hover:text-gray-400"}`}>{g.ativo ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}</button>
-                      <button onClick={() => { setMostraFormGasto(false); setEditandoGasto(g); }} className="p-1.5 text-gray-500 hover:text-gray-300 rounded transition"><Edit2 size={14} /></button>
-                      <button onClick={() => excluirGasto(g.id)} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition"><Trash2 size={14} /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        );
-      })()}
+          ))}
+        </div>
+      )}
     </div>
   );
 }
