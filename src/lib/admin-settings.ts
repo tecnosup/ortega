@@ -9,6 +9,8 @@ export interface LandingSettings {
   sobreImagem: string;
   whatsappNumber: string;
   emailContato: string;
+  enderecoTexto: string;
+  enderecoEmbed: string;
 }
 
 const DEFAULTS: LandingSettings = {
@@ -21,6 +23,8 @@ const DEFAULTS: LandingSettings = {
   sobreImagem: "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=800&q=80",
   whatsappNumber: "5512982585538",
   emailContato: "contato@ortegabarber.com.br",
+  enderecoTexto: "Rua Capitão Neco, 300 — Cruzeiro, SP",
+  enderecoEmbed: "https://maps.google.com/maps?q=Rua+Capit%C3%A3o+Neco+300+Cruzeiro+SP&output=embed",
 };
 
 export async function getLandingSettings(): Promise<LandingSettings> {

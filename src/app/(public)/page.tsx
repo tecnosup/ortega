@@ -3,6 +3,7 @@ import Sobre from "@/components/landing/Sobre";
 import Servicos from "@/components/landing/Servicos";
 import Produtos from "@/components/landing/Produtos";
 import Depoimentos from "@/components/landing/Depoimentos";
+import Localizacao from "@/components/landing/Localizacao";
 import CtaFinal from "@/components/landing/CtaFinal";
 import { getLandingSettings } from "@/lib/admin-settings";
 import { getPublishedItems } from "@/lib/admin-items";
@@ -23,6 +24,8 @@ export default async function HomePage() {
       sobreImagem: "",
       whatsappNumber: "5512982585538",
       emailContato: "",
+      enderecoTexto: "",
+      enderecoEmbed: "",
     })),
     getPublishedItems().catch(() => []),
     getPublishedProdutos().catch(() => []),
@@ -44,6 +47,7 @@ export default async function HomePage() {
       <Servicos items={items} descontos={descontos} />
       <Produtos produtos={produtos} descontos={descontos} whatsappNumber={settings.whatsappNumber} />
       <Depoimentos />
+      <Localizacao enderecoTexto={settings.enderecoTexto} enderecoEmbed={settings.enderecoEmbed} />
       <CtaFinal />
     </>
   );
