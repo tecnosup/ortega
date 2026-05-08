@@ -10,7 +10,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <AdminNotificacoesProvider>
         <div className="min-h-screen bg-[#0A0A0A] flex">
           <AdminNav />
-          <main className="flex-1 px-5 py-5 sm:p-6 md:p-8 pt-20 md:pt-8 pb-28 md:pb-8 text-[#F5E6C8] min-w-0">{children}</main>
+          <main className="flex-1 min-w-0 pt-20 md:pt-8 pb-28 md:pb-8 text-[#F5E6C8]">
+            <div className="max-w-5xl mx-auto px-5 sm:px-6 md:px-8 py-5 sm:py-6 md:py-8 h-full">
+              {children}
+            </div>
+          </main>
         </div>
       </AdminNotificacoesProvider>
     </AdminAuthGuard>
