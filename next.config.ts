@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import withPWA from "next-pwa";
+import withPWA from "@ducanh2912/next-pwa";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["firebase-admin"],
@@ -9,9 +9,9 @@ const nextConfig: NextConfig = {
 export default withPWA({
   dest: "public",
   register: true,
-  skipWaiting: true,
-  // não cacheia rotas dinâmicas do admin — dados sempre frescos
-  runtimeCaching: [],
-  buildExcludes: [/middleware-manifest\.json$/],
+  workboxOptions: {
+    skipWaiting: true,
+    runtimeCaching: [],
+  },
   disable: process.env.NODE_ENV === "development",
 })(nextConfig);
