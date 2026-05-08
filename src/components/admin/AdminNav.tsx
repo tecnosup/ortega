@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
-  LayoutDashboard, Scissors, Settings, ClipboardList,
+  LayoutDashboard, Scissors, Star, ClipboardList,
   LogOut, CalendarCheck, Tag, Menu, X, ShoppingBag, TrendingUp, ExternalLink,
 } from "lucide-react";
 import { useAdminNotificacoes } from "@/hooks/useAdminNotificacoes";
@@ -19,7 +19,7 @@ const links = [
   { href: "/admin/itens",         label: "Serviços",     icon: Scissors,        badge: null },
   { href: "/admin/produtos",      label: "Produtos",     icon: ShoppingBag,     badge: null },
   { href: "/admin/descontos",     label: "Descontos",    icon: Tag,             badge: null },
-  { href: "/admin/configuracoes", label: "Config",       icon: Settings,        badge: null },
+  { href: "/admin/vitrine",       label: "Vitrine",      icon: Star,            badge: null },
   { href: "/admin/auditoria",     label: "Auditoria",    icon: ClipboardList,   badge: null },
 ];
 

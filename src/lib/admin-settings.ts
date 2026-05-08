@@ -11,6 +11,8 @@ export interface LandingSettings {
   emailContato: string;
   enderecoTexto: string;
   enderecoEmbed: string;
+  destaqueId: string;
+  destaqueTipo: "servico" | "produto" | "";
 }
 
 const DEFAULTS: LandingSettings = {
@@ -25,6 +27,8 @@ const DEFAULTS: LandingSettings = {
   emailContato: "contato@ortegabarber.com.br",
   enderecoTexto: "Rua Capitão Neco, 300 — Cruzeiro, SP",
   enderecoEmbed: "https://maps.google.com/maps?q=Rua+Capit%C3%A3o+Neco+300+Cruzeiro+SP&output=embed",
+  destaqueId: "",
+  destaqueTipo: "",
 };
 
 export async function getLandingSettings(): Promise<LandingSettings> {
