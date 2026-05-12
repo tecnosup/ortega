@@ -37,6 +37,8 @@ export const demoSettings: LandingSettings = {
   emailContato: "contato@ortegabarber.com.br",
   enderecoTexto: "Rua Capitão Neco, 300 — Cruzeiro, SP",
   enderecoEmbed: "https://maps.google.com/maps?q=Rua+Capit%C3%A3o+Neco+300+Cruzeiro+SP&output=embed",
+  destaqueId: "",
+  destaqueTipo: "",
 };
 
 export const demoServicos: Item[] = [

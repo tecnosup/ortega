@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { DollarSign, Loader2, RefreshCw } from "lucide-react";
-import type { Barbeiro } from "@/lib/barbeiros";
-import type { Agendamento } from "@/lib/agendamentos";
-import { parsePriceNum } from "@/lib/agendamentos";
+import type { Barbeiro } from "@/lib/barbeiros-types";
+import type { Agendamento } from "@/lib/agendamentos-types";
+import { parsePriceNum } from "@/lib/agendamentos-types";
 import { toDateKey } from "@/lib/date-utils";
 
 interface ResumoBarb {

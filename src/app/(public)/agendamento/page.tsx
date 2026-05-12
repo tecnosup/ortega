@@ -4,8 +4,8 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Check, Tag } from "lucide-react";
 import { HORARIO_FUNCIONAMENTO } from "@/lib/demo-data";
 import type { Item } from "@/lib/admin-items";
-import type { Agendamento } from "@/lib/agendamentos";
-import type { Barbeiro } from "@/lib/barbeiros";
+import type { Agendamento } from "@/lib/agendamentos-types";
+import type { Barbeiro } from "@/lib/barbeiros-types";
 import { toDateKey } from "@/lib/date-utils";
 
 function gerarSlots(inicio: string, fim: string): string[] {

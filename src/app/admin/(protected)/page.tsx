@@ -10,8 +10,8 @@ import {
   Clock, CreditCard, X, CheckCircle2, AlertCircle,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import type { Agendamento, FechamentoDia } from "@/lib/agendamentos";
-import { parsePriceNum } from "@/lib/agendamentos";
+import type { Agendamento, FechamentoDia } from "@/lib/agendamentos-types";
+import { parsePriceNum } from "@/lib/agendamentos-types";
 import type { Gasto } from "@/lib/gastos-tipos";
 import { gastoMensalEquivalente } from "@/lib/gastos-tipos";
 import { toDateKey } from "@/lib/date-utils";

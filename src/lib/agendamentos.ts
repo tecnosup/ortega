@@ -1,37 +1,9 @@
+import "server-only";
 import { getAdminDb } from "./firebase-admin";
+import type { Agendamento, FechamentoDia } from "./agendamentos-types";
 
-export function parsePriceNum(preco: string): number {
-  return parseFloat(preco.replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
-}
-
-export type AgendamentoStatus = "pendente" | "confirmado" | "cancelado" | "concluido" | "nao_compareceu";
-
-export interface Agendamento {
-  id: string;
-  nome: string;
-  telefone: string;
-  servico: string;
-  preco: string;
-  data: string;       // "YYYY-MM-DD"
-  horario: string;    // "HH:MM"
-  status: AgendamentoStatus;
-  cupom?: string;
-  desconto?: number;
-  barbeiroId?: string;
-  barbeiroNome?: string;
-  visualizadoAdmin?: boolean;
-  criadoEm: number;
-  atualizadoEm: number;
-}
-
-export interface FechamentoDia {
-  id: string;
-  data: string;
-  agendamentos: Agendamento[];
-  totalServicos: number;
-  quantidadeAtendidos: number;
-  fechadoEm: number;
-}
+export type { AgendamentoStatus, Agendamento, FechamentoDia } from "./agendamentos-types";
+export { parsePriceNum } from "./agendamentos-types";
 
 export async function criarAgendamento(
   data: Omit<Agendamento, "id" | "status" | "criadoEm" | "atualizadoEm">

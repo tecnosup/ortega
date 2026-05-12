@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBarbeiroSession, getAdminDb } from "@/lib/firebase-admin";
-import { parsePriceNum } from "@/lib/agendamentos";
+import { parsePriceNum } from "@/lib/agendamentos-types";
 
 export const dynamic = "force-dynamic";
 
