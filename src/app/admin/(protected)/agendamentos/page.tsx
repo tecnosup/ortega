@@ -6,8 +6,9 @@ import { useEffect, useState, useCallback } from "react";
 import {
   CheckCircle, XCircle, Clock, RefreshCw, MessageCircle,
   Pencil, Trash2, Check, X, ChevronLeft, ChevronRight, Lock, Undo2,
-  CalendarPlus, Ban, Unlock, LayoutGrid, List, Plus,
+  CalendarPlus, Ban, Unlock, LayoutGrid, List, Plus, TrendingUp,
 } from "lucide-react";
+import Link from "next/link";
 import type { Agendamento, AgendamentoStatus, FechamentoDia } from "@/lib/agendamentos-types";
 import { parsePriceNum } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
@@ -615,24 +616,20 @@ export default function AgendamentosAdminPage() {
                         })}
                       </div>
 
-                      {/* fechar caixa — dentro da box */}
+                      {/* rodapé — ir pro caixa */}
                       {!ehFuturo && (
-                        <div className="px-4 py-3 border-t border-[#1a1a1a]">
-                          {caixaFechado ? (
-                            <div className="flex items-center gap-2 text-green-400 text-sm">
-                              <Lock size={14} />
-                              <span className="font-semibold">Caixa fechado</span>
-                              <span className="text-xs text-gray-500 ml-1">{concluidos.length} serviços · R$ {totalDia.toFixed(2).replace(".", ",")}</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-between gap-3 flex-wrap">
-                              <p className="text-xs text-gray-500">{concluidos.length} concluídos · R$ {totalDia.toFixed(2).replace(".", ",")} faturados</p>
-                              <button onClick={() => setModal({ tipo: "fechar_caixa" })} disabled={fechandoCaixa || concluidos.length === 0}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#b8944a] text-[#0A0A0A] text-xs font-bold hover:bg-[#c9a84c] transition disabled:opacity-40 disabled:cursor-not-allowed rounded-lg">
-                                <Lock size={12} /> {fechandoCaixa ? "Fechando..." : "Fechar caixa"}
-                              </button>
-                            </div>
-                          )}
+                        <div className="px-4 py-3 border-t border-[#1a1a1a] flex items-center justify-between gap-3 flex-wrap">
+                          <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                            {caixaFechado && <Lock size={11} className="text-green-400" />}
+                            {caixaFechado
+                              ? <span className="text-green-400">Caixa fechado · </span>
+                              : null}
+                            {concluidos.length} concluídos · R$ {totalDia.toFixed(2).replace(".", ",")} faturados
+                          </p>
+                          <Link href={`/admin/financeiro?dia=${dataSelecionada}`}
+                            className="flex items-center gap-1.5 px-3 py-1.5 border border-[#b8944a]/40 text-[#b8944a] text-xs font-bold hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition rounded-lg">
+                            <TrendingUp size={12} /> Ir pro caixa
+                          </Link>
                         </div>
                       )}
                     </>
