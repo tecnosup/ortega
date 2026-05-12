@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, Plus, Edit2, Trash2, X, Check, Loader2 } from "lucide-react";
-import type { Barbeiro } from "@/lib/barbeiros";
+import { Users, Plus, Edit2, Trash2, X, Check, Loader2, KeyRound, Unlink } from "lucide-react";
+import type { Barbeiro } from "@/lib/barbeiros-types";
 
 type Form = { nome: string; apelido: string; comissao: string; ativo: boolean };
 const EMPTY: Form = { nome: "", apelido: "", comissao: "40", ativo: true };
+
+type ContaModal = { open: boolean; barbeiro: Barbeiro | null };
+type ContaForm = { email: string; senha: string };
 
 export default function BarbeirosPage() {
   const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
@@ -15,6 +18,11 @@ export default function BarbeirosPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [contaModal, setContaModal] = useState<ContaModal>({ open: false, barbeiro: null });
+  const [contaForm, setContaForm] = useState<ContaForm>({ email: "", senha: "" });
+  const [contaSaving, setContaSaving] = useState(false);
+  const [contaErro, setContaErro] = useState("");
+  const [removendoConta, setRemovendoConta] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -64,6 +72,38 @@ export default function BarbeirosPage() {
     }
   }
 
+  function openConta(b: Barbeiro) {
+    setContaForm({ email: (b as Barbeiro & { email?: string }).email ?? "", senha: "" });
+    setContaErro("");
+    setContaModal({ open: true, barbeiro: b });
+  }
+
+  async function handleSalvarConta() {
+    if (!contaModal.barbeiro) return;
+    if (!contaForm.email || !contaForm.senha) { setContaErro("Preencha e-mail e senha"); return; }
+    if (contaForm.senha.length < 6) { setContaErro("Senha mínima de 6 caracteres"); return; }
+    setContaSaving(true);
+    setContaErro("");
+    const res = await fetch(`/api/admin/barbeiros/${contaModal.barbeiro.id}/conta`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(contaForm),
+    });
+    const json = await res.json();
+    setContaSaving(false);
+    if (!res.ok) { setContaErro(json.error ?? "Erro ao salvar"); return; }
+    await load();
+    setContaModal({ open: false, barbeiro: null });
+  }
+
+  async function handleRemoverConta(b: Barbeiro) {
+    if (!confirm(`Remover acesso de ${b.nome}? O barbeiro não conseguirá mais entrar.`)) return;
+    setRemovendoConta(b.id);
+    await fetch(`/api/admin/barbeiros/${b.id}/conta`, { method: "DELETE" });
+    await load();
+    setRemovendoConta(null);
+  }
+
   async function handleDelete(id: string, nome: string) {
     if (!confirm(`Remover ${nome}? Agendamentos existentes não serão afetados.`)) return;
     setDeletingId(id);
@@ -101,9 +141,30 @@ export default function BarbeirosPage() {
                   Comissão <span className="text-[#b8944a] font-medium">{b.comissao}%</span>
                   {" · "}
                   <span className={b.ativo ? "text-green-400" : "text-gray-600"}>{b.ativo ? "Ativo" : "Inativo"}</span>
+                  {(b as Barbeiro & { uid?: string }).uid && (
+                    <>{" · "}<span className="text-blue-400">Portal ativo</span></>
+                  )}
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => openConta(b)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2d2d2d] text-gray-400 text-xs rounded hover:border-[#b8944a] hover:text-[#b8944a] transition"
+                  title={(b as Barbeiro & { uid?: string }).uid ? "Atualizar acesso" : "Criar acesso ao portal"}
+                >
+                  <KeyRound size={12} />
+                  {(b as Barbeiro & { uid?: string }).uid ? "Acesso" : "Criar acesso"}
+                </button>
+                {(b as Barbeiro & { uid?: string }).uid && (
+                  <button
+                    onClick={() => handleRemoverConta(b)}
+                    disabled={removendoConta === b.id}
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2d2d2d] text-gray-400 text-xs rounded hover:border-orange-500 hover:text-orange-400 transition disabled:opacity-50"
+                  >
+                    {removendoConta === b.id ? <Loader2 size={12} className="animate-spin" /> : <Unlink size={12} />}
+                    Revogar
+                  </button>
+                )}
                 <button
                   onClick={() => openEdit(b)}
                   className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2d2d2d] text-gray-400 text-xs rounded hover:border-[#b8944a] hover:text-[#b8944a] transition"
@@ -121,6 +182,69 @@ export default function BarbeirosPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {contaModal.open && contaModal.barbeiro && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-md flex flex-col gap-5 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-bold text-[#F5E6C8]">Acesso ao portal</h2>
+                <p className="text-xs text-gray-500 mt-0.5">{contaModal.barbeiro.nome}</p>
+              </div>
+              <button onClick={() => setContaModal({ open: false, barbeiro: null })} className="text-gray-500 hover:text-white transition">
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500">
+              {(contaModal.barbeiro as Barbeiro & { uid?: string }).uid
+                ? "Atualize o e-mail ou senha de acesso do barbeiro."
+                : "Crie um login para que o barbeiro acesse o portal em /barbeiro."}
+            </p>
+
+            <div className="flex flex-col gap-4">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs text-gray-400 font-medium">E-mail *</span>
+                <input
+                  type="email"
+                  value={contaForm.email}
+                  onChange={(e) => setContaForm((f) => ({ ...f, email: e.target.value }))}
+                  className="bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] transition"
+                  placeholder="barbeiro@email.com"
+                  style={{ fontSize: 16 }}
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs text-gray-400 font-medium">Senha (mín. 6 caracteres) *</span>
+                <input
+                  type="password"
+                  value={contaForm.senha}
+                  onChange={(e) => setContaForm((f) => ({ ...f, senha: e.target.value }))}
+                  className="bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] transition"
+                  placeholder="••••••"
+                  style={{ fontSize: 16 }}
+                />
+              </label>
+            </div>
+
+            {contaErro && <p className="text-red-400 text-xs">{contaErro}</p>}
+
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setContaModal({ open: false, barbeiro: null })} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition">
+                Cancelar
+              </button>
+              <button
+                onClick={handleSalvarConta}
+                disabled={contaSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded hover:bg-[#c9a84c] transition disabled:opacity-50"
+              >
+                {contaSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                Salvar acesso
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { criarAgendamento, listarAgendamentos } from "@/lib/agendamentos";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
-import { sendPushToAll } from "@/lib/web-push";
+import { sendPushToAll, sendPushToBarbeiro } from "@/lib/web-push";
 
 export const dynamic = "force-dynamic";
 
@@ -40,10 +40,12 @@ export async function POST(req: NextRequest) {
     weekday: "short", day: "numeric", month: "short",
   });
   const barbeiroLabel = barbeiroNome ? ` com ${barbeiroNome}` : "";
-  sendPushToAll(
-    `✂️ Novo agendamento${barbeiroLabel}`,
-    `${nomeSanitizado} · ${servicoSanitizado} · ${dataFormatada} às ${horario}`
-  ).catch(() => {});
+  const pushTitle = `✂️ Novo agendamento${barbeiroLabel}`;
+  const pushBody = `${nomeSanitizado} · ${servicoSanitizado} · ${dataFormatada} às ${horario}`;
+  sendPushToAll(pushTitle, pushBody).catch(() => {});
+  if (payload.barbeiroId) {
+    sendPushToBarbeiro(payload.barbeiroId, pushTitle, pushBody).catch(() => {});
+  }
 
   return NextResponse.json({ id });
 }

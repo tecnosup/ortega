@@ -41,6 +41,7 @@ export const adminDb = new Proxy({} as Firestore, {
 });
 
 const ADMIN_COOKIE = "base_admin_session";
+const BARBEIRO_COOKIE = "barbeiro_session";
 
 export async function getSessionUser(req: import("next/server").NextRequest): Promise<{ uid: string; admin: boolean } | null> {
   const session = req.cookies.get(ADMIN_COOKIE)?.value;
@@ -48,6 +49,20 @@ export async function getSessionUser(req: import("next/server").NextRequest): Pr
   try {
     const decoded = await getAdminAuth().verifySessionCookie(session, true);
     return { uid: decoded.uid, admin: !!decoded.admin };
+  } catch {
+    return null;
+  }
+}
+
+export async function getBarbeiroSession(
+  req: import("next/server").NextRequest
+): Promise<{ uid: string; barbeiroId: string } | null> {
+  const session = req.cookies.get(BARBEIRO_COOKIE)?.value;
+  if (!session) return null;
+  try {
+    const decoded = await getAdminAuth().verifySessionCookie(session, true);
+    if (!decoded.barbeiro || !decoded.barbeiroId) return null;
+    return { uid: decoded.uid, barbeiroId: decoded.barbeiroId as string };
   } catch {
     return null;
   }

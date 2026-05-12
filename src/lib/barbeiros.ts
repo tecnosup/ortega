@@ -1,15 +1,8 @@
+import "server-only";
 import { getAdminDb } from "./firebase-admin";
+import type { Barbeiro } from "./barbeiros-types";
 
-export interface Barbeiro {
-  id: string;
-  nome: string;
-  apelido?: string;
-  foto?: string;
-  comissao: number; // percentual, ex: 40
-  ativo: boolean;
-  createdAt: number;
-  updatedAt: number;
-}
+export type { Barbeiro } from "./barbeiros-types";
 
 export async function listBarbeiros(): Promise<Barbeiro[]> {
   const db = getAdminDb();

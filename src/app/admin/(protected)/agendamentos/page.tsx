@@ -8,9 +8,9 @@ import {
   Pencil, Trash2, Check, X, ChevronLeft, ChevronRight, Lock, Undo2,
   CalendarPlus, Ban, Unlock, LayoutGrid, List, Plus,
 } from "lucide-react";
-import type { Agendamento, AgendamentoStatus, FechamentoDia } from "@/lib/agendamentos";
-import { parsePriceNum } from "@/lib/agendamentos";
-import type { Barbeiro } from "@/lib/barbeiros";
+import type { Agendamento, AgendamentoStatus, FechamentoDia } from "@/lib/agendamentos-types";
+import { parsePriceNum } from "@/lib/agendamentos-types";
+import type { Barbeiro } from "@/lib/barbeiros-types";
 import { toDateKey } from "@/lib/date-utils";
 import { HORARIO_FUNCIONAMENTO } from "@/lib/demo-data";
 

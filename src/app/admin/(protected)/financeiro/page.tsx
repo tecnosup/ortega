@@ -10,7 +10,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import type { FechamentoDia } from "@/lib/agendamentos";
+import type { FechamentoDia } from "@/lib/agendamentos-types";
 import type { Gasto, CategoriaGasto, FrequenciaGasto } from "@/lib/gastos-tipos";
 import { CATEGORIA_LABEL, FREQUENCIA_LABEL, gastoMensalEquivalente } from "@/lib/gastos-tipos";
 
