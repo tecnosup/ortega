@@ -2,6 +2,7 @@ import Hero from "@/components/landing/Hero";
 import Sobre from "@/components/landing/Sobre";
 import Servicos from "@/components/landing/Servicos";
 import Produtos from "@/components/landing/Produtos";
+import Assinaturas from "@/components/landing/Assinaturas";
 import Depoimentos from "@/components/landing/Depoimentos";
 import Localizacao from "@/components/landing/Localizacao";
 import CtaFinal from "@/components/landing/CtaFinal";
@@ -48,6 +49,7 @@ export default async function HomePage() {
       <Sobre texto={settings.sobreTexto} imagem={settings.sobreImagem} />
       <Servicos items={items} descontos={descontos} />
       <Produtos produtos={produtos} descontos={descontos} whatsappNumber={settings.whatsappNumber} categorias={categorias} />
+      <Assinaturas />
       <Depoimentos />
       <Localizacao enderecoTexto={settings.enderecoTexto} enderecoEmbed={settings.enderecoEmbed} />
       <CtaFinal />

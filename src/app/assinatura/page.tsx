@@ -1,14 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { Check, Loader2, Scissors } from "lucide-react";
 import { PLANOS_PUBLICOS } from "@/lib/stripe-tipos";
 import type { PlanoAssinaturaPublico } from "@/lib/stripe-tipos";
 
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg px-3 py-2.5 text-sm text-[#F5E6C8] placeholder-gray-600 focus:outline-none focus:border-[#b8944a] transition w-full";
 
-export default function AssinaturaPage() {
+function AssinaturaConteudo() {
+  const params = useSearchParams();
   const [planoSel, setPlanoSel] = useState<PlanoAssinaturaPublico | null>(null);
+
+  useEffect(() => {
+    const planoId = params.get("plano");
+    if (planoId) {
+      const encontrado = PLANOS_PUBLICOS.find((p) => p.id === planoId);
+      if (encontrado) setPlanoSel(encontrado);
+    }
+  }, [params]);
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -181,5 +192,17 @@ export default function AssinaturaPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function AssinaturaPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+        <Loader2 size={28} className="animate-spin text-[#b8944a]" />
+      </div>
+    }>
+      <AssinaturaConteudo />
+    </Suspense>
   );
 }
