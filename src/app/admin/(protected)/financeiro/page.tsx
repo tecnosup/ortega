@@ -12,6 +12,8 @@ import {
 } from "recharts";
 import type { FechamentoDia } from "@/lib/agendamentos-types";
 import type { Gasto, CategoriaGasto, FrequenciaGasto } from "@/lib/gastos-tipos";
+import type { GastoDia } from "@/lib/gastos-dia-tipos";
+import CaixaCalendario from "@/components/admin/CaixaCalendario";
 import { CATEGORIA_LABEL, FREQUENCIA_LABEL, gastoMensalEquivalente } from "@/lib/gastos-tipos";
 
 function brl(v: number) { return `R$ ${v.toFixed(2).replace(".", ",")}` }
@@ -21,6 +23,89 @@ const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-1.5 text-sm te
 type Periodo = "7d" | "30d" | "mes_atual" | "mes_anterior";
 const PERIODO_LABEL: Record<Periodo, string> = { "7d": "Últimos 7 dias", "30d": "Últimos 30 dias", "mes_atual": "Este mês", "mes_anterior": "Mês anterior" };
 const DONUT_COLORS = ["#C9A84C", "#a07830", "#6b5020", "#8b6914", "#d4b060", "#e8c878"];
+
+type PeriodoGrafico = "mes" | "6m" | "12m" | "tudo";
+const PERIODO_GRAFICO_LABEL: Record<PeriodoGrafico, string> = { mes: "Este mês", "6m": "6 meses", "12m": "12 meses", tudo: "Todo período" };
+
+interface PontoGrafico { data: string; fat: number; gastos: number }
+
+function mesLabel(y: number, m: number) {
+  const l = new Date(y, m, 1).toLocaleDateString("pt-BR", { month: "short" });
+  return l.charAt(0).toUpperCase() + l.slice(1, 3);
+}
+
+function calcDadosGrafico(
+  pg: PeriodoGrafico,
+  fechamentos: FechamentoDia[],
+  gastosDia: GastoDia[],
+): PontoGrafico[] {
+  const agora = new Date();
+
+  const fatPorData: Record<string, number> = {};
+  fechamentos.forEach((f) => { fatPorData[f.data] = f.totalServicos; });
+
+  const gastosPorData: Record<string, number> = {};
+  gastosDia.forEach((g) => { gastosPorData[g.data] = (gastosPorData[g.data] ?? 0) + g.valor; });
+
+  if (pg === "mes") {
+    // Apenas dias com movimento — faturamento ACUMULADO, gastos do dia
+    const y = agora.getFullYear(), m = agora.getMonth(), hoje = agora.getDate();
+    let acum = 0;
+    const pontos: PontoGrafico[] = [];
+    for (let d = 1; d <= hoje; d++) {
+      const key = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const fat = fatPorData[key] ?? 0;
+      const gastos = gastosPorData[key] ?? 0;
+      acum += fat;
+      if (fat > 0 || gastos > 0) {
+        pontos.push({
+          data: new Date(y, m, d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+          fat: acum,
+          gastos,
+        });
+      }
+    }
+    return pontos;
+  }
+
+  // Determina início do período
+  let inicioY = agora.getFullYear(), inicioM = agora.getMonth();
+  if (pg === "6m") {
+    const d = new Date(agora.getFullYear(), agora.getMonth() - 5, 1);
+    inicioY = d.getFullYear(); inicioM = d.getMonth();
+  } else if (pg === "12m") {
+    const d = new Date(agora.getFullYear(), agora.getMonth() - 11, 1);
+    inicioY = d.getFullYear(); inicioM = d.getMonth();
+  } else {
+    const todasDatas = [...fechamentos.map((f) => f.data), ...gastosDia.map((g) => g.data)];
+    if (todasDatas.length === 0) return [];
+    const antiga = todasDatas.sort()[0];
+    inicioY = Number(antiga.slice(0, 4));
+    inicioM = Number(antiga.slice(5, 7)) - 1;
+  }
+
+  // Agrega por mês
+  const fatPorMes: Record<string, number> = {};
+  fechamentos.forEach((f) => { const k = f.data.slice(0, 7); fatPorMes[k] = (fatPorMes[k] ?? 0) + f.totalServicos; });
+  const gastosPorMes: Record<string, number> = {};
+  gastosDia.forEach((g) => { const k = g.data.slice(0, 7); gastosPorMes[k] = (gastosPorMes[k] ?? 0) + g.valor; });
+
+  // Gera meses com movimento — faturamento ACUMULADO e gastos do mês
+  const pontos: PontoGrafico[] = [];
+  let cy = inicioY, cm = inicioM, acum = 0;
+  const fimY = agora.getFullYear(), fimM = agora.getMonth();
+  while (cy < fimY || (cy === fimY && cm <= fimM)) {
+    const key = `${cy}-${String(cm + 1).padStart(2, "0")}`;
+    const fat = fatPorMes[key] ?? 0;
+    const gastos = gastosPorMes[key] ?? 0;
+    acum += fat;
+    if (fat > 0 || gastos > 0) {
+      pontos.push({ data: mesLabel(cy, cm), fat: acum, gastos });
+    }
+    cm++; if (cm > 11) { cm = 0; cy++; }
+  }
+  return pontos;
+}
 
 function FormGasto({ inicial, onSalvar, onCancelar, salvando }: {
   inicial?: Partial<Gasto>; onSalvar: (d: Partial<Gasto>) => void;
@@ -64,19 +149,23 @@ function FormGasto({ inicial, onSalvar, onCancelar, salvando }: {
 export default function FinanceiroPage() {
   const [fechamentos, setFechamentos] = useState<FechamentoDia[]>([]);
   const [gastos, setGastos] = useState<Gasto[]>([]);
+  const [gastosDia, setGastosDia] = useState<GastoDia[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [periodo, setPeriodo] = useState<Periodo>("mes_atual");
   const [mostraFormGasto, setMostraFormGasto] = useState(false);
   const [editandoGasto, setEditandoGasto] = useState<Gasto | null>(null);
   const [salvandoGasto, setSalvandoGasto] = useState(false);
+  const [periodoGrafico, setPeriodoGrafico] = useState<PeriodoGrafico>("mes");
 
   const carregar = useCallback(async () => {
-    const [resFech, resGastos] = await Promise.all([
+    const [resFech, resGastos, resGastosDia] = await Promise.all([
       fetch("/api/fechamento", { credentials: "include" }),
       fetch("/api/gastos", { credentials: "include" }),
+      fetch("/api/gastos-dia", { credentials: "include" }),
     ]);
     setFechamentos(await resFech.json());
     if (resGastos.ok) setGastos(await resGastos.json());
+    if (resGastosDia.ok) setGastosDia(await resGastosDia.json());
     setCarregando(false);
   }, []);
 
@@ -132,11 +221,12 @@ export default function FinanceiroPage() {
   const totalAnt = fechsAnt.reduce((s, f) => s + f.totalServicos, 0);
   const varPct = totalAnt > 0 ? ((totalPeriodo - totalAnt) / totalAnt) * 100 : null;
 
-  let acum = 0;
-  const dadosGrafico = fechsPeriodo.map((f) => {
-    acum += f.totalServicos;
-    return { data: new Date(f.data + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }), acumulado: acum, valor: f.totalServicos };
-  });
+  const gastosDiaPorData: Record<string, number> = {};
+  gastosDia.forEach((g) => { gastosDiaPorData[g.data] = (gastosDiaPorData[g.data] ?? 0) + g.valor; });
+
+  const dadosGrafico = calcDadosGrafico(periodoGrafico, fechamentos, gastosDia);
+  const totalGrafico = dadosGrafico.reduce((s, d) => s + d.fat, 0);
+  const totalGastosGrafico = dadosGrafico.reduce((s, d) => s + d.gastos, 0);
 
   const gastosAtivos = gastos.filter((g) => g.ativo);
   const totalMensalGastos = gastosAtivos.reduce((s, g) => s + gastoMensalEquivalente(g), 0);
@@ -201,39 +291,76 @@ export default function FinanceiroPage() {
 
       {/* ── Gráfico ── */}
       <div className={`${card} p-4`}>
-        <div className="flex items-start justify-between mb-3">
+        {/* cabeçalho */}
+        <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
           <div>
-            <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500">Faturamento acumulado</p>
-            <p className="text-lg font-bold text-[#F5E6C8] mt-0.5">{brl(totalPeriodo)}</p>
-            {melhorDia && <p className="text-xs text-[#b8944a] mt-0.5">Melhor dia: {new Date(melhorDia.data + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} · {brl(melhorDia.totalServicos)}</p>}
+            <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500">Faturamento por fechamento de caixa</p>
+            <p className="text-[10px] text-[#b8944a] tracking-widest uppercase mt-0.5">Receita acumulada</p>
+            <p className="text-2xl font-bold text-[#F5E6C8] mt-1">{brl(totalGrafico)}</p>
+            {melhorDia && periodoGrafico === "mes" && (
+              <p className="text-xs text-gray-500 mt-0.5">
+                Melhor dia: {new Date(melhorDia.data + "T12:00:00").toLocaleDateString("pt-BR", { month: "short", day: "2-digit" })} · {brl(melhorDia.totalServicos)}
+              </p>
+            )}
+            {totalGastosGrafico > 0 && (
+              <p className="text-xs text-red-400/70 mt-0.5">Gastos registrados: {brl(totalGastosGrafico)}</p>
+            )}
           </div>
-          <div className="text-right">
-            <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500">Gastos/mês</p>
-            <p className="text-base font-bold text-gray-400 mt-0.5">{brl(totalMensalGastos)}</p>
+          {/* seletor de período */}
+          <div className="flex gap-1 flex-wrap">
+            {(Object.keys(PERIODO_GRAFICO_LABEL) as PeriodoGrafico[]).map((p) => (
+              <button key={p} onClick={() => setPeriodoGrafico(p)}
+                className={`px-3 py-1 text-xs rounded border transition ${periodoGrafico === p ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-bold" : "text-gray-500 border-[#2d2d2d] hover:border-[#b8944a]"}`}>
+                {PERIODO_GRAFICO_LABEL[p]}
+              </button>
+            ))}
           </div>
         </div>
-        {fechsPeriodo.length === 0 ? (
+
+        {dadosGrafico.length === 0 ? (
           <p className="text-sm text-gray-500 py-12 text-center">Nenhum fechamento de caixa no período.</p>
         ) : (
-          <div className="h-48">
+          <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={dadosGrafico} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gradFin" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#C9A84C" stopOpacity={0.25} />
+                    <stop offset="5%" stopColor="#C9A84C" stopOpacity={0.2} />
                     <stop offset="95%" stopColor="#C9A84C" stopOpacity={0} />
                   </linearGradient>
+                  <linearGradient id="gradGastos" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                  </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e1e1e" vertical={false} />
-                <XAxis dataKey="data" tick={{ fill: "#555", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#555", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$${(v / 1000).toFixed(1)}k`} width={42} />
-                <Tooltip contentStyle={{ background: "#111", border: "1px solid #2d2d2d", borderRadius: 6, fontSize: 12 }} labelStyle={{ color: "#F5E6C8", marginBottom: 4 }} formatter={(v) => [brl(Number(v)), "Acumulado"]} />
-                <Area type="monotone" dataKey="acumulado" stroke="#C9A84C" strokeWidth={2} fill="url(#gradFin)" dot={false} activeDot={{ r: 4, fill: "#C9A84C" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" vertical={false} />
+                <XAxis dataKey="data" tick={{ fill: "#444", fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "#444", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$${v >= 1000 ? (v / 1000).toFixed(1) + "k" : v}`} width={46} />
+                <Tooltip
+                  contentStyle={{ background: "#111", border: "1px solid #2d2d2d", borderRadius: 8, fontSize: 12 }}
+                  labelStyle={{ color: "#F5E6C8", marginBottom: 4 }}
+                  formatter={(v, name) => [brl(Number(v)), name === "fat" ? "Faturamento" : "Gastos"]}
+                />
+                <Area type="monotone" dataKey="fat" stroke="#C9A84C" strokeWidth={2} fill="url(#gradFin)" dot={false} activeDot={{ r: 4, fill: "#C9A84C" }} />
+                <Area type="monotone" dataKey="gastos" stroke="#ef4444" strokeWidth={1.5} fill="url(#gradGastos)" dot={false} activeDot={{ r: 3, fill: "#ef4444" }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
+
+        {/* legenda */}
+        <div className="flex gap-4 mt-3 pt-3 border-t border-[#1a1a1a]">
+          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <span className="w-3 h-0.5 bg-[#C9A84C] rounded-full inline-block" /> Faturamento
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <span className="w-3 h-0.5 bg-red-500 rounded-full inline-block" /> Gastos do dia
+          </div>
+        </div>
       </div>
+
+      {/* ── Agenda / Caixa ── */}
+      <CaixaCalendario fechamentos={fechamentos} gastosDia={gastosDia} onAtualizar={carregar} />
 
       {/* ── Gráfico de pizza + Fechamentos ── */}
       <div className="grid md:grid-cols-2 gap-4">
