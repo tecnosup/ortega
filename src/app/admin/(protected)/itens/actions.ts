@@ -39,7 +39,7 @@ export async function createItemAction(
   try {
     const actor = await getActor();
     const id = await createItem(parsed.data);
-    await logAudit({ ...actor, action: "item.create", entity: "item", entityId: id, snapshot: parsed.data });
+    await logAudit({ ...actor, action: "item.create", entity: "item", entityId: id, summary: `Serviço "${parsed.data.titulo}" criado`, snapshot: parsed.data });
   } catch {
     return { ok: false, error: "Erro ao salvar. Tente novamente." };
   }
@@ -57,7 +57,7 @@ export async function updateItemAction(
     const actor = await getActor();
     const before = await getItemById(id);
     await updateItem(id, parsed.data);
-    await logAudit({ ...actor, action: "item.update", entity: "item", entityId: id, snapshot: parsed.data, snapshotAntes: before ?? undefined });
+    await logAudit({ ...actor, action: "item.update", entity: "item", entityId: id, summary: `Serviço "${parsed.data.titulo}" atualizado`, snapshot: parsed.data, snapshotAntes: before ?? undefined });
   } catch {
     return { ok: false, error: "Erro ao atualizar. Tente novamente." };
   }
@@ -70,7 +70,7 @@ export async function deleteItemAction(formData: FormData) {
     const actor = await getActor();
     const before = await getItemById(id);
     await deleteItem(id);
-    await logAudit({ ...actor, action: "item.delete", entity: "item", entityId: id, snapshot: before ?? undefined, snapshotAntes: before ?? undefined });
+    await logAudit({ ...actor, action: "item.delete", entity: "item", entityId: id, summary: `Serviço "${(before as { titulo?: string })?.titulo ?? id}" deletado`, snapshot: before ?? undefined, snapshotAntes: before ?? undefined });
   } catch {
     // silencia erro de delete — redireciona de qualquer forma
   }

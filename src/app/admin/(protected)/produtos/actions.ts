@@ -44,6 +44,7 @@ export async function createProdutoAction(
       action: "produto.create",
       entity: "produto",
       entityId: id,
+      summary: `Produto "${parsed.data.titulo}" criado`,
       snapshot: parsed.data,
     });
   } catch (e) {
@@ -68,6 +69,7 @@ export async function updateProdutoAction(
       action: "produto.update",
       entity: "produto",
       entityId: id,
+      summary: `Produto "${parsed.data.titulo}" atualizado`,
       snapshot: parsed.data,
       snapshotAntes: before ?? undefined,
     });
@@ -88,6 +90,7 @@ export async function deleteProdutoAction(formData: FormData) {
       action: "produto.delete",
       entity: "produto",
       entityId: id,
+      summary: `Produto "${(before as { titulo?: string })?.titulo ?? id}" deletado`,
       snapshot: before ?? undefined,
       snapshotAntes: before ?? undefined,
     });
