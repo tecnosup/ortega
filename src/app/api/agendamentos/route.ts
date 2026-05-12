@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { criarAgendamento, listarAgendamentos } from "@/lib/agendamentos";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { sendPushToAll, sendPushToBarbeiro } from "@/lib/web-push";
+import { getAssinaturaPorTelefone, getAssinaturaPorEmail, consumirCredito } from "@/lib/assinaturas";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { nome, telefone, servico, preco, data, horario, cupom, desconto, barbeiroId, barbeiroNome } = body;
+  const { nome, telefone, servico, preco, data, horario, cupom, desconto, barbeiroId, barbeiroNome, email } = body;
 
   if (!nome || !telefone || !servico || !data || !horario) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
@@ -32,6 +33,20 @@ export async function POST(req: NextRequest) {
   if (desconto !== undefined && desconto !== null) payload.desconto = desconto;
   if (barbeiroId) payload.barbeiroId = String(barbeiroId).slice(0, 64);
   if (barbeiroNome) payload.barbeiroNome = String(barbeiroNome).slice(0, 80);
+
+  // verifica assinatura pelo telefone ou email para consumir crédito
+  const emailSanitizado = email ? String(email).slice(0, 200).toLowerCase().trim() : null;
+  const assinatura = telefoneSanitizado.length >= 10
+    ? (await getAssinaturaPorTelefone(telefoneSanitizado) ?? (emailSanitizado ? await getAssinaturaPorEmail(emailSanitizado) : null))
+    : (emailSanitizado ? await getAssinaturaPorEmail(emailSanitizado) : null);
+
+  if (assinatura) {
+    const consumido = await consumirCredito(assinatura.id);
+    if (consumido) {
+      payload.assinaturaId = assinatura.id;
+      payload.cobertoPorAssinatura = true;
+    }
+  }
 
   const id = await criarAgendamento(payload);
 
