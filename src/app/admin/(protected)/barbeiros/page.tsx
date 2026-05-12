@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Users, Plus, Edit2, Trash2, X, Check, Loader2, KeyRound, Unlink } from "lucide-react";
-import type { Barbeiro } from "@/lib/barbeiros";
+import type { Barbeiro } from "@/lib/barbeiros-types";
 
 type Form = { nome: string; apelido: string; comissao: string; ativo: boolean };
 const EMPTY: Form = { nome: "", apelido: "", comissao: "40", ativo: true };
