@@ -9,12 +9,13 @@ import { getLandingSettings } from "@/lib/admin-settings";
 import { getPublishedItems } from "@/lib/admin-items";
 import { getPublishedProdutos } from "@/lib/admin-produtos";
 import { getActiveDescontos } from "@/lib/admin-descontos";
+import { getCategorias } from "@/lib/admin-categorias";
 import type { Desconto } from "@/lib/admin-descontos";
 
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [settings, items, produtos, descontosList] = await Promise.all([
+  const [settings, items, produtos, descontosList, categorias] = await Promise.all([
     getLandingSettings().catch(() => ({
       heroTitulo: "Ortega Barber",
       heroSubtitulo: "Tradição e estilo em cada corte",
@@ -30,6 +31,7 @@ export default async function HomePage() {
     getPublishedItems().catch(() => []),
     getPublishedProdutos().catch(() => []),
     getActiveDescontos().catch(() => []),
+    getCategorias().catch(() => []),
   ]);
 
   const descontos = new Map<string, Desconto>(descontosList.map((d) => [d.entityId, d]));
@@ -45,7 +47,7 @@ export default async function HomePage() {
       />
       <Sobre texto={settings.sobreTexto} imagem={settings.sobreImagem} />
       <Servicos items={items} descontos={descontos} />
-      <Produtos produtos={produtos} descontos={descontos} whatsappNumber={settings.whatsappNumber} />
+      <Produtos produtos={produtos} descontos={descontos} whatsappNumber={settings.whatsappNumber} categorias={categorias} />
       <Depoimentos />
       <Localizacao enderecoTexto={settings.enderecoTexto} enderecoEmbed={settings.enderecoEmbed} />
       <CtaFinal />

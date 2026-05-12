@@ -8,6 +8,7 @@ export interface Produto {
   preco: string;
   status: "draft" | "published";
   order: number;
+  categoriaId?: string;
   createdAt: number;
   updatedAt: number;
 }
