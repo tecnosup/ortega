@@ -1,11 +1,16 @@
+"use client";
+
+import { useState } from "react";
 import { ShoppingBag, Tag } from "lucide-react";
 import type { Produto } from "@/lib/admin-produtos";
 import type { Desconto } from "@/lib/admin-descontos";
+import type { Categoria } from "@/lib/admin-categorias";
 
 interface ProdutosProps {
   produtos: Produto[];
   descontos?: Map<string, Desconto>;
   whatsappNumber?: string;
+  categorias?: Categoria[];
 }
 
 function precoComDesconto(preco: string, pct: number) {
@@ -14,8 +19,20 @@ function precoComDesconto(preco: string, pct: number) {
   return (num * (1 - pct / 100)).toFixed(2).replace(".", ",");
 }
 
-export default function Produtos({ produtos, descontos, whatsappNumber }: ProdutosProps) {
+export default function Produtos({ produtos, descontos, whatsappNumber, categorias = [] }: ProdutosProps) {
+  const [activeCategoria, setActiveCategoria] = useState<string>("todos");
+
   if (produtos.length === 0) return null;
+
+  const categoriasComProdutos = categorias.filter((cat) =>
+    produtos.some((p) => p.categoriaId === cat.id)
+  );
+
+  const mostrarAbas = categoriasComProdutos.length > 0;
+
+  const produtosFiltrados = activeCategoria === "todos"
+    ? produtos
+    : produtos.filter((p) => p.categoriaId === activeCategoria);
 
   return (
     <section id="produtos" className="py-20 md:py-28 bg-[#0A0A0A] relative">
@@ -35,8 +52,36 @@ export default function Produtos({ produtos, descontos, whatsappNumber }: Produt
           <p className="text-[#F5E6C8]/40 text-sm mt-3">Produtos selecionados para o seu estilo</p>
         </div>
 
+        {mostrarAbas && (
+          <div className="flex items-center justify-center gap-2 flex-wrap mb-8">
+            <button
+              onClick={() => setActiveCategoria("todos")}
+              className={`px-4 py-1.5 text-sm border transition ${
+                activeCategoria === "todos"
+                  ? "border-[#C9A84C] text-[#C9A84C] bg-[#C9A84C]/10"
+                  : "border-[#C9A84C]/20 text-[#F5E6C8]/50 hover:border-[#C9A84C]/50 hover:text-[#F5E6C8]/80"
+              }`}
+            >
+              Todos
+            </button>
+            {categoriasComProdutos.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategoria(cat.id)}
+                className={`px-4 py-1.5 text-sm border transition ${
+                  activeCategoria === cat.id
+                    ? "border-[#C9A84C] text-[#C9A84C] bg-[#C9A84C]/10"
+                    : "border-[#C9A84C]/20 text-[#F5E6C8]/50 hover:border-[#C9A84C]/50 hover:text-[#F5E6C8]/80"
+                }`}
+              >
+                {cat.nome}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-5">
-          {produtos.map((produto) => {
+          {produtosFiltrados.map((produto) => {
             const desconto = descontos?.get(produto.id);
             const precoOriginal = produto.preco;
             const precoFinal = desconto && precoOriginal && !precoOriginal.startsWith("A")
