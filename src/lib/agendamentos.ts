@@ -82,3 +82,8 @@ export async function listarFechamentos(): Promise<FechamentoDia[]> {
     .get();
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as FechamentoDia));
 }
+
+export async function excluirFechamento(id: string): Promise<void> {
+  const db = getAdminDb();
+  await db.collection("fechamentos").doc(id).delete();
+}

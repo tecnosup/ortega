@@ -26,10 +26,19 @@ export interface Agendamento {
   atualizadoEm: number;
 }
 
+export interface ItemExtra {
+  id: string;
+  descricao: string;
+  valor: number;
+  tipo: "servico" | "produto";
+  criadoEm: number;
+}
+
 export interface FechamentoDia {
   id: string;
   data: string;
   agendamentos: Agendamento[];
+  extras?: ItemExtra[];
   totalServicos: number;
   quantidadeAtendidos: number;
   fechadoEm: number;
