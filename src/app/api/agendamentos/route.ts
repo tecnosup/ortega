@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { nome, telefone, servico, preco, data, horario, cupom, desconto } = body;
+  const { nome, telefone, servico, preco, data, horario, cupom, desconto, barbeiroId, barbeiroNome } = body;
 
   if (!nome || !telefone || !servico || !data || !horario) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
@@ -30,13 +30,19 @@ export async function POST(req: NextRequest) {
   };
   if (cupom) payload.cupom = cupom;
   if (desconto !== undefined && desconto !== null) payload.desconto = desconto;
+  if (barbeiroId) payload.barbeiroId = String(barbeiroId).slice(0, 64);
+  if (barbeiroNome) payload.barbeiroNome = String(barbeiroNome).slice(0, 80);
 
   const id = await criarAgendamento(payload);
 
   // push em background — não bloqueia resposta ao cliente
+  const dataFormatada = new Date(data + "T12:00:00").toLocaleDateString("pt-BR", {
+    weekday: "short", day: "numeric", month: "short",
+  });
+  const barbeiroLabel = barbeiroNome ? ` com ${barbeiroNome}` : "";
   sendPushToAll(
-    "Novo agendamento",
-    `${nomeSanitizado} — ${servicoSanitizado} em ${data} às ${horario}`
+    `✂️ Novo agendamento${barbeiroLabel}`,
+    `${nomeSanitizado} · ${servicoSanitizado} · ${dataFormatada} às ${horario}`
   ).catch(() => {});
 
   return NextResponse.json({ id });

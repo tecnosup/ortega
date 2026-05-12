@@ -5,12 +5,8 @@ import { ChevronLeft, ChevronRight, Check, Tag } from "lucide-react";
 import { HORARIO_FUNCIONAMENTO } from "@/lib/demo-data";
 import type { Item } from "@/lib/admin-items";
 import type { Agendamento } from "@/lib/agendamentos";
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
-
-function toDateKey(year: number, month: number, day: number) {
-  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
+import type { Barbeiro } from "@/lib/barbeiros";
+import { toDateKey } from "@/lib/date-utils";
 
 function gerarSlots(inicio: string, fim: string): string[] {
   const slots: string[] = [];
@@ -51,7 +47,7 @@ const STATUS_CONFIG = {
 
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2.5 text-sm text-[#F5E6C8] placeholder-gray-600 focus:outline-none focus:border-[#b8944a] transition";
 
-type Step = "servico" | "calendario" | "dados" | "confirmado";
+type Step = "servico" | "barbeiro" | "calendario" | "dados" | "confirmado";
 
 interface Selecao {
   servico: string;
@@ -60,6 +56,8 @@ interface Selecao {
   horario: string;
   nome: string;
   telefone: string;
+  barbeiroId: string | null;
+  barbeiroNome: string | null;
 }
 
 interface CupomAplicado {
@@ -69,10 +67,11 @@ interface CupomAplicado {
   desconto: number;
 }
 
-function StepIndicator({ atual }: { atual: 1 | 2 | 3 }) {
+function StepIndicator({ atual }: { atual: 1 | 2 | 3 | 4 }) {
+  const total = 4;
   return (
     <div className="flex items-center justify-center gap-2 mb-2">
-      {[1, 2, 3].map((n) => (
+      {Array.from({ length: total }, (_, i) => i + 1).map((n) => (
         <div key={n} className="flex items-center gap-2">
           <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
             n < atual ? "bg-[#b8944a] text-[#0A0A0A]" :
@@ -81,7 +80,7 @@ function StepIndicator({ atual }: { atual: 1 | 2 | 3 }) {
           }`}>
             {n < atual ? <Check size={12} /> : n}
           </div>
-          {n < 3 && <div className={`w-8 h-px transition-all duration-300 ${n < atual ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`} />}
+          {n < total && <div className={`w-6 h-px transition-all duration-300 ${n < atual ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`} />}
         </div>
       ))}
     </div>
@@ -96,9 +95,11 @@ export default function AgendamentoPage() {
 
   const [step, setStep] = useState<Step>("servico");
   const [servicos, setServicos] = useState<Item[]>([]);
+  const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
   const [whatsappNumber, setWhatsappNumber] = useState("5511999999999");
   const [selecao, setSelecao] = useState<Selecao>({
     servico: "", preco: "", data: null, horario: "", nome: "", telefone: "",
+    barbeiroId: null, barbeiroNome: null,
   });
   const [mesAtual, setMesAtual] = useState(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
   const [nome, setNome] = useState("");
@@ -118,32 +119,41 @@ export default function AgendamentoPage() {
   const [erroCupom, setErroCupom] = useState("");
   const [validandoCupom, setValidandoCupom] = useState(false);
 
-  // busca serviços e settings ao montar
+  // busca serviços, barbeiros e settings ao montar
   useEffect(() => {
     fetch("/api/publico/servicos")
       .then((r) => r.json())
       .then((d) => setServicos(d.items ?? []));
+    fetch("/api/publico/barbeiros")
+      .then((r) => r.json())
+      .then((d) => setBarbeiros(d.barbeiros ?? []));
     fetch("/api/publico/settings")
       .then((r) => r.json())
       .then((d) => { if (d.whatsappNumber) setWhatsappNumber(d.whatsappNumber); });
   }, []);
 
-  // busca slots ocupados quando muda de data
-  const buscarSlots = useCallback(async (dateKey: string) => {
-    if (slotsOcupados[dateKey] !== undefined) return;
+  // busca slots ocupados quando muda de data ou barbeiro
+  const buscarSlots = useCallback(async (dateKey: string, barbeiroId: string | null) => {
+    const cacheKey = barbeiroId ? `${dateKey}__${barbeiroId}` : dateKey;
+    if (slotsOcupados[cacheKey] !== undefined) return;
     setCarregandoSlots(true);
     try {
-      const [slotsRes, agendRes] = await Promise.all([
-        fetch(`/api/slots?data=${dateKey}`),
-        fetch(`/api/agendamentos?data=${dateKey}`),
-      ]);
-      const slotsData = await slotsRes.json();
-      const agendData = await agendRes.json();
-      const bloqueados: string[] = slotsData.bloqueados ?? [];
-      const agendados: string[] = Array.isArray(agendData)
-        ? agendData.map((a: Agendamento) => a.horario)
-        : [];
-      setSlotsOcupados((prev) => ({ ...prev, [dateKey]: [...new Set([...bloqueados, ...agendados])] }));
+      if (barbeiroId) {
+        // API de slots já filtra horários ocupados do barbeiro específico
+        const res = await fetch(`/api/slots?data=${dateKey}&barbeiroId=${encodeURIComponent(barbeiroId)}`);
+        const { bloqueados } = await res.json();
+        setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: bloqueados ?? [] }));
+      } else {
+        // "qualquer": combina bloqueios globais + todos os agendamentos do dia
+        const [slotsRes, agendRes] = await Promise.all([
+          fetch(`/api/slots?data=${dateKey}`),
+          fetch(`/api/agendamentos?data=${dateKey}`),
+        ]);
+        const { bloqueados } = await slotsRes.json();
+        const agendData = await agendRes.json();
+        const agendados = Array.isArray(agendData) ? agendData.map((a: Agendamento) => a.horario) : [];
+        setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: Array.from(new Set([...bloqueados, ...agendados])) }));
+      }
     } finally {
       setCarregandoSlots(false);
     }
@@ -152,9 +162,9 @@ export default function AgendamentoPage() {
   useEffect(() => {
     if (selecao.data) {
       const key = toDateKey(selecao.data.getFullYear(), selecao.data.getMonth(), selecao.data.getDate());
-      buscarSlots(key);
+      buscarSlots(key, selecao.barbeiroId);
     }
-  }, [selecao.data, buscarSlots]);
+  }, [selecao.data, selecao.barbeiroId, buscarSlots]);
 
   const pollStatus = useCallback(async (id: string) => {
     const res = await fetch(`/api/agendamentos/${id}`);
@@ -192,7 +202,8 @@ export default function AgendamentoPage() {
     const horario = HORARIO_FUNCIONAMENTO[diaSemana];
     if (!horario) return [];
     const todos = gerarSlots(horario.inicio, horario.fim);
-    const ocupados = slotsOcupados[dateKey] ?? [];
+    const cacheKey = selecao.barbeiroId ? `${dateKey}__${selecao.barbeiroId}` : dateKey;
+    const ocupados = slotsOcupados[cacheKey] ?? [];
     const agora = new Date();
     const hojeKey = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}-${String(agora.getDate()).padStart(2, "0")}`;
     const minutosAgora = agora.getHours() * 60 + agora.getMinutes();
@@ -271,6 +282,8 @@ export default function AgendamentoPage() {
         cupom: cupomAplicado?.codigo ?? null,
         data: dataKey,
         horario: selecao.horario,
+        barbeiroId: selecao.barbeiroId ?? undefined,
+        barbeiroNome: selecao.barbeiroNome ?? undefined,
       }),
     });
 
@@ -283,6 +296,14 @@ export default function AgendamentoPage() {
     setSlotsOcupados((prev) => {
       const prev2 = { ...prev };
       delete prev2[dataKey];
+      if (selecao.barbeiroId) {
+        delete prev2[`${dataKey}__${selecao.barbeiroId}`];
+      } else {
+        // "qualquer": slot pode ter sido atribuído a qualquer barbeiro — invalida todos os caches deste dia
+        for (const key of Object.keys(prev2)) {
+          if (key.startsWith(`${dataKey}__`)) delete prev2[key];
+        }
+      }
       return prev2;
     });
     setStep("confirmado");
@@ -307,7 +328,7 @@ export default function AgendamentoPage() {
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-8">
             <StepIndicator atual={1} />
-            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 1 de 3</span>
+            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 1 de 4</span>
             <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Escolha o serviço</h1>
           </div>
           {servicos.length === 0 ? (
@@ -317,7 +338,7 @@ export default function AgendamentoPage() {
               {servicos.map((s) => (
                 <button
                   key={s.id}
-                  onClick={() => { setSelecao((sel) => ({ ...sel, servico: s.titulo, preco: s.preco })); setStep("calendario"); }}
+                  onClick={() => { setSelecao((sel) => ({ ...sel, servico: s.titulo, preco: s.preco })); setStep("barbeiro"); }}
                   className="text-left border border-[#2d2d2d] bg-[#111] p-4 sm:p-5 rounded-xl active:scale-[0.98] hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition-all duration-200 group"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -339,26 +360,100 @@ export default function AgendamentoPage() {
     );
   }
 
+  // ── STEP: BARBEIRO ────────────────────────────────────────────────────────
+  if (step === "barbeiro") {
+    return (
+      <section className="min-h-screen pt-20 pb-10 bg-[#0A0A0A]">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-8">
+            <StepIndicator atual={2} />
+            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 2 de 4</span>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Escolha o barbeiro</h1>
+            <p className="text-gray-500 text-sm mt-1">Ou deixe em branco para qualquer disponível</p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {/* opção "qualquer" */}
+            <button
+              onClick={() => {
+                setSelecao((s) => ({ ...s, barbeiroId: null, barbeiroNome: null }));
+                setStep("calendario");
+              }}
+              className={`text-left border rounded-xl p-4 sm:p-5 transition-all duration-200 active:scale-[0.98] hover:border-[#b8944a] hover:bg-[#b8944a]/5 group ${
+                selecao.barbeiroId === null ? "border-[#b8944a] bg-[#b8944a]/5" : "border-[#2d2d2d] bg-[#111]"
+              }`}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-[#2d2d2d] flex items-center justify-center text-xl shrink-0">✂️</div>
+                <div>
+                  <p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition">Qualquer disponível</p>
+                  <p className="text-xs text-gray-500 mt-0.5">O próximo barbeiro livre atende você</p>
+                </div>
+              </div>
+            </button>
+
+            {barbeiros.map((b) => (
+              <button
+                key={b.id}
+                onClick={() => {
+                  setSelecao((s) => ({ ...s, barbeiroId: b.id, barbeiroNome: b.apelido ?? b.nome }));
+                  setStep("calendario");
+                }}
+                className={`text-left border rounded-xl p-4 sm:p-5 transition-all duration-200 active:scale-[0.98] hover:border-[#b8944a] hover:bg-[#b8944a]/5 group ${
+                  selecao.barbeiroId === b.id ? "border-[#b8944a] bg-[#b8944a]/5" : "border-[#2d2d2d] bg-[#111]"
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  {b.foto ? (
+                    <img src={b.foto} alt={b.nome} className="w-12 h-12 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-[#2d2d2d] flex items-center justify-center text-lg font-bold text-[#b8944a] shrink-0">
+                      {b.nome.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition">{b.nome}</p>
+                    {b.apelido && <p className="text-xs text-gray-500 mt-0.5">{b.apelido}</p>}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setStep("servico")}
+            className="mt-6 text-sm text-gray-600 hover:text-[#b8944a] transition"
+          >
+            ← Voltar
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   // ── STEP: CALENDÁRIO ──────────────────────────────────────────────────────
   if (step === "calendario") {
     return (
       <section className="min-h-screen pt-20 pb-10 bg-[#0A0A0A]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-6">
-            <StepIndicator atual={2} />
-            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 2 de 3</span>
+            <StepIndicator atual={3} />
+            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 3 de 4</span>
             <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Data e horário</h1>
           </div>
 
-          {/* serviço selecionado — pill no topo em mobile */}
+          {/* serviço + barbeiro selecionado — pill no topo */}
           <div className="flex items-center justify-between bg-[#111] border border-[#2d2d2d] rounded-xl px-4 py-3 mb-4">
-            <div>
+            <div className="flex flex-col gap-0.5">
               <p className="text-xs text-gray-600 uppercase tracking-wider">Serviço</p>
               <p className="font-semibold text-[#F5E6C8] text-sm">{selecao.servico}
                 {selecao.preco && <span className="text-[#b8944a] ml-2">R$ {selecao.preco}</span>}
               </p>
+              {selecao.barbeiroNome && (
+                <p className="text-xs text-gray-500">com {selecao.barbeiroNome}</p>
+              )}
             </div>
-            <button onClick={() => setStep("servico")} className="text-xs text-gray-600 hover:text-[#b8944a] transition px-2 py-1">
+            <button onClick={() => setStep("barbeiro")} className="text-xs text-gray-600 hover:text-[#b8944a] transition px-2 py-1">
               Trocar
             </button>
           </div>
@@ -488,8 +583,8 @@ export default function AgendamentoPage() {
       <section className="min-h-screen pt-20 pb-10 bg-[#0A0A0A]">
         <div className="max-w-xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-6">
-            <StepIndicator atual={3} />
-            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 3 de 3</span>
+            <StepIndicator atual={4} />
+            <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 4 de 4</span>
             <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Seus dados</h1>
           </div>
 
@@ -499,6 +594,12 @@ export default function AgendamentoPage() {
               <span className="text-gray-500">Serviço</span>
               <span className="font-medium text-[#F5E6C8]">{selecao.servico}</span>
             </div>
+            {selecao.barbeiroNome && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Barbeiro</span>
+                <span className="font-medium text-[#F5E6C8]">{selecao.barbeiroNome}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-gray-500">Data</span>
               <span className="font-medium text-[#F5E6C8] capitalize">{dataFormatada}</span>
@@ -639,7 +740,7 @@ export default function AgendamentoPage() {
           <button
             onClick={() => {
               setStep("servico");
-              setSelecao({ servico: "", preco: "", data: null, horario: "", nome: "", telefone: "" });
+              setSelecao({ servico: "", preco: "", data: null, horario: "", nome: "", telefone: "", barbeiroId: null, barbeiroNome: null });
               setNome("");
               setTelefone("");
               setAgendamentoId(null);

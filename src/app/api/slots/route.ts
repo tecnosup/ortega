@@ -3,14 +3,32 @@ import { getAdminDb, getSessionUser } from "@/lib/firebase-admin";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/slots?data=YYYY-MM-DD → lista horários bloqueados pelo admin naquele dia
+// GET /api/slots?data=YYYY-MM-DD[&barbeiroId=xxx] → horários bloqueados + ocupados pelo barbeiro
 export async function GET(req: NextRequest) {
   const data = req.nextUrl.searchParams.get("data");
   if (!data) return NextResponse.json({ error: "data obrigatória" }, { status: 400 });
+  const barbeiroId = req.nextUrl.searchParams.get("barbeiroId");
 
   const db = getAdminDb();
-  const snap = await db.collection("slots_bloqueados").where("data", "==", data).get();
-  const bloqueados = snap.docs.map((d) => d.data().horario as string);
+
+  // slots bloqueados globalmente pelo admin
+  const bloqSnap = await db.collection("slots_bloqueados").where("data", "==", data).get();
+  const bloqueados = bloqSnap.docs.map((d) => d.data().horario as string);
+
+  // se barbeiro específico, inclui os horários já ocupados por ele
+  if (barbeiroId) {
+    const agSnap = await db
+      .collection("agendamentos")
+      .where("data", "==", data)
+      .where("barbeiroId", "==", barbeiroId)
+      .get();
+    const ocupados = agSnap.docs
+      .filter((d) => d.data().status !== "cancelado")
+      .map((d) => d.data().horario as string);
+    const todos = Array.from(new Set([...bloqueados, ...ocupados]));
+    return NextResponse.json({ bloqueados: todos });
+  }
+
   return NextResponse.json({ bloqueados });
 }
 

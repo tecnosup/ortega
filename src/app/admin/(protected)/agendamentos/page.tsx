@@ -9,20 +9,15 @@ import {
   CalendarPlus, Ban, Unlock, LayoutGrid, List, Plus,
 } from "lucide-react";
 import type { Agendamento, AgendamentoStatus, FechamentoDia } from "@/lib/agendamentos";
+import { parsePriceNum } from "@/lib/agendamentos";
+import type { Barbeiro } from "@/lib/barbeiros";
+import { toDateKey } from "@/lib/date-utils";
 import { HORARIO_FUNCIONAMENTO } from "@/lib/demo-data";
-
-function toDateKey(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 function formatarData(dateKey: string) {
   return new Date(dateKey + "T12:00:00").toLocaleDateString("pt-BR", {
     weekday: "long", day: "numeric", month: "long",
   });
-}
-
-function parsePriceNum(preco: string) {
-  return parseFloat(preco.replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
 }
 
 function gerarSlots(dateKey: string): string[] {
@@ -194,17 +189,24 @@ function Modal({ titulo, mensagem, confirmLabel, confirmClass, onConfirm, onCanc
   );
 }
 
-function WalkInModal({ horario, dataSelecionada, onConfirm, onCancel }: {
-  horario: string; dataSelecionada: string;
-  onConfirm: (dados: { nome: string; telefone: string; servico: string; preco: string }) => void;
+function WalkInModal({ horario, dataSelecionada, barbeiros, onConfirm, onCancel }: {
+  horario: string; dataSelecionada: string; barbeiros: Barbeiro[];
+  onConfirm: (dados: { nome: string; telefone: string; servico: string; preco: string; barbeiroId?: string; barbeiroNome?: string }) => void;
   onCancel: () => void;
 }) {
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [servico, setServico] = useState(SERVICOS_LISTA[0]);
   const [preco, setPreco] = useState("");
+  const [barbeiroId, setBarbeiroId] = useState("");
   const dataLabel = new Date(dataSelecionada + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "long" });
   const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a]";
+
+  function handleConfirm() {
+    if (!nome.trim()) return;
+    const b = barbeiros.find((x) => x.id === barbeiroId);
+    onConfirm({ nome, telefone, servico, preco, barbeiroId: b?.id, barbeiroNome: b ? (b.apelido ?? b.nome) : undefined });
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
@@ -218,10 +220,19 @@ function WalkInModal({ horario, dataSelecionada, onConfirm, onCancel }: {
           <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">WhatsApp (opcional)</label><input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="11999999999" className={inp} /></div>
           <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Serviço</label><select value={servico} onChange={(e) => setServico(e.target.value)} className={inp}>{SERVICOS_LISTA.map((s) => <option key={s}>{s}</option>)}</select></div>
           <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Preço (R$)</label><input value={preco} onChange={(e) => setPreco(e.target.value)} placeholder="55" className={inp} /></div>
+          {barbeiros.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-400">Barbeiro</label>
+              <select value={barbeiroId} onChange={(e) => setBarbeiroId(e.target.value)} className={inp}>
+                <option value="">— Qualquer disponível —</option>
+                {barbeiros.map((b) => <option key={b.id} value={b.id}>{b.nome}{b.apelido ? ` (${b.apelido})` : ""}</option>)}
+              </select>
+            </div>
+          )}
         </div>
         <div className="flex gap-2 justify-end">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
-          <button onClick={() => { if (nome.trim()) onConfirm({ nome, telefone, servico, preco }); }} disabled={!nome.trim()} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">Confirmar</button>
+          <button onClick={handleConfirm} disabled={!nome.trim()} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">Confirmar</button>
         </div>
       </div>
     </div>
@@ -287,6 +298,7 @@ export default function AgendamentosAdminPage() {
   const [modal, setModal] = useState<ModalState>(null);
   const [slotsBloqueados, setSlotsBloqueados] = useState<string[]>([]);
   const [walkInHorario, setWalkInHorario] = useState<string | null>(null);
+  const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
   const [reagendarAg, setReagendarAg] = useState<Agendamento | null>(null);
   const [notificacaoLink, setNotificacaoLink] = useState<string | null>(null);
   const [aba, setAba] = useState<"lista" | "grade">("lista");
@@ -309,6 +321,12 @@ export default function AgendamentosAdminPage() {
   }, [dataSelecionada]);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  useEffect(() => {
+    fetch("/api/admin/barbeiros", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setBarbeiros(d.barbeiros ?? []));
+  }, []);
 
   const agsDia = agendamentos.filter((a) => a.data === dataSelecionada).sort((a, b) => a.horario.localeCompare(b.horario));
   const concluidos = agsDia.filter((a) => a.status === "concluido");
@@ -366,7 +384,7 @@ export default function AgendamentosAdminPage() {
     setSlotsBloqueados((prev) => jaBloqueado ? prev.filter((s) => s !== horario) : [...prev, horario]);
   }
 
-  async function criarWalkIn(dados: { nome: string; telefone: string; servico: string; preco: string }) {
+  async function criarWalkIn(dados: { nome: string; telefone: string; servico: string; preco: string; barbeiroId?: string; barbeiroNome?: string }) {
     const res = await fetch("/api/agendamentos", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...dados, telefone: dados.telefone || "00000000000", data: dataSelecionada, horario: walkInHorario }) });
     const { id } = await res.json();
     await fetch(`/api/agendamentos/${id}`, { credentials: "include", method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "confirmado" }) });
@@ -410,7 +428,7 @@ export default function AgendamentosAdminPage() {
   return (
     <div className="max-w-5xl mx-auto">
       {modal && <Modal {...modalConfig[modal.tipo]} onConfirm={confirmarModal} onCancel={() => setModal(null)} />}
-      {walkInHorario && <WalkInModal horario={walkInHorario} dataSelecionada={dataSelecionada} onConfirm={criarWalkIn} onCancel={() => setWalkInHorario(null)} />}
+      {walkInHorario && <WalkInModal horario={walkInHorario} dataSelecionada={dataSelecionada} barbeiros={barbeiros} onConfirm={criarWalkIn} onCancel={() => setWalkInHorario(null)} />}
       {reagendarAg && <ReagendarModal ag={reagendarAg} dataSelecionada={dataSelecionada} slotsLivres={slotsLivresDia} onConfirm={reagendar} onCancel={() => setReagendarAg(null)} />}
       {notificacaoLink && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-[#1a2a1a] border border-green-700/60 text-green-300 rounded-xl px-4 py-3 shadow-xl max-w-xs">
@@ -539,6 +557,11 @@ export default function AgendamentosAdminPage() {
                                           <a href={`https://wa.me/55${ag.telefone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition">{ag.telefone}</a>
                                         </p>
                                       )}
+                                      {ag.barbeiroNome && (
+                                        <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-[#2d2d2d] text-gray-300 border border-[#3d3d3d] rounded-full">
+                                          ✂️ {ag.barbeiroNome}
+                                        </span>
+                                      )}
                                       {ag.cupom && (
                                         <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-[#b8944a]/10 text-[#b8944a] border border-[#b8944a]/30 rounded-full font-mono">
                                           🏷️ {ag.cupom}{ag.desconto ? ` −R$ ${ag.desconto.toFixed(2).replace(".", ",")}` : ""}
@@ -635,6 +658,7 @@ export default function AgendamentosAdminPage() {
                                 <span className="text-sm font-medium text-[#F5E6C8]">{agNoSlot.nome}</span>
                                 <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_STYLE[agNoSlot.status]}`}>{STATUS_LABEL[agNoSlot.status]}</span>
                                 <span className="text-xs text-gray-400">✂️ {agNoSlot.servico}</span>
+                                {agNoSlot.barbeiroNome && <span className="text-xs px-1.5 py-0.5 bg-[#2d2d2d] text-gray-400 border border-[#3d3d3d] rounded">{agNoSlot.barbeiroNome}</span>}
                                 {agNoSlot.preco && <span className="text-xs text-[#b8944a] font-medium">R$ {agNoSlot.preco}</span>}
                                 {agNoSlot.cupom && <span className="text-xs px-1.5 py-0.5 bg-[#b8944a]/10 text-[#b8944a] border border-[#b8944a]/30 rounded font-mono">🏷️ {agNoSlot.cupom}</span>}
                               </div>

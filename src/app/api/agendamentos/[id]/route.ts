@@ -60,16 +60,18 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const user = await getSessionUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const body = await req.json() as { servico?: string; preco?: string; data?: string; horario?: string };
+  const body = await req.json() as { servico?: string; preco?: string; data?: string; horario?: string; barbeiroId?: string | null; barbeiroNome?: string | null };
 
   const ag = await getAgendamento(id);
   if (!ag) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
 
-  const patch: Record<string, string> = {};
+  const patch: Record<string, unknown> = {};
   if (body.servico !== undefined) patch.servico = body.servico;
   if (body.preco !== undefined) patch.preco = body.preco;
   if (body.data !== undefined) patch.data = body.data;
   if (body.horario !== undefined) patch.horario = body.horario;
+  if (body.barbeiroId !== undefined) patch.barbeiroId = body.barbeiroId ?? null;
+  if (body.barbeiroNome !== undefined) patch.barbeiroNome = body.barbeiroNome ?? null;
 
   await atualizarAgendamento(id, patch);
 

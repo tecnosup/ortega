@@ -1,5 +1,9 @@
 import { getAdminDb } from "./firebase-admin";
 
+export function parsePriceNum(preco: string): number {
+  return parseFloat(preco.replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
+}
+
 export type AgendamentoStatus = "pendente" | "confirmado" | "cancelado" | "concluido" | "nao_compareceu";
 
 export interface Agendamento {
@@ -13,6 +17,8 @@ export interface Agendamento {
   status: AgendamentoStatus;
   cupom?: string;
   desconto?: number;
+  barbeiroId?: string;
+  barbeiroNome?: string;
   visualizadoAdmin?: boolean;
   criadoEm: number;
   atualizadoEm: number;

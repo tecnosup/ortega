@@ -11,15 +11,10 @@ import {
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { Agendamento, FechamentoDia } from "@/lib/agendamentos";
+import { parsePriceNum } from "@/lib/agendamentos";
 import type { Gasto } from "@/lib/gastos-tipos";
 import { gastoMensalEquivalente } from "@/lib/gastos-tipos";
-
-function toDateKey(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-function parsePriceNum(preco: string) {
-  return parseFloat(preco.replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
-}
+import { toDateKey } from "@/lib/date-utils";
 function brl(v: number) {
   return `R$ ${v.toFixed(2).replace(".", ",")}`;
 }
