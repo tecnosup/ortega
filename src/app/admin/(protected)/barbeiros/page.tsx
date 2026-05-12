@@ -26,7 +26,7 @@ export default function BarbeirosPage() {
 
   async function load() {
     setLoading(true);
-    const res = await fetch("/api/admin/barbeiros");
+    const res = await fetch("/api/admin/barbeiros", { credentials: "include" });
     const json = await res.json();
     setBarbeiros(json.barbeiros ?? []);
     setLoading(false);
@@ -59,9 +59,9 @@ export default function BarbeirosPage() {
     try {
       const body = { nome: form.nome.trim(), apelido: form.apelido.trim() || undefined, comissao, ativo: form.ativo };
       if (modal.editing) {
-        await fetch(`/api/admin/barbeiros/${modal.editing.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        await fetch(`/api/admin/barbeiros/${modal.editing.id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       } else {
-        await fetch("/api/admin/barbeiros", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        await fetch("/api/admin/barbeiros", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       }
       await load();
       closeModal();
@@ -86,6 +86,7 @@ export default function BarbeirosPage() {
     setContaErro("");
     const res = await fetch(`/api/admin/barbeiros/${contaModal.barbeiro.id}/conta`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(contaForm),
     });
@@ -99,7 +100,7 @@ export default function BarbeirosPage() {
   async function handleRemoverConta(b: Barbeiro) {
     if (!confirm(`Remover acesso de ${b.nome}? O barbeiro não conseguirá mais entrar.`)) return;
     setRemovendoConta(b.id);
-    await fetch(`/api/admin/barbeiros/${b.id}/conta`, { method: "DELETE" });
+    await fetch(`/api/admin/barbeiros/${b.id}/conta`, { method: "DELETE", credentials: "include" });
     await load();
     setRemovendoConta(null);
   }
@@ -107,7 +108,7 @@ export default function BarbeirosPage() {
   async function handleDelete(id: string, nome: string) {
     if (!confirm(`Remover ${nome}? Agendamentos existentes não serão afetados.`)) return;
     setDeletingId(id);
-    await fetch(`/api/admin/barbeiros/${id}`, { method: "DELETE" });
+    await fetch(`/api/admin/barbeiros/${id}`, { method: "DELETE", credentials: "include" });
     await load();
     setDeletingId(null);
   }
