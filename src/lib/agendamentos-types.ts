@@ -20,6 +20,8 @@ export interface Agendamento {
   barbeiroId?: string;
   barbeiroNome?: string;
   visualizadoAdmin?: boolean;
+  assinaturaId?: string;       // ID Firestore da assinatura usada
+  cobertoPorAssinatura?: boolean;
   criadoEm: number;
   atualizadoEm: number;
 }

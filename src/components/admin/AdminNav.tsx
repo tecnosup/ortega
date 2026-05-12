@@ -7,7 +7,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
   LayoutDashboard, Scissors, Star, ClipboardList,
-  LogOut, CalendarCheck, Tag, Menu, X, ShoppingBag, TrendingUp, ExternalLink, Users, DollarSign,
+  LogOut, CalendarCheck, Tag, Menu, X, ShoppingBag, TrendingUp, ExternalLink, Users, DollarSign, CreditCard,
 } from "lucide-react";
 import { useAdminNotificacoes } from "@/hooks/useAdminNotificacoes";
 import { PushToggle } from "@/components/admin/PushToggle";
@@ -18,6 +18,7 @@ const links = [
   { href: "/admin/financeiro",    label: "Financeiro",   icon: TrendingUp,      badge: "financeiro" as const },
   { href: "/admin/barbeiros",     label: "Barbeiros",    icon: Users,           badge: null },
   { href: "/admin/comissoes",     label: "Comissões",    icon: DollarSign,      badge: null },
+  { href: "/admin/assinantes",    label: "Assinantes",   icon: CreditCard,      badge: null },
   { href: "/admin/itens",         label: "Serviços",     icon: Scissors,        badge: null },
   { href: "/admin/produtos",      label: "Produtos",     icon: ShoppingBag,     badge: null },
   { href: "/admin/descontos",     label: "Descontos",    icon: Tag,             badge: null },
