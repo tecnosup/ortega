@@ -16,6 +16,21 @@ export interface AuditLog {
 
 export type PeriodFilter = "30d" | "3m" | "6m" | "1y";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function serializeLog(d: any): AuditLog {
+  const data = d.data();
+  return {
+    id: d.id,
+    actorEmail: data.actorEmail ?? "",
+    action: data.action ?? "",
+    entity: data.entity ?? "",
+    entityId: data.entityId ?? "",
+    summary: data.summary ?? undefined,
+    snapshotAntes: data.snapshotAntes ?? undefined,
+    createdAt: data.createdAt?._seconds ?? data.createdAt?.seconds ?? null,
+  };
+}
+
 const PERIOD_MS: Record<PeriodFilter, number> = {
   "30d": 30 * 24 * 60 * 60 * 1000,
   "3m":  90 * 24 * 60 * 60 * 1000,
@@ -36,7 +51,7 @@ export async function loadMoreAuditLogs(afterId: string): Promise<AuditLog[]> {
       .limit(50)
       .get();
 
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as AuditLog));
+    return snap.docs.map(serializeLog);
   } catch {
     return [];
   }
@@ -54,7 +69,7 @@ export async function loadAuditLogsByPeriod(period: PeriodFilter): Promise<Audit
       .limit(500)
       .get();
 
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as AuditLog));
+    return snap.docs.map(serializeLog);
   } catch {
     return [];
   }
