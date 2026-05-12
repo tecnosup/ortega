@@ -15,6 +15,7 @@ const schema = z.object({
   preco: z.string().default(""),
   status: z.enum(["draft", "published"]),
   order: z.coerce.number().default(0),
+  categoriaId: z.string().optional(),
 });
 
 async function getActor() {
@@ -98,6 +99,34 @@ export async function deleteProdutoAction(formData: FormData) {
     // silencia erro de delete
   }
   redirect("/admin/produtos");
+}
+
+export async function toggleStatusAction(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const id = formData.get("id") as string;
+  const current = formData.get("status") as string;
+  const next = current === "published" ? "draft" : "published";
+  try {
+    const actor = await getActor();
+    await updateProduto(id, { status: next });
+    await logAudit({ ...actor, action: "produto.update", entity: "produto", entityId: id, summary: `Status alterado para ${next}` });
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Erro ao alterar status" };
+  }
+}
+
+export async function reorderProdutosAction(ids: string[]): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const db = adminDb;
+    const batch = db.batch();
+    ids.forEach((id, index) => {
+      batch.update(db.collection("produtos").doc(id), { order: index, updatedAt: Date.now() });
+    });
+    await batch.commit();
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Erro ao reordenar" };
+  }
 }
 
 export async function revertAuditAction(formData: FormData): Promise<{ ok: boolean; error?: string }> {
