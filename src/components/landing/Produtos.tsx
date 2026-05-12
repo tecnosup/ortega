@@ -4,11 +4,13 @@ import { useState } from "react";
 import { ShoppingBag, Tag } from "lucide-react";
 import type { Produto } from "@/lib/admin-produtos";
 import type { Desconto } from "@/lib/admin-descontos";
+import type { Categoria } from "@/lib/admin-categorias";
 
 interface ProdutosProps {
   produtos: Produto[];
   descontos?: Map<string, Desconto>;
   whatsappNumber?: string;
+  categorias?: Categoria[];
 }
 
 function precoComDesconto(preco: string, pct: number) {
@@ -17,10 +19,21 @@ function precoComDesconto(preco: string, pct: number) {
   return (num * (1 - pct / 100)).toFixed(2).replace(".", ",");
 }
 
-export default function Produtos({ produtos, descontos, whatsappNumber }: ProdutosProps) {
+export default function Produtos({ produtos, descontos, whatsappNumber, categorias = [] }: ProdutosProps) {
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const [activeCategoria, setActiveCategoria] = useState<string>("todos");
 
   if (produtos.length === 0) return null;
+
+  const categoriasComProdutos = categorias.filter((cat) =>
+    produtos.some((p) => p.categoriaId === cat.id)
+  );
+
+  const mostrarAbas = categoriasComProdutos.length > 0;
+
+  const produtosFiltrados = activeCategoria === "todos"
+    ? produtos
+    : produtos.filter((p) => p.categoriaId === activeCategoria);
 
   return (
     <section id="produtos" className="py-20 md:py-28 bg-[#0A0A0A] relative">
@@ -42,10 +55,39 @@ export default function Produtos({ produtos, descontos, whatsappNumber }: Produt
           <p className="text-[#F5E6C8]/35 text-sm mt-3">Produtos selecionados para o seu estilo</p>
         </div>
 
+        {/* filtro de categorias */}
+        {mostrarAbas && (
+          <div className="flex items-center justify-center gap-2 flex-wrap mb-8">
+            <button
+              onClick={() => setActiveCategoria("todos")}
+              className={`px-4 py-1.5 text-sm border transition ${
+                activeCategoria === "todos"
+                  ? "border-[#C9A84C] text-[#C9A84C] bg-[#C9A84C]/10"
+                  : "border-[#C9A84C]/20 text-[#F5E6C8]/50 hover:border-[#C9A84C]/50 hover:text-[#F5E6C8]/80"
+              }`}
+            >
+              Todos
+            </button>
+            {categoriasComProdutos.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategoria(cat.id)}
+                className={`px-4 py-1.5 text-sm border transition ${
+                  activeCategoria === cat.id
+                    ? "border-[#C9A84C] text-[#C9A84C] bg-[#C9A84C]/10"
+                    : "border-[#C9A84C]/20 text-[#F5E6C8]/50 hover:border-[#C9A84C]/50 hover:text-[#F5E6C8]/80"
+                }`}
+              >
+                {cat.nome}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* mobile: scroll horizontal tipo prateleira */}
         <div className="md:hidden -mx-4 px-4 overflow-x-auto scrollbar-hide">
           <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
-            {produtos.map((produto) => {
+            {produtosFiltrados.map((produto) => {
               const desconto = descontos?.get(produto.id);
               const precoOriginal = produto.preco;
               const precoFinal = desconto && precoOriginal && !precoOriginal.startsWith("A")
@@ -64,7 +106,6 @@ export default function Produtos({ produtos, descontos, whatsappNumber }: Produt
                     </span>
                   )}
 
-                  {/* imagem 3:4 retrato */}
                   <div className="relative overflow-hidden bg-[#1a1a1a]" style={{ aspectRatio: "3/4" }}>
                     {produto.imagem ? (
                       <img
@@ -77,9 +118,7 @@ export default function Produtos({ produtos, descontos, whatsappNumber }: Produt
                         <ShoppingBag size={32} />
                       </div>
                     )}
-                    {/* gradiente na base */}
                     <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#141414] to-transparent" />
-                    {/* nome sobreposto */}
                     <div className="absolute inset-x-0 bottom-0 p-3">
                       <p className="font-semibold text-[#F5E6C8] text-xs leading-tight">{produto.titulo}</p>
                       {precoOriginal && (
@@ -106,9 +145,9 @@ export default function Produtos({ produtos, descontos, whatsappNumber }: Produt
           </div>
         </div>
 
-        {/* desktop: grid 3-4 colunas com hover animado */}
+        {/* desktop: grid com hover animado */}
         <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-5">
-          {produtos.map((produto) => {
+          {produtosFiltrados.map((produto) => {
             const desconto = descontos?.get(produto.id);
             const precoOriginal = produto.preco;
             const precoFinal = desconto && precoOriginal && !precoOriginal.startsWith("A")
@@ -133,7 +172,6 @@ export default function Produtos({ produtos, descontos, whatsappNumber }: Produt
                   </span>
                 )}
 
-                {/* imagem 3:4 retrato */}
                 <div className="relative overflow-hidden bg-[#1a1a1a]" style={{ aspectRatio: "3/4" }}>
                   {produto.imagem ? (
                     <img
@@ -147,7 +185,6 @@ export default function Produtos({ produtos, descontos, whatsappNumber }: Produt
                     </div>
                   )}
 
-                  {/* overlay escuro no hover com botão subindo */}
                   <div className={`absolute inset-0 bg-[#0A0A0A]/60 flex items-end transition-opacity duration-400 ${isHovered ? "opacity-100" : "opacity-0"}`}>
                     {whatsappNumber && (
                       <a
@@ -167,7 +204,6 @@ export default function Produtos({ produtos, descontos, whatsappNumber }: Produt
                   </div>
                 </div>
 
-                {/* info */}
                 <div className="p-4 flex flex-col gap-1.5">
                   <h3 className="font-semibold text-[#F5E6C8] text-sm leading-snug">{produto.titulo}</h3>
                   {produto.descricao && (
@@ -193,6 +229,7 @@ export default function Produtos({ produtos, descontos, whatsappNumber }: Produt
             );
           })}
         </div>
+
       </div>
     </section>
   );
