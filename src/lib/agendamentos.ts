@@ -1,8 +1,8 @@
 import "server-only";
 import { getAdminDb } from "./firebase-admin";
-import type { Agendamento, FechamentoDia } from "./agendamentos-types";
+import type { Agendamento, FechamentoDia, AtendimentoAvulso } from "./agendamentos-types";
 
-export type { AgendamentoStatus, Agendamento, FechamentoDia } from "./agendamentos-types";
+export type { AgendamentoStatus, Agendamento, FechamentoDia, AtendimentoAvulso } from "./agendamentos-types";
 export { parsePriceNum } from "./agendamentos-types";
 
 export async function criarAgendamento(
@@ -57,18 +57,23 @@ export async function excluirAgendamento(id: string): Promise<void> {
   await db.collection("agendamentos").doc(id).delete();
 }
 
-export async function fecharCaixaDia(data: string, agendamentos: Agendamento[]): Promise<string> {
+export async function fecharCaixaDia(
+  data: string,
+  agendamentos: Agendamento[],
+  avulsos: AtendimentoAvulso[] = [],
+): Promise<string> {
   const concluidos = agendamentos.filter((a) => a.status === "concluido");
-  const total = concluidos.reduce((sum, a) => {
-    const val = parseFloat(a.preco.replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
-    return sum + val;
+  const totalAgs = concluidos.reduce((sum, a) => {
+    return sum + (parseFloat(a.preco.replace(/[^\d.,]/g, "").replace(",", ".")) || 0);
   }, 0);
+  const totalAvulsos = avulsos.reduce((sum, av) => sum + av.total, 0);
   const db = getAdminDb();
   const ref = await db.collection("fechamentos").add({
     data,
     agendamentos: concluidos,
-    totalServicos: total,
-    quantidadeAtendidos: concluidos.length,
+    avulsos,
+    totalServicos: totalAgs + totalAvulsos,
+    quantidadeAtendidos: concluidos.length + avulsos.length,
     fechadoEm: Date.now(),
   });
   return ref.id;
