@@ -388,7 +388,7 @@ export default function FinanceiroPage() {
       fetch("/api/atendimentos-avulsos", { credentials: "include" }),
       fetch("/api/gastos/categorias", { credentials: "include" }),
     ]);
-    setFechamentos(await resFech.json());
+    if (resFech.ok) setFechamentos(await resFech.json());
     if (resGastos.ok) setGastos(await resGastos.json());
     if (resGastosDia.ok) setGastosDia(await resGastosDia.json());
     if (resAvulsos.ok) setAvulsos(await resAvulsos.json());
