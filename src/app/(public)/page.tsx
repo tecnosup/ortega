@@ -6,6 +6,7 @@ import Assinaturas from "@/components/landing/Assinaturas";
 import Depoimentos from "@/components/landing/Depoimentos";
 import Localizacao from "@/components/landing/Localizacao";
 import CtaFinal from "@/components/landing/CtaFinal";
+import CtaMobileFloat from "@/components/landing/CtaMobileFloat";
 import { getLandingSettings } from "@/lib/admin-settings";
 import { getPublishedItems } from "@/lib/admin-items";
 import { getPublishedProdutos } from "@/lib/admin-produtos";
@@ -53,6 +54,7 @@ export default async function HomePage() {
       <Depoimentos />
       <Localizacao enderecoTexto={settings.enderecoTexto} enderecoEmbed={settings.enderecoEmbed} />
       <CtaFinal />
+      <CtaMobileFloat whatsappNumber={settings.whatsappNumber} />
     </>
   );
 }
