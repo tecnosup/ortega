@@ -21,6 +21,9 @@ export interface Gasto {
   vencimento: number | null;
   criadoEm: number;
   atualizadoEm: number;
+  categoriaId?: string;
+  proximoVencimento?: string;
+  lembrarRenovacao?: boolean;
 }
 
 export function gastoMensalEquivalente(gasto: Gasto): number {
@@ -51,3 +54,11 @@ export const FREQUENCIA_LABEL: Record<FrequenciaGasto, string> = {
   anual: "Anual",
   unico: "Único",
 };
+
+export interface CategoriaGastoCustom {
+  id: string;
+  nome: string;
+  cor: string;
+  ordem: number;
+  criadoEm: number;
+}

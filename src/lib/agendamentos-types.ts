@@ -34,11 +34,32 @@ export interface ItemExtra {
   criadoEm: number;
 }
 
+export interface ItemAtendimento {
+  id: string;
+  tipo: "servico" | "produto";
+  descricao: string;
+  valor: number;
+}
+
+export interface AtendimentoAvulso {
+  id: string;
+  data: string;
+  clienteNome: string;
+  clienteTelefone?: string;
+  agendamentoId?: string;
+  formaPagamento?: string;
+  itens: ItemAtendimento[];
+  total: number;
+  criadoEm: number;
+  atualizadoEm: number;
+}
+
 export interface FechamentoDia {
   id: string;
   data: string;
   agendamentos: Agendamento[];
   extras?: ItemExtra[];
+  avulsos?: AtendimentoAvulso[];
   totalServicos: number;
   quantidadeAtendidos: number;
   fechadoEm: number;

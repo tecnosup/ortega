@@ -6,22 +6,37 @@ import { playNovoAgendamento, playAtencao, playCritico } from "./useAdminSounds"
 
 type Urgencia = "normal" | "atencao" | "critico";
 
+export interface VencimentoItem {
+  id: string;
+  descricao: string;
+  data: string;
+  dias: number;
+  valor: number;
+  frequencia: string;
+}
+
 interface Notificacoes {
   pendentes: number;
   hoje: number;
   total: number;
   urgencia: Urgencia;
+  financeiro: number;
+  caixasAbertos: number;
+  caixasAbertosLista: string[];
+  vencimentos: number;
+  vencimentosLista: VencimentoItem[];
+  urgenciaFinanceiro: Urgencia;
 }
 
-export function useAdminNotificacoes() {
-  const [data, setData] = useState<Notificacoes>({
-    pendentes: 0,
-    hoje: 0,
-    total: 0,
-    urgencia: "normal",
-  });
+const INITIAL: Notificacoes = {
+  pendentes: 0, hoje: 0, total: 0, urgencia: "normal",
+  financeiro: 0, caixasAbertos: 0, caixasAbertosLista: [],
+  vencimentos: 0, vencimentosLista: [], urgenciaFinanceiro: "normal",
+};
 
-  // refs para detectar delta entre polls
+export function useAdminNotificacoes() {
+  const [data, setData] = useState<Notificacoes>(INITIAL);
+
   const prevTotal = useRef<number | null>(null);
   const prevUrgencia = useRef<Urgencia | null>(null);
   const primeiroFetch = useRef(true);
@@ -30,29 +45,21 @@ export function useAdminNotificacoes() {
     try {
       const res = await fetch("/api/admin/notificacoes", { credentials: "include" });
       if (!res.ok) return;
-      const json: Notificacoes = await res.json();
+      const json = await res.json() as Partial<Notificacoes>;
+      const merged: Notificacoes = { ...INITIAL, ...json };
 
-      // não toca som no primeiro fetch (carregamento inicial)
       if (!primeiroFetch.current) {
         const totalAnterior = prevTotal.current ?? 0;
         const urgenciaAnterior = prevUrgencia.current ?? "normal";
-
-        if (json.total > totalAnterior) {
-          // novo agendamento chegou
-          playNovoAgendamento();
-        } else if (json.urgencia === "critico" && urgenciaAnterior !== "critico") {
-          // passou a ser crítico
-          playCritico();
-        } else if (json.urgencia === "atencao" && urgenciaAnterior === "normal") {
-          // passou a atenção
-          playAtencao();
-        }
+        if (merged.total > totalAnterior) playNovoAgendamento();
+        else if (merged.urgencia === "critico" && urgenciaAnterior !== "critico") playCritico();
+        else if (merged.urgencia === "atencao" && urgenciaAnterior === "normal") playAtencao();
       }
 
       primeiroFetch.current = false;
-      prevTotal.current = json.total;
-      prevUrgencia.current = json.urgencia;
-      setData(json);
+      prevTotal.current = merged.total;
+      prevUrgencia.current = merged.urgencia;
+      setData(merged);
     } catch {
       // silencia erros de rede
     }

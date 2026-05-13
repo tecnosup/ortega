@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fecharCaixaDia, listarFechamentos, listarAgendamentos } from "@/lib/agendamentos";
+import { listarAtendimentosAvulsosPorData } from "@/lib/atendimentos-avulsos";
 import { getSessionUser } from "@/lib/firebase-admin";
 
 export const dynamic = "force-dynamic";
@@ -10,9 +11,12 @@ export async function POST(req: NextRequest) {
   const { data } = await req.json() as { data: string };
   if (!data) return NextResponse.json({ error: "Data obrigatória" }, { status: 400 });
 
-  const todos = await listarAgendamentos();
+  const [todos, avulsos] = await Promise.all([
+    listarAgendamentos(),
+    listarAtendimentosAvulsosPorData(data),
+  ]);
   const doDia = todos.filter((a) => a.data === data);
-  const id = await fecharCaixaDia(data, doDia);
+  const id = await fecharCaixaDia(data, doDia, avulsos);
   return NextResponse.json({ id });
 }
 

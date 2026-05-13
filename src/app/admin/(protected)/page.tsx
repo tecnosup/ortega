@@ -15,6 +15,7 @@ import { parsePriceNum } from "@/lib/agendamentos-types";
 import type { Gasto } from "@/lib/gastos-tipos";
 import { gastoMensalEquivalente } from "@/lib/gastos-tipos";
 import { toDateKey } from "@/lib/date-utils";
+import { useAdminNotificacoes } from "@/hooks/useAdminNotificacoes";
 function brl(v: number) {
   return `R$ ${v.toFixed(2).replace(".", ",")}`;
 }
@@ -127,6 +128,7 @@ function calcularAlertas(
 
 export default function AdminDashboard() {
   const hoje = new Date();
+  const notif = useAdminNotificacoes();
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [fechamentos, setFechamentos] = useState<FechamentoDia[]>([]);
   const [gastos, setGastos] = useState<Gasto[]>([]);
@@ -205,8 +207,31 @@ export default function AdminDashboard() {
   fechamentos.forEach((f) => { f.agendamentos.forEach((a) => { if (!contadorServicos[a.servico]) contadorServicos[a.servico] = { quantidade: 0, total: 0 }; contadorServicos[a.servico].quantidade++; contadorServicos[a.servico].total += parsePriceNum(a.preco); }); });
   const rankServicos = Object.entries(contadorServicos).sort((a, b) => b[1].quantidade - a[1].quantidade).slice(0, 5);
 
-  // Alertas
-  const alertas = calcularAlertas(agendamentos, gastos, fechamentos).filter((a) => !alertasDismissed.has(a.id));
+  // Alertas — locais + financeiros do hook
+  const alertas = (() => {
+    const lista = calcularAlertas(agendamentos, gastos, fechamentos);
+    const hoje_str = toDateKey(new Date());
+    notif.caixasAbertosLista.forEach((data) => {
+      if (data !== hoje_str) {
+        lista.push({
+          id: `caixa_retro_${data}`,
+          nivel: "vermelho" as const,
+          mensagem: `Caixa retroativo em aberto — ${new Date(data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}`,
+          href: `/admin/financeiro?dia=${data}#caixa`,
+        });
+      }
+    });
+    notif.vencimentosLista.forEach((v) => {
+      lista.push({
+        id: `venc_${v.data}_${v.descricao}`,
+        nivel: v.dias === 0 ? "laranja" as const : "amarelo" as const,
+        mensagem: `Gasto "${v.descricao}" vence ${v.dias === 0 ? "hoje" : `em ${v.dias}d`} — ${new Date(v.data + "T12:00:00").toLocaleDateString("pt-BR")}`,
+        href: "/admin/financeiro",
+      });
+    });
+    const ordem: Record<string, number> = { vermelho: 0, laranja: 1, amarelo: 2, azul: 3 };
+    return lista.sort((a, b) => ordem[a.nivel] - ordem[b.nivel]).filter((a) => !alertasDismissed.has(a.id));
+  })();
 
   if (carregando) return <div className="flex items-center justify-center h-64 text-gray-500 text-sm">Carregando...</div>;
 
