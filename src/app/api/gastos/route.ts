@@ -13,10 +13,20 @@ export async function POST(req: NextRequest) {
   if (!user?.admin) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   const body = await req.json();
-  const { descricao, categoria, valor, frequencia, ativo, vencimento } = body;
+  const { descricao, categoria, valor, frequencia, ativo, vencimento, categoriaId, proximoVencimento, lembrarRenovacao } = body;
   if (!descricao || !categoria || valor === undefined || !frequencia) {
     return NextResponse.json({ error: "Campos obrigatórios ausentes" }, { status: 400 });
   }
-  const id = await criarGasto({ descricao, categoria, valor: Number(valor), frequencia, ativo: ativo ?? true, vencimento: vencimento ?? null });
+  const id = await criarGasto({
+    descricao,
+    categoria,
+    valor: Number(valor),
+    frequencia,
+    ativo: ativo ?? true,
+    vencimento: vencimento ?? null,
+    ...(categoriaId !== undefined && { categoriaId }),
+    ...(proximoVencimento !== undefined && { proximoVencimento }),
+    ...(lembrarRenovacao !== undefined && { lembrarRenovacao }),
+  });
   return NextResponse.json({ id }, { status: 201 });
 }
