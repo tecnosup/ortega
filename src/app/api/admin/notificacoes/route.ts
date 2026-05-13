@@ -72,7 +72,7 @@ export async function GET(_req: NextRequest) {
 
     const gastosSnap = await db.collection("gastos").where("lembrarRenovacao", "==", true).get();
     let vencimentos = 0;
-    const vencimentosLista: { descricao: string; data: string; dias: number }[] = [];
+    const vencimentosLista: { id: string; descricao: string; data: string; dias: number; valor: number; frequencia: string }[] = [];
     for (const doc of gastosSnap.docs) {
       const g = doc.data();
       if (g.proximoVencimento && g.proximoVencimento >= hoje && g.proximoVencimento <= em10dStr) {
