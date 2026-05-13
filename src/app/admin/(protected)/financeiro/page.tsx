@@ -732,7 +732,6 @@ export default function FinanceiroPage() {
                       dataKey="value"
                       stroke="none"
                       strokeWidth={0}
-                      activeOuterRadiusOffset={0}
                     >
                       {donutData.map((entry, i) => <Cell key={i} fill={corPorCategoria[entry.name] ?? DONUT_COLORS[i % DONUT_COLORS.length]} />)}
                     </Pie>
@@ -849,7 +848,7 @@ export default function FinanceiroPage() {
                       <span className="font-medium text-[#F5E6C8] text-sm">{g.descricao}</span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full border" style={{ color: catCor, borderColor: `${catCor}40` }}>{catNome}</span>
                       <span className="text-xs px-1.5 py-0.5 bg-blue-900/20 text-blue-400 rounded-full">{FREQUENCIA_LABEL[g.frequencia]}</span>
-                      {g.lembrarRenovacao && <Bell size={11} className="text-[#b8944a]/60" title="Lembrete ativo" />}
+                      {g.lembrarRenovacao && <Bell size={11} className="text-[#b8944a]/60" />}
                       {!g.ativo && <span className="text-xs px-1.5 py-0.5 bg-[#1a1a1a] text-gray-600 rounded-full">inativo</span>}
                     </div>
                     {g.proximoVencimento && (
