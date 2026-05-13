@@ -732,7 +732,6 @@ export default function FinanceiroPage() {
                       dataKey="value"
                       stroke="none"
                       strokeWidth={0}
-                      activeOuterRadiusOffset={0}
                     >
                       {donutData.map((entry, i) => <Cell key={i} fill={corPorCategoria[entry.name] ?? DONUT_COLORS[i % DONUT_COLORS.length]} />)}
                     </Pie>
