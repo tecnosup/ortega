@@ -74,7 +74,7 @@ export default function Servicos({ items, descontos }: ServicosProps) {
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/20 to-transparent z-10" />
 
       {/* ========= DESKTOP: horizontal pin scroll ========= */}
-      <div ref={pinWrapRef} className="hidden md:block h-screen overflow-hidden">
+      <div ref={pinWrapRef} className="hidden md:block h-screen" style={{ overflow: "hidden" }}>
 
         {/* header fixo acima da trilha */}
         <div className="pt-20 pb-10 max-w-6xl mx-auto px-6">
@@ -102,7 +102,7 @@ export default function Servicos({ items, descontos }: ServicosProps) {
         {/* trilha horizontal */}
         <div
           ref={trackRef}
-          className="flex gap-6 px-[max(2rem,calc((100vw-72rem)/2))] pb-16 will-change-transform"
+          className="flex gap-6 px-[max(2rem,calc((100vw-72rem)/2))] pb-10 will-change-transform"
           style={{ width: "max-content" }}
         >
           {items.map((item, idx) => {
@@ -116,7 +116,7 @@ export default function Servicos({ items, descontos }: ServicosProps) {
               <div
                 key={item.id}
                 className="relative flex flex-col justify-between bg-white/[0.03] backdrop-blur-sm border border-[#C9A84C]/10 hover:border-[#C9A84C]/40 transition-all duration-500 group overflow-hidden"
-                style={{ width: 320, minHeight: 380 }}
+                style={{ width: 320, height: "clamp(320px, calc(100vh - 220px), 480px)" }}
               >
                 {/* número decorativo */}
                 <span className="absolute bottom-4 right-5 text-[100px] font-black text-[#C9A84C]/4 leading-none select-none pointer-events-none">
@@ -191,7 +191,7 @@ export default function Servicos({ items, descontos }: ServicosProps) {
           {/* card CTA final */}
           <div
             className="relative flex flex-col items-center justify-center bg-[#C9A84C]/5 border border-[#C9A84C]/20 hover:bg-[#C9A84C]/10 transition-all duration-500 shrink-0"
-            style={{ width: 260, minHeight: 380 }}
+            style={{ width: 260, height: "clamp(320px, calc(100vh - 220px), 480px)" }}
           >
             <div className="flex flex-col items-center gap-5 px-8 text-center">
               <div className="w-14 h-14 border-2 border-[#C9A84C]/40 flex items-center justify-center text-[#C9A84C]">
