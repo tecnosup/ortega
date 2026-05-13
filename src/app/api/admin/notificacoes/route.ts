@@ -40,24 +40,21 @@ export async function GET(_req: NextRequest) {
       }
     }
 
-    // ── Caixas retroativos abertos ─────────────────────────────────────────────
+    // ── Caixas retroativos abertos (apenas últimos 30 dias) ───────────────────
     const [fechSnap, concluidosSnap, avulsosSnap] = await Promise.all([
-      db.collection("fechamentos").get(),
-      db.collection("agendamentos").where("status", "==", "concluido").get(),
-      db.collection("atendimentos_avulsos").get(),
+      db.collection("fechamentos").where("data", ">=", limite30dStr).where("data", "<", hoje).get(),
+      db.collection("agendamentos").where("data", ">=", limite30dStr).where("data", "<", hoje).get(),
+      db.collection("atendimentos_avulsos").where("data", ">=", limite30dStr).where("data", "<", hoje).get(),
     ]);
 
-    const fechDatas = new Set(
-      fechSnap.docs.map(d => d.data().data as string).filter(d => d >= limite30dStr && d < hoje)
-    );
+    const fechDatas = new Set(fechSnap.docs.map(d => d.data().data as string));
     const datasComAtividade = new Set<string>();
     concluidosSnap.docs.forEach(doc => {
-      const d = doc.data().data as string;
-      if (d >= limite30dStr && d < hoje) datasComAtividade.add(d);
+      const d = doc.data();
+      if (d.status === "concluido") datasComAtividade.add(d.data as string);
     });
     avulsosSnap.docs.forEach(doc => {
-      const d = doc.data().data as string;
-      if (d >= limite30dStr && d < hoje) datasComAtividade.add(d);
+      datasComAtividade.add(doc.data().data as string);
     });
 
     const caixasAbertosLista = [...datasComAtividade]
