@@ -28,7 +28,11 @@ export async function createBarbeiro(
 ): Promise<string> {
   const db = getAdminDb();
   const now = Date.now();
-  const ref = await db.collection("barbeiros").add({ ...data, createdAt: now, updatedAt: now });
+  // Firestore rejeita campos undefined — filtra antes de salvar
+  const clean = Object.fromEntries(
+    Object.entries({ ...data, createdAt: now, updatedAt: now }).filter(([, v]) => v !== undefined)
+  );
+  const ref = await db.collection("barbeiros").add(clean);
   return ref.id;
 }
 
