@@ -2,16 +2,36 @@
 
 import { useEffect, useState } from "react";
 import { Users, Plus, Edit2, Trash2, X, Check, Loader2, KeyRound, Unlink } from "lucide-react";
-import type { Barbeiro } from "@/lib/barbeiros-types";
+import type { Barbeiro, ComissaoServico } from "@/lib/barbeiros-types";
+import type { Item } from "@/lib/admin-items";
 
-type Form = { nome: string; apelido: string; comissao: string; ativo: boolean };
-const EMPTY: Form = { nome: "", apelido: "", comissao: "40", ativo: true };
+type TipoFuncionario = "barbeiro" | "faxineira" | "secretaria";
+
+type Form = {
+  nome: string;
+  apelido: string;
+  comissao: string;
+  ativo: boolean;
+  tipo: TipoFuncionario;
+  comissoesServico: ComissaoServico[];
+};
+
+const EMPTY: Form = { nome: "", apelido: "", comissao: "40", ativo: true, tipo: "barbeiro", comissoesServico: [] };
 
 type ContaModal = { open: boolean; barbeiro: Barbeiro | null };
 type ContaForm = { email: string; senha: string };
 
-export default function BarbeirosPage() {
+const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] transition";
+
+const TIPO_LABELS: Record<TipoFuncionario, string> = {
+  barbeiro: "Barbeiro",
+  faxineira: "Faxineira",
+  secretaria: "Secretária",
+};
+
+export default function FuncionariosPage() {
   const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
+  const [itens, setItens] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ open: boolean; editing: Barbeiro | null }>({ open: false, editing: null });
   const [form, setForm] = useState<Form>(EMPTY);
@@ -26,9 +46,16 @@ export default function BarbeirosPage() {
 
   async function load() {
     setLoading(true);
-    const res = await fetch("/api/admin/barbeiros", { credentials: "include" });
-    const json = await res.json();
-    setBarbeiros(json.barbeiros ?? []);
+    const [resBarb, resItens] = await Promise.all([
+      fetch("/api/admin/barbeiros", { credentials: "include" }),
+      fetch("/api/admin/itens", { credentials: "include" }),
+    ]);
+    const bJson = await resBarb.json();
+    setBarbeiros(bJson.barbeiros ?? []);
+    if (resItens.ok) {
+      const iJson = await resItens.json();
+      setItens((iJson.items ?? []).filter((i: Item) => i.status === "published"));
+    }
     setLoading(false);
   }
 
@@ -41,13 +68,32 @@ export default function BarbeirosPage() {
   }
 
   function openEdit(b: Barbeiro) {
-    setForm({ nome: b.nome, apelido: b.apelido ?? "", comissao: String(b.comissao), ativo: b.ativo });
+    setForm({
+      nome: b.nome,
+      apelido: b.apelido ?? "",
+      comissao: String(b.comissao),
+      ativo: b.ativo,
+      tipo: b.tipo ?? "barbeiro",
+      comissoesServico: b.comissoesServico ?? [],
+    });
     setError("");
     setModal({ open: true, editing: b });
   }
 
-  function closeModal() {
-    setModal({ open: false, editing: null });
+  function closeModal() { setModal({ open: false, editing: null }); }
+
+  function setComissaoServico(servicoId: string, percentual: number) {
+    setForm((f) => {
+      const existing = f.comissoesServico.find((c) => c.servicoId === servicoId);
+      if (existing) {
+        return { ...f, comissoesServico: f.comissoesServico.map((c) => c.servicoId === servicoId ? { servicoId, percentual } : c) };
+      }
+      return { ...f, comissoesServico: [...f.comissoesServico, { servicoId, percentual }] };
+    });
+  }
+
+  function getComissaoServico(servicoId: string): number {
+    return form.comissoesServico.find((c) => c.servicoId === servicoId)?.percentual ?? 0;
   }
 
   async function handleSave() {
@@ -57,7 +103,14 @@ export default function BarbeirosPage() {
     setSaving(true);
     setError("");
     try {
-      const body = { nome: form.nome.trim(), apelido: form.apelido.trim() || undefined, comissao, ativo: form.ativo };
+      const body = {
+        nome: form.nome.trim(),
+        apelido: form.apelido.trim() || undefined,
+        comissao,
+        ativo: form.ativo,
+        tipo: form.tipo,
+        comissoesServico: form.tipo === "barbeiro" ? form.comissoesServico.filter((c) => c.percentual > 0) : [],
+      };
       if (modal.editing) {
         await fetch(`/api/admin/barbeiros/${modal.editing.id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       } else {
@@ -73,7 +126,7 @@ export default function BarbeirosPage() {
   }
 
   function openConta(b: Barbeiro) {
-    setContaForm({ email: (b as Barbeiro & { email?: string }).email ?? "", senha: "" });
+    setContaForm({ email: b.email ?? "", senha: "" });
     setContaErro("");
     setContaModal({ open: true, barbeiro: b });
   }
@@ -98,7 +151,7 @@ export default function BarbeirosPage() {
   }
 
   async function handleRemoverConta(b: Barbeiro) {
-    if (!confirm(`Remover acesso de ${b.nome}? O barbeiro não conseguirá mais entrar.`)) return;
+    if (!confirm(`Remover acesso de ${b.nome}? O funcionário não conseguirá mais entrar.`)) return;
     setRemovendoConta(b.id);
     await fetch(`/api/admin/barbeiros/${b.id}/conta`, { method: "DELETE", credentials: "include" });
     await load();
@@ -118,45 +171,46 @@ export default function BarbeirosPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Users size={22} className="text-[#b8944a]" />
-          <h1 className="text-2xl font-bold text-[#F5E6C8]">Barbeiros</h1>
+          <h1 className="text-2xl font-bold text-[#F5E6C8]">Funcionários</h1>
         </div>
         <button
           onClick={openNew}
           className="flex items-center gap-2 px-4 py-2 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded hover:bg-[#c9a84c] transition"
         >
-          <Plus size={16} /> Novo barbeiro
+          <Plus size={16} /> Novo funcionário
         </button>
       </div>
 
       {loading ? (
         <div className="flex items-center gap-2 text-gray-500 text-sm"><Loader2 size={16} className="animate-spin" /> Carregando…</div>
       ) : barbeiros.length === 0 ? (
-        <p className="text-gray-500 text-sm">Nenhum barbeiro cadastrado.</p>
+        <p className="text-gray-500 text-sm">Nenhum funcionário cadastrado.</p>
       ) : (
         <div className="bg-[#111] border border-[#2d2d2d] rounded-lg divide-y divide-[#1a1a1a]">
           {barbeiros.map((b) => (
             <div key={b.id} className="flex items-center justify-between px-5 py-4 hover:bg-[#151515] transition">
               <div className="flex flex-col gap-0.5">
-                <p className="font-semibold text-[#F5E6C8] text-sm">{b.nome}{b.apelido ? <span className="text-gray-500 font-normal"> ({b.apelido})</span> : null}</p>
+                <p className="font-semibold text-[#F5E6C8] text-sm">
+                  {b.nome}{b.apelido ? <span className="text-gray-500 font-normal"> ({b.apelido})</span> : null}
+                </p>
                 <p className="text-xs text-gray-500">
-                  Comissão <span className="text-[#b8944a] font-medium">{b.comissao}%</span>
+                  <span className="text-gray-400">{TIPO_LABELS[b.tipo ?? "barbeiro"]}</span>
+                  {b.tipo !== "barbeiro" ? null : <>{" · "}Comissão <span className="text-[#b8944a] font-medium">{b.comissao}%</span></>}
                   {" · "}
                   <span className={b.ativo ? "text-green-400" : "text-gray-600"}>{b.ativo ? "Ativo" : "Inativo"}</span>
-                  {(b as Barbeiro & { uid?: string }).uid && (
-                    <>{" · "}<span className="text-blue-400">Portal ativo</span></>
-                  )}
+                  {b.uid && <>{" · "}<span className="text-blue-400">Portal ativo</span></>}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => openConta(b)}
                   className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2d2d2d] text-gray-400 text-xs rounded hover:border-[#b8944a] hover:text-[#b8944a] transition"
-                  title={(b as Barbeiro & { uid?: string }).uid ? "Atualizar acesso" : "Criar acesso ao portal"}
+                  title={b.uid ? "Atualizar acesso" : "Criar acesso ao portal"}
                 >
                   <KeyRound size={12} />
-                  {(b as Barbeiro & { uid?: string }).uid ? "Acesso" : "Criar acesso"}
+                  {b.uid ? "Acesso" : "Criar acesso"}
                 </button>
-                {(b as Barbeiro & { uid?: string }).uid && (
+                {b.uid && (
                   <button
                     onClick={() => handleRemoverConta(b)}
                     disabled={removendoConta === b.id}
@@ -186,6 +240,7 @@ export default function BarbeirosPage() {
         </div>
       )}
 
+      {/* Modal acesso ao portal */}
       {contaModal.open && contaModal.barbeiro && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-md flex flex-col gap-5 p-6">
@@ -200,9 +255,9 @@ export default function BarbeirosPage() {
             </div>
 
             <p className="text-xs text-gray-500">
-              {(contaModal.barbeiro as Barbeiro & { uid?: string }).uid
-                ? "Atualize o e-mail ou senha de acesso do barbeiro."
-                : "Crie um login para que o barbeiro acesse o portal em /barbeiro."}
+              {contaModal.barbeiro.uid
+                ? "Atualize o e-mail ou senha de acesso."
+                : "Crie um login para que o funcionário acesse o portal em /barbeiro."}
             </p>
 
             <div className="flex flex-col gap-4">
@@ -212,8 +267,8 @@ export default function BarbeirosPage() {
                   type="email"
                   value={contaForm.email}
                   onChange={(e) => setContaForm((f) => ({ ...f, email: e.target.value }))}
-                  className="bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] transition"
-                  placeholder="barbeiro@email.com"
+                  className={inp}
+                  placeholder="funcionario@email.com"
                   style={{ fontSize: 16 }}
                 />
               </label>
@@ -223,7 +278,7 @@ export default function BarbeirosPage() {
                   type="password"
                   value={contaForm.senha}
                   onChange={(e) => setContaForm((f) => ({ ...f, senha: e.target.value }))}
-                  className="bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] transition"
+                  className={inp}
                   placeholder="••••••"
                   style={{ fontSize: 16 }}
                 />
@@ -249,11 +304,12 @@ export default function BarbeirosPage() {
         </div>
       )}
 
+      {/* Modal criar/editar funcionário */}
       {modal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-md flex flex-col gap-5 p-6">
+          <div className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-md flex flex-col gap-5 p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h2 className="font-bold text-[#F5E6C8]">{modal.editing ? "Editar barbeiro" : "Novo barbeiro"}</h2>
+              <h2 className="font-bold text-[#F5E6C8]">{modal.editing ? "Editar funcionário" : "Novo funcionário"}</h2>
               <button onClick={closeModal} className="text-gray-500 hover:text-white transition"><X size={18} /></button>
             </div>
 
@@ -263,7 +319,7 @@ export default function BarbeirosPage() {
                 <input
                   value={form.nome}
                   onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
-                  className="bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] transition"
+                  className={inp}
                   placeholder="Ex: João Silva"
                 />
               </label>
@@ -273,23 +329,61 @@ export default function BarbeirosPage() {
                 <input
                   value={form.apelido}
                   onChange={(e) => setForm((f) => ({ ...f, apelido: e.target.value }))}
-                  className="bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] transition"
+                  className={inp}
                   placeholder="Ex: João"
                 />
               </label>
 
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs text-gray-400 font-medium">Comissão (%)</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={form.comissao}
-                  onChange={(e) => setForm((f) => ({ ...f, comissao: e.target.value }))}
-                  className="bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] transition"
-                  placeholder="40"
-                />
+                <span className="text-xs text-gray-400 font-medium">Tipo</span>
+                <select
+                  value={form.tipo}
+                  onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value as TipoFuncionario }))}
+                  className={inp}
+                >
+                  <option value="barbeiro">Barbeiro</option>
+                  <option value="faxineira">Faxineira</option>
+                  <option value="secretaria">Secretária</option>
+                </select>
               </label>
+
+              {form.tipo === "barbeiro" && (
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-xs text-gray-400 font-medium">Comissão geral (%)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={form.comissao}
+                    onChange={(e) => setForm((f) => ({ ...f, comissao: e.target.value }))}
+                    className={inp}
+                    placeholder="40"
+                  />
+                </label>
+              )}
+
+              {form.tipo === "barbeiro" && itens.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs text-gray-400 font-medium">Comissão por serviço (opcional)</span>
+                  <p className="text-xs text-gray-600">Se preenchido, substitui a comissão geral para esse serviço.</p>
+                  <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+                    {itens.map((item) => (
+                      <div key={item.id} className="flex items-center gap-3">
+                        <span className="flex-1 text-xs text-[#F5E6C8] truncate">{item.titulo}</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={getComissaoServico(item.id) || ""}
+                          onChange={(e) => setComissaoServico(item.id, Number(e.target.value))}
+                          className="w-20 bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2 py-1 text-xs text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] transition text-right"
+                          placeholder="%"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <label className="flex items-center gap-3 cursor-pointer select-none">
                 <div
