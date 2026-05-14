@@ -22,6 +22,9 @@ export async function POST(req: NextRequest) {
 
   if (!nome) return NextResponse.json({ error: "Nome obrigatório" }, { status: 400 });
 
-  const id = await createBarbeiro({ nome, apelido, foto, comissao, ativo });
+  const tipo = ["barbeiro", "faxineira", "secretaria"].includes(body.tipo) ? body.tipo : "barbeiro";
+  const comissoesServico = Array.isArray(body.comissoesServico) ? body.comissoesServico : [];
+
+  const id = await createBarbeiro({ nome, apelido, foto, comissao, ativo, tipo, comissoesServico });
   return NextResponse.json({ id }, { status: 201 });
 }

@@ -24,6 +24,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.foto !== undefined) patch.foto = body.foto ? String(body.foto).trim() : null;
   if (body.comissao !== undefined) patch.comissao = Math.min(100, Math.max(0, Number(body.comissao) || 0));
   if (body.ativo !== undefined) patch.ativo = Boolean(body.ativo);
+  if (body.tipo !== undefined && ["barbeiro", "faxineira", "secretaria"].includes(body.tipo)) patch.tipo = body.tipo;
+  if (body.comissoesServico !== undefined) patch.comissoesServico = Array.isArray(body.comissoesServico) ? body.comissoesServico : [];
 
   await updateBarbeiro(id, patch);
   return NextResponse.json({ ok: true });
