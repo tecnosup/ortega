@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ShoppingBag, Tag, X } from "lucide-react";
+import { motion } from "framer-motion";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { Produto } from "@/lib/admin-produtos";
 import type { Desconto } from "@/lib/admin-descontos";
 import type { Categoria } from "@/lib/admin-categorias";
+
+gsap.registerPlugin(ScrollTrigger);
 
 interface ProdutosProps {
   produtos: Produto[];
@@ -59,11 +64,7 @@ function ProdutoModal({
         </button>
 
         {produto.imagem ? (
-          <img
-            src={produto.imagem}
-            alt={produto.titulo}
-            className="w-full h-56 object-cover"
-          />
+          <img src={produto.imagem} alt={produto.titulo} className="w-full h-56 object-cover" />
         ) : (
           <div className="w-full h-56 bg-[#1a1a1a] flex items-center justify-center">
             <ShoppingBag size={48} className="text-[#C9A84C]/20" />
@@ -116,6 +117,18 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [activeCategoria, setActiveCategoria] = useState<string>("todos");
   const [modalProduto, setModalProduto] = useState<Produto | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!gridRef.current) return;
+    const cards = gridRef.current.querySelectorAll<HTMLElement>(".gsap-card");
+    gsap.fromTo(cards,
+      { opacity: 0, y: 36, scale: 0.97 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.7, stagger: 0.08, ease: "power3.out",
+        scrollTrigger: { trigger: gridRef.current, start: "top 80%", once: true } }
+    );
+    return () => { ScrollTrigger.getAll().forEach((t) => t.kill()); };
+  }, [produtos, activeCategoria]);
 
   if (produtos.length === 0) return null;
 
@@ -158,7 +171,13 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
 
         {/* cabeçalho */}
-        <div className="text-center mb-10 md:mb-14">
+        <motion.div
+          className="text-center mb-10 md:mb-14"
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.6 }}
+        >
           <div className="flex items-center justify-center gap-3 mb-3">
             <span className="w-8 h-px bg-[#C9A84C]" />
             <span className="text-[#C9A84C] text-xs font-medium tracking-[0.3em] uppercase">Loja</span>
@@ -169,11 +188,17 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >Nossos produtos</h2>
           <p className="text-[#F5E6C8]/35 text-sm mt-3">Produtos selecionados para o seu estilo</p>
-        </div>
+        </motion.div>
 
         {/* filtro de categorias */}
         {mostrarAbas && (
-          <div className="flex items-center justify-center gap-2 flex-wrap mb-8">
+          <motion.div
+            className="flex items-center justify-center gap-2 flex-wrap mb-8"
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
             <button
               onClick={() => setActiveCategoria("todos")}
               className={`px-4 py-1.5 text-sm border transition ${
@@ -197,35 +222,34 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
                 {cat.nome}
               </button>
             ))}
-          </div>
+          </motion.div>
         )}
 
-        {/* mobile: scroll horizontal tipo prateleira */}
+        {/* mobile: scroll horizontal */}
         <div className="md:hidden -mx-4 px-4 overflow-x-auto scrollbar-hide">
           <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
-            {produtosFiltrados.map((produto) => {
+            {produtosFiltrados.map((produto, idx) => {
               const { desconto, precoOriginal, precoFinal } = getPrecos(produto);
 
               return (
-                <button
+                <motion.button
                   key={produto.id}
                   onClick={() => setModalProduto(produto)}
-                  className="relative flex flex-col bg-[#141414] border border-[#C9A84C]/10 overflow-hidden text-left"
+                  className="relative flex flex-col bg-white/[0.03] backdrop-blur-sm border border-[#C9A84C]/10 overflow-hidden text-left"
                   style={{ width: 180 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: idx * 0.06 }}
                 >
                   {desconto && (
                     <span className="absolute top-2 left-2 z-10 bg-[#C9A84C] text-[#0A0A0A] text-[9px] font-black px-1.5 py-0.5 tracking-wider uppercase">
                       -{desconto.percentual}%
                     </span>
                   )}
-
                   <div className="relative overflow-hidden bg-[#1a1a1a]" style={{ aspectRatio: "3/4" }}>
                     {produto.imagem ? (
-                      <img
-                        src={produto.imagem}
-                        alt={produto.titulo}
-                        className="w-full h-full object-cover"
-                      />
+                      <img src={produto.imagem} alt={produto.titulo} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-[#C9A84C]/15">
                         <ShoppingBag size={32} />
@@ -241,18 +265,17 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
                       )}
                     </div>
                   </div>
-
                   <div className="py-2.5 bg-[#C9A84C] text-[#0A0A0A] text-[10px] font-black tracking-widest uppercase text-center">
                     Ver produto
                   </div>
-                </button>
+                </motion.button>
               );
             })}
           </div>
         </div>
 
-        {/* desktop: grid com hover animado */}
-        <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-5">
+        {/* desktop: grid com glassmorphism + gsap */}
+        <div ref={gridRef} className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-5">
           {produtosFiltrados.map((produto) => {
             const { desconto, precoOriginal, precoFinal } = getPrecos(produto);
             const isHovered = hoverId === produto.id;
@@ -260,13 +283,14 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
             return (
               <div
                 key={produto.id}
-                className="relative flex flex-col bg-[#141414] border border-[#C9A84C]/10 overflow-hidden transition-all duration-500 group cursor-pointer"
+                className="gsap-card relative flex flex-col bg-white/[0.03] backdrop-blur-sm border border-[#C9A84C]/10 overflow-hidden transition-all duration-500 group cursor-pointer"
                 onMouseEnter={() => setHoverId(produto.id)}
                 onMouseLeave={() => setHoverId(null)}
                 onClick={() => setModalProduto(produto)}
                 style={{
                   borderColor: isHovered ? "rgba(201,168,76,0.5)" : undefined,
-                  transform: isHovered ? "translateY(-4px)" : "translateY(0)",
+                  transform: isHovered ? "translateY(-6px)" : "translateY(0)",
+                  boxShadow: isHovered ? "0 20px 40px rgba(0,0,0,0.4), 0 0 20px rgba(201,168,76,0.08)" : undefined,
                 }}
               >
                 {desconto && (
