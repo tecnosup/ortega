@@ -339,10 +339,9 @@ export default function FuncionariosPage() {
           {/* botão gerenciar tipos */}
           <button
             onClick={() => setTiposOpen((v) => !v)}
-            className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border transition ${tiposOpen ? "border-[#b8944a] text-[#b8944a]" : "border-[#2d2d2d] text-gray-600 hover:border-[#444] hover:text-gray-400"}`}
-            title="Gerenciar tipos"
+            className={`flex items-center gap-1.5 px-3 py-1 text-xs rounded-full border transition ${tiposOpen ? "border-[#b8944a] text-[#b8944a] bg-[#b8944a]/10" : "border-dashed border-[#3d3d3d] text-gray-500 hover:border-[#b8944a] hover:text-[#b8944a]"}`}
           >
-            <Tag size={11} />
+            <Tag size={11} /> Gerenciar tipos
           </button>
 
           <div className="w-px h-4 bg-[#2d2d2d]" />
