@@ -28,7 +28,10 @@ export async function createBarbeiro(
 ): Promise<string> {
   const db = getAdminDb();
   const now = Date.now();
-  const ref = await db.collection("barbeiros").add({ ...data, createdAt: now, updatedAt: now });
+  const clean = Object.fromEntries(
+    Object.entries({ ...data, createdAt: now, updatedAt: now }).filter(([, v]) => v !== undefined)
+  );
+  const ref = await db.collection("barbeiros").add(clean);
   return ref.id;
 }
 
@@ -37,7 +40,10 @@ export async function updateBarbeiro(
   data: Partial<Omit<Barbeiro, "id" | "createdAt">>
 ): Promise<void> {
   const db = getAdminDb();
-  await db.collection("barbeiros").doc(id).update({ ...data, updatedAt: Date.now() });
+  const clean = Object.fromEntries(
+    Object.entries({ ...data, updatedAt: Date.now() }).filter(([, v]) => v !== undefined)
+  );
+  await db.collection("barbeiros").doc(id).update(clean);
 }
 
 export async function deleteBarbeiro(id: string): Promise<void> {
