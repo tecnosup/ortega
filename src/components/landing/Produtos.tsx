@@ -1,15 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { ShoppingBag, Tag, X } from "lucide-react";
 import { motion } from "framer-motion";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { Produto } from "@/lib/admin-produtos";
 import type { Desconto } from "@/lib/admin-descontos";
 import type { Categoria } from "@/lib/admin-categorias";
-
-gsap.registerPlugin(ScrollTrigger);
 
 interface ProdutosProps {
   produtos: Produto[];
@@ -117,18 +113,6 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [activeCategoria, setActiveCategoria] = useState<string>("todos");
   const [modalProduto, setModalProduto] = useState<Produto | null>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!gridRef.current) return;
-    const cards = gridRef.current.querySelectorAll<HTMLElement>(".gsap-card");
-    gsap.fromTo(cards,
-      { opacity: 0, y: 36, scale: 0.97 },
-      { opacity: 1, y: 0, scale: 1, duration: 0.7, stagger: 0.08, ease: "power3.out",
-        scrollTrigger: { trigger: gridRef.current, start: "top 80%", once: true } }
-    );
-    return () => { ScrollTrigger.getAll().forEach((t) => t.kill()); };
-  }, [produtos, activeCategoria]);
 
   if (produtos.length === 0) return null;
 
@@ -274,8 +258,8 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
           </div>
         </div>
 
-        {/* desktop: grid com glassmorphism + gsap */}
-        <div ref={gridRef} className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-5">
+        {/* desktop: grid com glassmorphism */}
+        <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-5">
           {produtosFiltrados.map((produto) => {
             const { desconto, precoOriginal, precoFinal } = getPrecos(produto);
             const isHovered = hoverId === produto.id;
@@ -283,7 +267,7 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
             return (
               <div
                 key={produto.id}
-                className="gsap-card relative flex flex-col bg-white/[0.03] backdrop-blur-sm border border-[#C9A84C]/10 overflow-hidden transition-all duration-500 group cursor-pointer"
+                className="relative flex flex-col bg-white/[0.03] backdrop-blur-sm border border-[#C9A84C]/10 overflow-hidden transition-all duration-500 group cursor-pointer"
                 onMouseEnter={() => setHoverId(produto.id)}
                 onMouseLeave={() => setHoverId(null)}
                 onClick={() => setModalProduto(produto)}
