@@ -230,6 +230,8 @@ function FormGasto({ inicial, categorias, onSalvar, onCancelar, salvando }: {
   const [categoriaId, setCategoriaId] = useState(inicial?.categoriaId ?? (categorias[0]?.id ?? ""));
   const [valor, setValor] = useState(String(inicial?.valor ?? ""));
   const [frequencia, setFrequencia] = useState<FrequenciaGasto>(inicial?.frequencia ?? "mensal");
+  const [frequenciaCustom, setFrequenciaCustom] = useState(inicial?.frequenciaCustom ?? "");
+  const [intervaloDias, setIntervaloDias] = useState(String(inicial?.intervaloDias ?? ""));
   const [ativo, setAtivo] = useState(inicial?.ativo ?? true);
   const [proximoVencimento, setProximoVencimento] = useState(inicial?.proximoVencimento ?? "");
   const [lembrarRenovacao, setLembrarRenovacao] = useState(inicial?.lembrarRenovacao ?? false);
@@ -239,17 +241,20 @@ function FormGasto({ inicial, categorias, onSalvar, onCancelar, salvando }: {
 
   const catSel = categorias.find((c) => c.id === categoriaId);
   const isUnico = frequencia === "unico";
+  const isPersonalizado = frequencia === "personalizado";
 
   function submit() {
     if (!descricao.trim()) { setErro("Descrição obrigatória"); return; }
     if (!valor || isNaN(Number(valor)) || Number(valor) <= 0) { setErro("Valor inválido"); return; }
     if (!categoriaId && categorias.length > 0) { setErro("Selecione uma categoria"); return; }
+    if (isPersonalizado && !frequenciaCustom.trim()) { setErro("Descreva a frequência personalizada"); return; }
     setErro("");
     onSalvar({
       descricao, categoriaId: categoriaId || undefined,
       categoria: "outros" as CategoriaGasto,
       valor: Number(valor), frequencia, ativo,
       vencimento: null,
+      ...(isPersonalizado && { frequenciaCustom: frequenciaCustom.trim(), intervaloDias: Number(intervaloDias) || undefined }),
       proximoVencimento: !isUnico && proximoVencimento ? proximoVencimento : undefined,
       lembrarRenovacao: !isUnico ? lembrarRenovacao : false,
     });
@@ -282,6 +287,20 @@ function FormGasto({ inicial, categorias, onSalvar, onCancelar, salvando }: {
               </select>
             </div>
           </div>
+
+          {isPersonalizado && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Descrição da frequência *</label>
+                <input value={frequenciaCustom} onChange={(e) => setFrequenciaCustom(e.target.value)} placeholder="Ex: A cada 45 dias" className={`${inp} w-full`} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Intervalo (dias)</label>
+                <input type="number" min="1" value={intervaloDias} onChange={(e) => setIntervaloDias(e.target.value)} placeholder="Ex: 45" className={`${inp} w-full`} />
+                <p className="text-[10px] text-gray-600">Para calcular o equivalente mensal</p>
+              </div>
+            </div>
+          )}
 
           {categorias.length > 0 && (
             <div className="flex flex-col gap-1">
@@ -881,7 +900,9 @@ export default function FinanceiroPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-[#F5E6C8] text-sm">{g.descricao}</span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full border" style={{ color: catCor, borderColor: `${catCor}40` }}>{catNome}</span>
-                      <span className="text-xs px-1.5 py-0.5 bg-blue-900/20 text-blue-400 rounded-full">{FREQUENCIA_LABEL[g.frequencia]}</span>
+                      <span className="text-xs px-1.5 py-0.5 bg-blue-900/20 text-blue-400 rounded-full">
+                        {g.frequencia === "personalizado" && g.frequenciaCustom ? g.frequenciaCustom : FREQUENCIA_LABEL[g.frequencia]}
+                      </span>
                       {g.lembrarRenovacao && <Bell size={11} className="text-[#b8944a]/60" />}
                       {!g.ativo && <span className="text-xs px-1.5 py-0.5 bg-[#1a1a1a] text-gray-600 rounded-full">inativo</span>}
                     </div>

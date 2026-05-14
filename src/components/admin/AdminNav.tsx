@@ -22,6 +22,7 @@ const links = [
   { href: "/admin/assinantes",    label: "Assinantes",   icon: CreditCard,      badge: null },
   { href: "/admin/itens",         label: "Serviços",     icon: Scissors,        badge: null },
   { href: "/admin/produtos",      label: "Produtos",     icon: ShoppingBag,     badge: null },
+  { href: "/admin/categorias",    label: "Categorias",   icon: Tag,             badge: null },
   { href: "/admin/descontos",     label: "Descontos",    icon: Tag,             badge: null },
   { href: "/admin/vitrine",       label: "Vitrine",      icon: Star,            badge: null },
   { href: "/admin/auditoria",     label: "Auditoria",    icon: ClipboardList,   badge: null },

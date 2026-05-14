@@ -7,6 +7,7 @@ import {
   CheckCircle, XCircle, Clock, RefreshCw, MessageCircle,
   Pencil, Trash2, Check, X, ChevronLeft, ChevronRight, Lock, Undo2,
   CalendarPlus, Ban, Unlock, LayoutGrid, List, Plus, TrendingUp,
+  AlertCircle, AlertTriangle, Bell,
 } from "lucide-react";
 import Link from "next/link";
 import type { Agendamento, AgendamentoStatus, FechamentoDia } from "@/lib/agendamentos-types";
@@ -57,15 +58,19 @@ const SERVICOS_LISTA = [
   "Corte Clássico", "Barba Completa", "Combo Corte + Barba", "Coloração e Luzes", "Sobrancelha",
 ];
 
-// ─── Calendário mensal ────────────────────────────────────────────────────────
+// ─── Calendário mensal rico ───────────────────────────────────────────────────
 
 function CalendarioMensal({
   dataSelecionada,
   agendamentos,
+  fechamentos,
+  slotsBloqueados,
   onSelect,
 }: {
   dataSelecionada: string;
   agendamentos: Agendamento[];
+  fechamentos: FechamentoDia[];
+  slotsBloqueados: string[];
   onSelect: (key: string) => void;
 }) {
   const hoje = toDateKey(new Date());
@@ -73,26 +78,27 @@ function CalendarioMensal({
     const d = new Date(dataSelecionada + "T12:00:00");
     return { year: d.getFullYear(), month: d.getMonth() };
   });
+  const [hoverKey, setHoverKey] = useState<string | null>(null);
 
   const { year, month } = viewDate;
   const nomeMes = new Date(year, month, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
-  // dias com agendamentos (não cancelados)
-  const diasComAgs = new Set(
-    agendamentos
-      .filter((a) => a.status !== "cancelado")
-      .map((a) => a.data)
-  );
+  const agsPorDia = agendamentos.reduce<Record<string, Agendamento[]>>((acc, a) => {
+    if (a.status === "cancelado") return acc;
+    acc[a.data] = [...(acc[a.data] ?? []), a];
+    return acc;
+  }, {});
 
-  // grid: primeiro dia da semana (Dom=0)
+  const fechPorDia = new Set(fechamentos.map((f) => f.data));
+  const fatPorDia: Record<string, number> = {};
+  fechamentos.forEach((f) => { fatPorDia[f.data] = f.totalServicos; });
+
   const primeiroDia = new Date(year, month, 1).getDay();
   const totalDias = new Date(year, month + 1, 0).getDate();
-
   const cells: (number | null)[] = [
     ...Array(primeiroDia).fill(null),
     ...Array.from({ length: totalDias }, (_, i) => i + 1),
   ];
-  // completar até múltiplo de 7
   while (cells.length % 7 !== 0) cells.push(null);
 
   function navMes(delta: number) {
@@ -108,63 +114,82 @@ function CalendarioMensal({
   const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
   return (
-    <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 select-none">
-      {/* cabeçalho do mês */}
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={() => navMes(-1)} className="p-1 text-gray-400 hover:text-[#b8944a] transition rounded">
+    <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-5 select-none">
+      {/* cabeçalho */}
+      <div className="flex items-center justify-between mb-5">
+        <button onClick={() => navMes(-1)} className="p-1.5 text-gray-400 hover:text-[#b8944a] transition rounded-lg hover:bg-[#1a1a1a]">
           <ChevronLeft size={16} />
         </button>
-        <span className="text-sm font-semibold text-[#F5E6C8] capitalize">{nomeMes}</span>
-        <button onClick={() => navMes(1)} className="p-1 text-gray-400 hover:text-[#b8944a] transition rounded">
+        <span className="text-sm font-bold text-[#F5E6C8] capitalize">{nomeMes}</span>
+        <button onClick={() => navMes(1)} className="p-1.5 text-gray-400 hover:text-[#b8944a] transition rounded-lg hover:bg-[#1a1a1a]">
           <ChevronRight size={16} />
         </button>
       </div>
 
       {/* dias da semana */}
-      <div className="grid grid-cols-7 mb-1">
-        {DIAS_SEMANA.map((d) => (
-          <div key={d} className="text-center text-[10px] font-semibold text-gray-600 py-1">{d}</div>
+      <div className="grid grid-cols-7 mb-2">
+        {DIAS_SEMANA.map((d, i) => (
+          <div key={d} className={`text-center text-[10px] font-semibold py-1 ${i === 0 ? "text-red-500/60" : "text-gray-600"}`}>{d}</div>
         ))}
       </div>
 
       {/* células */}
-      <div className="grid grid-cols-7 gap-y-1">
+      <div className="grid grid-cols-7 gap-1">
         {cells.map((dia, i) => {
-          if (!dia) return <div key={i} />;
+          if (!dia) return <div key={i} className="h-10" />;
           const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
           const selecionado = key === dataSelecionada;
           const isHoje = key === hoje;
-          const temAg = diasComAgs.has(key);
+          const ags = agsPorDia[key] ?? [];
+          const temAg = ags.length > 0;
+          const fechado = fechPorDia.has(key);
+          const fat = fatPorDia[key];
+          const isPast = key < hoje;
+          const isHover = hoverKey === key;
 
           return (
-            <button
-              key={key}
-              onClick={() => onSelect(key)}
-              className={`relative flex flex-col items-center justify-center h-8 w-full rounded-lg text-xs font-medium transition
-                ${selecionado
-                  ? "bg-[#b8944a] text-[#0A0A0A] font-bold"
-                  : isHoje
-                  ? "border border-[#b8944a]/60 text-[#b8944a]"
-                  : "text-gray-400 hover:bg-[#1a1a1a] hover:text-[#F5E6C8]"
-                }`}
-            >
-              {dia}
-              {temAg && (
-                <span className={`absolute bottom-0.5 w-1 h-1 rounded-full ${selecionado ? "bg-[#0A0A0A]/60" : "bg-[#b8944a]"}`} />
+            <div key={key} className="relative">
+              <button
+                onClick={() => onSelect(key)}
+                onMouseEnter={() => setHoverKey(key)}
+                onMouseLeave={() => setHoverKey(null)}
+                className={`relative w-full h-10 flex flex-col items-center justify-center rounded-lg text-xs font-medium transition-all
+                  ${selecionado
+                    ? "bg-[#b8944a] text-[#0A0A0A] shadow-[0_0_12px_rgba(184,148,74,0.3)]"
+                    : isHoje
+                    ? "border-2 border-[#b8944a]/70 text-[#b8944a]"
+                    : isPast && temAg
+                    ? "bg-[#1a1a1a] text-gray-300 hover:bg-[#222]"
+                    : "text-gray-400 hover:bg-[#1a1a1a] hover:text-[#F5E6C8]"
+                  }`}
+              >
+                <span className="font-bold leading-none">{dia}</span>
+                {/* indicadores */}
+                <div className="flex gap-0.5 mt-0.5 h-1 items-center">
+                  {temAg && <span className={`w-1 h-1 rounded-full ${selecionado ? "bg-[#0A0A0A]/50" : "bg-[#b8944a]"}`} />}
+                  {fechado && <span className={`w-1 h-1 rounded-full ${selecionado ? "bg-[#0A0A0A]/50" : "bg-green-500"}`} />}
+                </div>
+              </button>
+
+              {/* tooltip hover */}
+              {isHover && (temAg || fechado || fat) && !selecionado && (
+                <div className="absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 bg-[#1e1e1e] border border-[#3d3d3d] rounded-lg px-3 py-2 text-[10px] whitespace-nowrap shadow-xl pointer-events-none">
+                  {temAg && <p className="text-[#b8944a] font-semibold">{ags.length} agendamento{ags.length > 1 ? "s" : ""}</p>}
+                  {fat !== undefined && <p className="text-green-400">R$ {fat.toFixed(2).replace(".", ",")} faturado</p>}
+                  {fechado && <p className="text-green-300 flex items-center gap-1"><Lock size={8} /> Caixa fechado</p>}
+                  {!fechado && isPast && temAg && <p className="text-red-400 flex items-center gap-1"><Unlock size={8} /> Caixa em aberto</p>}
+                </div>
               )}
-            </button>
+            </div>
           );
         })}
       </div>
 
       {/* legenda */}
-      <div className="flex gap-4 mt-3 pt-3 border-t border-[#1a1a1a]">
-        <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#b8944a]" /> com agendamentos
-        </div>
-        <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-          <span className="w-3 h-3 rounded border border-[#b8944a]/60 flex items-center justify-center text-[8px] text-[#b8944a]">●</span> hoje
-        </div>
+      <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-[#1a1a1a]">
+        <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-1.5 h-1.5 rounded-full bg-[#b8944a]" /> agendamentos</div>
+        <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-1.5 h-1.5 rounded-full bg-green-500" /> caixa fechado</div>
+        <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-3 h-3 rounded border-2 border-[#b8944a]/60" /> hoje</div>
       </div>
     </div>
   );
@@ -427,7 +452,7 @@ export default function AgendamentosAdminPage() {
   const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2 py-1 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a]";
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-6xl mx-auto flex flex-col gap-5">
       {modal && <Modal {...modalConfig[modal.tipo]} onConfirm={confirmarModal} onCancel={() => setModal(null)} />}
       {walkInHorario && <WalkInModal horario={walkInHorario} dataSelecionada={dataSelecionada} barbeiros={barbeiros} onConfirm={criarWalkIn} onCancel={() => setWalkInHorario(null)} />}
       {reagendarAg && <ReagendarModal ag={reagendarAg} dataSelecionada={dataSelecionada} slotsLivres={slotsLivresDia} onConfirm={reagendar} onCancel={() => setReagendarAg(null)} />}
@@ -446,39 +471,127 @@ export default function AgendamentosAdminPage() {
       )}
 
       {/* cabeçalho */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-[#F5E6C8]">Agendamentos</h1>
         <button onClick={carregar} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#b8944a] transition">
           <RefreshCw size={14} className={carregando ? "animate-spin" : ""} /> Atualizar
         </button>
       </div>
 
-      {/* layout principal: calendário + box do dia */}
+      {/* ── Alertas de agendamentos ───────────────────────────────────────────── */}
+      {(() => {
+        const agora = new Date();
+        const agoraMs = agora.getTime();
+        const hoje = toDateKey(agora);
+        const DUAS_HORAS = 2 * 60 * 60 * 1000;
+
+        const naoVisualizados = agendamentos.filter((a) => a.visualizadoAdmin === false && a.status !== "cancelado");
+        const proximos = agendamentos.filter((a) => {
+          if (a.data !== hoje || a.status === "cancelado" || a.status === "concluido") return false;
+          const [h, m] = a.horario.split(":").map(Number);
+          const diff = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), h, m).getTime() - agoraMs;
+          return diff > 0 && diff <= 30 * 60 * 1000;
+        });
+        const atrasados = agendamentos.filter((a) => {
+          if (a.data !== hoje || (a.status !== "pendente" && a.status !== "confirmado")) return false;
+          const [h, m] = a.horario.split(":").map(Number);
+          return agoraMs > new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), h, m).getTime() + 10 * 60 * 1000;
+        });
+        const aguardandoLongos = agendamentos.filter((a) => a.status === "pendente" && a.criadoEm && agoraMs - a.criadoEm > DUAS_HORAS);
+
+        const alertas = [
+          ...atrasados.length > 0 ? [{ nivel: "vermelho" as const, msg: `${atrasados.length} atendimento${atrasados.length > 1 ? "s" : ""} com horário passado sem conclusão`, icon: <AlertCircle size={13} /> }] : [],
+          ...proximos.map((a) => {
+            const [h, m] = a.horario.split(":").map(Number);
+            const mins = Math.round((new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), h, m).getTime() - agoraMs) / 60000);
+            return { nivel: mins <= 10 ? "vermelho" as const : "laranja" as const, msg: `${a.nome} — ${a.servico} em ${mins} min (${a.horario})`, icon: <Clock size={13} /> };
+          }),
+          ...naoVisualizados.length > 0 ? [{ nivel: "laranja" as const, msg: `${naoVisualizados.length} novo${naoVisualizados.length > 1 ? "s" : ""} agendamento${naoVisualizados.length > 1 ? "s" : ""} aguardando confirmação`, icon: <Bell size={13} /> }] : [],
+          ...aguardandoLongos.length > 0 && atrasados.length === 0 ? [{ nivel: "amarelo" as const, msg: `${aguardandoLongos.length} pendente${aguardandoLongos.length > 1 ? "s" : ""} há mais de 2h sem resposta`, icon: <AlertTriangle size={13} /> }] : [],
+        ];
+
+        if (alertas.length === 0) return null;
+
+        const STYLE = {
+          vermelho: "bg-red-950/50 border-red-800/50 text-red-300",
+          laranja:  "bg-orange-950/40 border-orange-700/40 text-orange-300",
+          amarelo:  "bg-yellow-950/40 border-yellow-700/40 text-yellow-300",
+        };
+
+        return (
+          <div className="flex flex-col gap-1.5">
+            {alertas.map((a, i) => (
+              <div key={i} className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border text-xs font-medium ${STYLE[a.nivel]}`}>
+                <span className="shrink-0">{a.icon}</span>
+                {a.msg}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
+      {/* ── KPIs do dia selecionado ───────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className={`${cardDark} p-4`}>
+          <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-500 mb-1">Agendamentos</p>
+          <p className="text-2xl font-bold text-[#F5E6C8]">{agsDia.length}</p>
+          <p className="text-xs text-gray-500 mt-1 capitalize truncate">{diaSemana}, {new Date(dataSelecionada + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</p>
+        </div>
+        <div className={`${cardDark} p-4`}>
+          <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-500 mb-1">Faturado</p>
+          <p className="text-2xl font-bold text-green-400">R$ {totalDia.toFixed(2).replace(".", ",")}</p>
+          <p className="text-xs text-gray-500 mt-1">{concluidos.length} concluído{concluidos.length !== 1 ? "s" : ""}</p>
+        </div>
+        <div className={`${cardDark} p-4`}>
+          <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-500 mb-1">Horários livres</p>
+          <p className="text-2xl font-bold text-[#F5E6C8]">{slotsLivresDia.length}</p>
+          <p className="text-xs text-gray-500 mt-1">de {todosSlotsDia.length} no dia</p>
+        </div>
+        <div className={`${cardDark} p-4 flex flex-col justify-between`}>
+          <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-500 mb-1">Caixa</p>
+          <p className={`text-sm font-bold flex items-center gap-1.5 ${caixaFechado ? "text-green-400" : "text-gray-400"}`}>
+            {caixaFechado ? <><Lock size={13} /> Fechado</> : <><Unlock size={13} /> Em aberto</>}
+          </p>
+          {!ehFuturo && (
+            <Link href={`/admin/financeiro?dia=${dataSelecionada}#caixa`}
+              className="mt-2 text-[10px] font-bold tracking-widest uppercase text-[#b8944a] hover:underline flex items-center gap-1">
+              <TrendingUp size={10} /> Ver no financeiro
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {/* ── Calendário + Lista lado a lado ───────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row gap-5 items-start">
 
         {/* calendário */}
-        <div className="w-full lg:w-72 flex-shrink-0">
+        <div className="w-full lg:w-[420px] shrink-0">
           <CalendarioMensal
             dataSelecionada={dataSelecionada}
             agendamentos={agendamentos}
+            fechamentos={fechamentos}
+            slotsBloqueados={slotsBloqueados}
             onSelect={(key) => { setDataSelecionada(key); setEditandoId(null); }}
           />
         </div>
 
-        {/* box do dia */}
+        {/* Lista / Grade do dia */}
         <div className="flex-1 min-w-0">
-          {/* cabeçalho do dia */}
-          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+      {diaFechado ? (
+        <div className={`${cardDark} text-sm text-gray-500 py-16 text-center`}>Barbearia fechada neste dia.</div>
+      ) : (
+        <div className={`${cardDark} overflow-hidden`}>
+          {/* cabeçalho */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[#1a1a1a] gap-3 flex-wrap">
             <div>
-              <p className="text-base font-bold text-[#F5E6C8] capitalize">{diaSemana}, {dataLabel}</p>
+              <p className="text-sm font-bold text-[#F5E6C8] capitalize">{diaSemana}, {dataLabel}</p>
               <p className="text-xs text-gray-500 mt-0.5">
                 {ehHoje && <span className="text-[#b8944a] font-medium">Hoje · </span>}
-                {agsDia.length} agendamento{agsDia.length !== 1 ? "s" : ""}
-                {agsDia.length > 0 && ` · R$ ${totalDia.toFixed(2).replace(".", ",")} concluídos`}
+                {agsDia.length === 0 ? "Nenhum agendamento" : `${agsDia.length} agendamento${agsDia.length !== 1 ? "s" : ""}`}
               </p>
             </div>
             {/* abas */}
-            <div className="flex gap-1 bg-[#111] border border-[#2d2d2d] rounded-lg p-1">
+            <div className="flex gap-1 bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg p-1">
               {[{ id: "lista", label: "Lista", icon: List }, { id: "grade", label: "Grade", icon: LayoutGrid }].map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => setAba(id as "lista" | "grade")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition ${aba === id ? "bg-[#1a1a1a] text-[#b8944a]" : "text-gray-500 hover:text-gray-300"}`}>
@@ -488,13 +601,9 @@ export default function AgendamentosAdminPage() {
             </div>
           </div>
 
-          {diaFechado ? (
-            <div className="text-sm text-gray-500 py-12 text-center border border-dashed border-[#2d2d2d] rounded-xl">Barbearia fechada neste dia.</div>
-          ) : (
-            <>
               {/* LISTA */}
               {aba === "lista" && (
-                <div className={`${cardDark} overflow-hidden`}>
+                <div className="overflow-hidden">
                   {carregando ? (
                     <div className="text-sm text-gray-500 py-12 text-center">Carregando...</div>
                   ) : agsDia.length === 0 ? (
@@ -639,7 +748,7 @@ export default function AgendamentosAdminPage() {
 
               {/* GRADE */}
               {aba === "grade" && (
-                <div className={`${cardDark} overflow-hidden`}>
+                <div className="overflow-hidden">
                   <p className="text-xs text-gray-500 px-4 pt-3 pb-2">Clique em um horário livre para adicionar cliente ou bloqueá-lo.</p>
                   <div className="overflow-y-auto max-h-[520px] divide-y divide-[#1a1a1a]">
                     {todosSlotsDia.map((slot) => {
@@ -688,10 +797,10 @@ export default function AgendamentosAdminPage() {
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
-        </div>
-      </div>
+        </div>{/* fim flex-1 */}
+      </div>{/* fim flex-row */}
     </div>
   );
 }
