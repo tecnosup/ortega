@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, Crown, Scissors, Zap } from "lucide-react";
+import { motion } from "framer-motion";
 import { PLANOS_PUBLICOS } from "@/lib/stripe-tipos";
 
 const PLANO_CONFIG = {
@@ -15,16 +16,19 @@ export default function Assinaturas() {
 
   return (
     <section id="assinaturas" className="py-20 md:py-28 bg-[#080808] relative overflow-hidden">
-      {/* linha separadora topo */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/20 to-transparent" />
-
-      {/* glow de fundo */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#C9A84C]/3 blur-[120px] pointer-events-none" />
 
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
 
         {/* cabeçalho */}
-        <div className="text-center mb-12 md:mb-16">
+        <motion.div
+          className="text-center mb-12 md:mb-16"
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.6 }}
+        >
           <div className="flex items-center justify-center gap-3 mb-3">
             <span className="w-8 h-px bg-[#C9A84C]" />
             <span className="text-[#C9A84C] text-xs font-medium tracking-[0.3em] uppercase">Clube Ortega</span>
@@ -40,28 +44,36 @@ export default function Assinaturas() {
           <p className="text-[#F5E6C8]/40 text-sm mt-3 max-w-md mx-auto">
             Assine um plano e garanta seus cortes com preço fixo, sem pagar na hora. Cancele quando quiser.
           </p>
-        </div>
+        </motion.div>
 
         {/* planos */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
-          {PLANOS_PUBLICOS.map((plano) => {
+          {PLANOS_PUBLICOS.map((plano, idx) => {
             const cfg = PLANO_CONFIG[plano.id as keyof typeof PLANO_CONFIG];
             const Icone = cfg.icone;
             const destaque = plano.id === "mensal";
             const isHovered = hoverId === plano.id;
 
             return (
-              <div
+              <motion.div
                 key={plano.id}
                 onMouseEnter={() => setHoverId(plano.id)}
                 onMouseLeave={() => setHoverId(null)}
                 className={`relative flex flex-col gap-6 p-6 md:p-7 border transition-all duration-500 ${
                   destaque
-                    ? "border-[#C9A84C]/60 bg-[#C9A84C]/5"
+                    ? "border-[#C9A84C]/60 bg-white/[0.05] backdrop-blur-md"
                     : isHovered
-                    ? "border-[#C9A84C]/30 bg-[#141414]"
-                    : "border-[#C9A84C]/10 bg-[#111]"
+                    ? "border-[#C9A84C]/30 bg-white/[0.04] backdrop-blur-sm"
+                    : "border-[#C9A84C]/10 bg-white/[0.02] backdrop-blur-sm"
                 }`}
+                style={{
+                  transform: isHovered && !destaque ? "translateY(-4px)" : destaque && isHovered ? "translateY(-6px)" : "translateY(0)",
+                  boxShadow: (destaque || isHovered) ? "0 20px 40px rgba(0,0,0,0.3), 0 0 30px rgba(201,168,76,0.06)" : undefined,
+                }}
+                initial={{ opacity: 0, y: 32 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-40px" }}
+                transition={{ duration: 0.6, delay: idx * 0.1 }}
               >
                 {/* badge mais popular */}
                 {destaque && (
@@ -72,7 +84,6 @@ export default function Assinaturas() {
                   </div>
                 )}
 
-                {/* canto decorativo dourado no plano destaque */}
                 {destaque && (
                   <>
                     <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-[#C9A84C]/60" />
@@ -139,25 +150,28 @@ export default function Assinaturas() {
                 >
                   Assinar agora
                 </a>
-              </div>
+              </motion.div>
             );
           })}
         </div>
 
-        {/* rodapé da seção */}
-        <div className="mt-10 flex flex-col items-center gap-3">
+        {/* rodapé */}
+        <motion.div
+          className="mt-10 flex flex-col items-center gap-3"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
           <p className="text-xs text-[#F5E6C8]/25 flex items-center gap-2">
             <span className="w-4 h-px bg-[#C9A84C]/30" />
             Pagamento seguro via Stripe · Cobrado mensalmente
             <span className="w-4 h-px bg-[#C9A84C]/30" />
           </p>
-          <a
-            href="/assinatura/minha"
-            className="text-sm text-[#F5E6C8]/35 hover:text-[#C9A84C] transition-colors"
-          >
+          <a href="/assinatura/minha" className="text-sm text-[#F5E6C8]/35 hover:text-[#C9A84C] transition-colors">
             Já sou assinante → ver minha assinatura
           </a>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

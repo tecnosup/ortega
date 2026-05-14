@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 
 export default function CtaFinal() {
   const [whatsapp, setWhatsapp] = useState("");
@@ -16,7 +17,13 @@ export default function CtaFinal() {
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/30 to-transparent" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_50%_60%_at_50%_50%,rgba(201,168,76,0.06)_0%,transparent_70%)]" />
 
-      <div className="relative max-w-2xl mx-auto px-6 sm:px-8 text-center flex flex-col gap-6 md:gap-8 items-center">
+      <motion.div
+        className="relative max-w-2xl mx-auto px-6 sm:px-8 text-center flex flex-col gap-6 md:gap-8 items-center"
+        initial={{ opacity: 0, y: 32 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-60px" }}
+        transition={{ duration: 0.7 }}
+      >
         <div className="w-16 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/40 to-transparent" />
 
         <h2
@@ -51,7 +58,7 @@ export default function CtaFinal() {
         </div>
 
         <div className="w-16 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/40 to-transparent" />
-      </div>
+      </motion.div>
     </section>
   );
 }

@@ -353,6 +353,10 @@ export default function FinanceiroPage() {
   const [salvandoGasto, setSalvandoGasto] = useState(false);
   const [modalCategorias, setModalCategorias] = useState(false);
   const [fechExpandido, setFechExpandido] = useState<string | null>(null);
+  const [linhasVisiveis, setLinhasVisiveis] = useState({ fat: true, lucro: true, gastos: true });
+  function toggleLinha(k: keyof typeof linhasVisiveis) {
+    setLinhasVisiveis((prev) => ({ ...prev, [k]: !prev[k] }));
+  }
   const notif = useAdminNotificacoes();
   const [pagarModal, setPagarModal] = useState<VencimentoItem | null>(null);
   const [pagarValor, setPagarValor] = useState("");
@@ -455,6 +459,14 @@ export default function FinanceiroPage() {
   const dadosGrafico = calcDadosGrafico(periodo, fechamentos, gastosDia);
   const totalGrafico = dadosGrafico.reduce((s, d) => s + d.fat, 0);
   const totalGastosGrafico = dadosGrafico.reduce((s, d) => s + d.gastos, 0);
+
+  const lucroValues = dadosGrafico.map((d) => d.lucro);
+  const minLucro = Math.min(...(lucroValues.length ? lucroValues : [0]), 0);
+  const maxLucro = Math.max(...(lucroValues.length ? lucroValues : [0]), 0);
+  const hasNegativeLucro = minLucro < 0;
+  const lucroZeroPct = hasNegativeLucro && maxLucro !== minLucro
+    ? (maxLucro / (maxLucro - minLucro)) * 100
+    : 0;
 
   const gastosAtivos = gastos.filter((g) => g.ativo);
   const totalMensalGastos = gastosAtivos.reduce((s, g) => s + gastoMensalEquivalente(g), 0);
@@ -651,12 +663,18 @@ export default function FinanceiroPage() {
                     <stop offset="95%" stopColor="#C9A84C" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="gradGastos" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1} />
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="gradLucro" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                    <stop offset="5%" stopColor={hasNegativeLucro ? "#22c55e" : "#22c55e"} stopOpacity={0.15} />
+                    <stop offset={`${lucroZeroPct}%`} stopColor="#22c55e" stopOpacity={0.1} />
+                    <stop offset={`${lucroZeroPct}%`} stopColor="#ef4444" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gradLucroStroke" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset={`${lucroZeroPct}%`} stopColor="#22c55e" stopOpacity={1} />
+                    <stop offset={`${lucroZeroPct}%`} stopColor="#ef4444" stopOpacity={1} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" vertical={false} />
@@ -665,27 +683,43 @@ export default function FinanceiroPage() {
                 <Tooltip
                   contentStyle={{ background: "#111", border: "1px solid #2d2d2d", borderRadius: 8, fontSize: 12 }}
                   labelStyle={{ color: "#F5E6C8", marginBottom: 4 }}
-                  formatter={(v, name) => [brl(Number(v)), name === "fat" ? "Faturamento" : name === "lucro" ? "Lucro acumulado" : "Gastos"]}
+                  formatter={(v, name) => [brl(Number(v)), name === "fat" ? "Faturamento Bruto" : name === "lucro" ? "Faturamento Líquido" : "Despesas"]}
                 />
-                <Area type="monotone" dataKey="fat" stroke="#C9A84C" strokeWidth={2} fill="url(#gradFin)" dot={false} activeDot={{ r: 4, fill: "#C9A84C" }} />
-                <Area type="monotone" dataKey="lucro" stroke="#22c55e" strokeWidth={1.5} fill="url(#gradLucro)" dot={false} activeDot={{ r: 3, fill: "#22c55e" }} />
-                <Area type="monotone" dataKey="gastos" stroke="#ef4444" strokeWidth={1.5} fill="url(#gradGastos)" dot={false} activeDot={{ r: 3, fill: "#ef4444" }} />
+                {linhasVisiveis.fat && <Area type="monotone" dataKey="fat" stroke="#C9A84C" strokeWidth={2} fill="url(#gradFin)" dot={false} activeDot={{ r: 4, fill: "#C9A84C" }} />}
+                {linhasVisiveis.lucro && <Area type="monotone" dataKey="lucro" stroke={hasNegativeLucro ? "url(#gradLucroStroke)" : "#22c55e"} strokeWidth={1.5} fill="url(#gradLucro)" dot={false} activeDot={{ r: 3, fill: hasNegativeLucro ? "#ef4444" : "#22c55e" }} />}
+                {linhasVisiveis.gastos && <Area type="monotone" dataKey="gastos" stroke="#f97316" strokeWidth={1.5} fill="url(#gradGastos)" dot={false} activeDot={{ r: 3, fill: "#f97316" }} />}
               </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
 
-        {/* legenda */}
-        <div className="flex gap-4 mt-3 pt-3 border-t border-[#1a1a1a] flex-wrap">
-          <div className="flex items-center gap-1.5 text-xs text-gray-500">
-            <span className="w-3 h-0.5 bg-[#C9A84C] rounded-full inline-block" /> Faturamento
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-gray-500">
-            <span className="w-3 h-0.5 bg-green-500 rounded-full inline-block" /> Lucro acumulado
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-gray-500">
-            <span className="w-3 h-0.5 bg-red-500 rounded-full inline-block" /> Gastos do dia
-          </div>
+        {/* legenda clicável */}
+        <div className="flex gap-2 mt-3 pt-3 border-t border-[#1a1a1a] flex-wrap">
+          {([
+            { key: "fat",    label: "Faturamento Bruto",    cor: "#C9A84C" },
+            { key: "lucro",  label: "Faturamento Líquido",  cor: "#22c55e" },
+            { key: "gastos", label: "Despesas",              cor: "#f97316" },
+          ] as const).map(({ key, label, cor }) => {
+            const ativo = linhasVisiveis[key];
+            return (
+              <button
+                key={key}
+                onClick={() => toggleLinha(key)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition-all ${
+                  ativo
+                    ? "border-transparent text-[#F5E6C8]"
+                    : "border-[#2d2d2d] text-gray-600 line-through"
+                }`}
+                style={ativo ? { backgroundColor: `${cor}18`, borderColor: `${cor}40`, color: cor } : undefined}
+              >
+                <span
+                  className="w-3 h-0.5 rounded-full inline-block transition-all"
+                  style={{ backgroundColor: ativo ? cor : "#333" }}
+                />
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 

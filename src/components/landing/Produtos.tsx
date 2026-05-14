@@ -1,15 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { ShoppingBag, Tag, X } from "lucide-react";
 import { motion } from "framer-motion";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { Produto } from "@/lib/admin-produtos";
 import type { Desconto } from "@/lib/admin-descontos";
 import type { Categoria } from "@/lib/admin-categorias";
-
-gsap.registerPlugin(ScrollTrigger);
 
 interface ProdutosProps {
   produtos: Produto[];
@@ -117,18 +113,6 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [activeCategoria, setActiveCategoria] = useState<string>("todos");
   const [modalProduto, setModalProduto] = useState<Produto | null>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!gridRef.current) return;
-    const cards = gridRef.current.querySelectorAll<HTMLElement>(".gsap-card");
-    gsap.fromTo(cards,
-      { opacity: 0, y: 36, scale: 0.97 },
-      { opacity: 1, y: 0, scale: 1, duration: 0.7, stagger: 0.08, ease: "power3.out",
-        scrollTrigger: { trigger: gridRef.current, start: "top 80%", once: true } }
-    );
-    return () => { ScrollTrigger.getAll().forEach((t) => t.kill()); };
-  }, [produtos, activeCategoria]);
 
   if (produtos.length === 0) return null;
 
@@ -170,7 +154,6 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
 
-        {/* cabeçalho */}
         <motion.div
           className="text-center mb-10 md:mb-14"
           initial={{ opacity: 0, y: 24 }}
@@ -190,7 +173,6 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
           <p className="text-[#F5E6C8]/35 text-sm mt-3">Produtos selecionados para o seu estilo</p>
         </motion.div>
 
-        {/* filtro de categorias */}
         {mostrarAbas && (
           <motion.div
             className="flex items-center justify-center gap-2 flex-wrap mb-8"
@@ -225,12 +207,11 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
           </motion.div>
         )}
 
-        {/* mobile: scroll horizontal */}
+        {/* mobile */}
         <div className="md:hidden -mx-4 px-4 overflow-x-auto scrollbar-hide">
           <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
             {produtosFiltrados.map((produto, idx) => {
               const { desconto, precoOriginal, precoFinal } = getPrecos(produto);
-
               return (
                 <motion.button
                   key={produto.id}
@@ -274,16 +255,15 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
           </div>
         </div>
 
-        {/* desktop: grid com glassmorphism + gsap */}
-        <div ref={gridRef} className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-5">
+        {/* desktop */}
+        <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-5">
           {produtosFiltrados.map((produto) => {
             const { desconto, precoOriginal, precoFinal } = getPrecos(produto);
             const isHovered = hoverId === produto.id;
-
             return (
               <div
                 key={produto.id}
-                className="gsap-card relative flex flex-col bg-white/[0.03] backdrop-blur-sm border border-[#C9A84C]/10 overflow-hidden transition-all duration-500 group cursor-pointer"
+                className="relative flex flex-col bg-white/[0.03] backdrop-blur-sm border border-[#C9A84C]/10 overflow-hidden transition-all duration-500 group cursor-pointer"
                 onMouseEnter={() => setHoverId(produto.id)}
                 onMouseLeave={() => setHoverId(null)}
                 onClick={() => setModalProduto(produto)}
@@ -298,7 +278,6 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
                     -{desconto.percentual}%
                   </span>
                 )}
-
                 <div className="relative overflow-hidden bg-[#1a1a1a]" style={{ aspectRatio: "3/4" }}>
                   {produto.imagem ? (
                     <img
@@ -311,7 +290,6 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
                       <ShoppingBag size={40} />
                     </div>
                   )}
-
                   <div className={`absolute inset-0 bg-[#0A0A0A]/60 flex items-end transition-opacity duration-400 ${isHovered ? "opacity-100" : "opacity-0"}`}>
                     <div
                       className="w-full py-3.5 bg-[#C9A84C] text-[#0A0A0A] text-xs font-black tracking-widest uppercase text-center shadow-[0_0_24px_rgba(201,168,76,0.5)]"
@@ -324,7 +302,6 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
                     </div>
                   </div>
                 </div>
-
                 <div className="p-4 flex flex-col gap-1.5">
                   <h3 className="font-semibold text-[#F5E6C8] text-sm leading-snug">{produto.titulo}</h3>
                   {produto.descricao && (

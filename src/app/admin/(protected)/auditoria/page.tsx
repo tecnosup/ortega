@@ -24,7 +24,19 @@ export default async function AuditoriaPage() {
       .orderBy("createdAt", "desc")
       .limit(100)
       .get();
-    logs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AuditLog));
+    logs = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        actorEmail: data.actorEmail ?? "",
+        action: data.action ?? "",
+        entity: data.entity ?? "",
+        entityId: data.entityId ?? "",
+        summary: data.summary ?? undefined,
+        snapshotAntes: data.snapshotAntes ?? undefined,
+        createdAt: data.createdAt?._seconds ?? data.createdAt?.seconds ?? null,
+      } as AuditLog;
+    });
   } catch {
     // silencia erro de índice/conexão
   }
