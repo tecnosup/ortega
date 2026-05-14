@@ -35,7 +35,6 @@ export default function ProdutoForm({ action, produto, categorias, submitLabel }
     if (!file) return;
     setUploading(true);
     setUploadError("");
-    setUploadProgress(null);
 
     try {
       const fd = new FormData();
