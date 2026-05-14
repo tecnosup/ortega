@@ -16,6 +16,8 @@ const schema = z.object({
   status: z.enum(["draft", "published"]),
   order: z.coerce.number().default(0),
   categoriaId: z.string().optional(),
+  estoque: z.coerce.number().min(0).default(0),
+  estoqueMinimo: z.coerce.number().min(0).default(5),
 });
 
 async function getActor() {

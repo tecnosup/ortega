@@ -120,9 +120,15 @@ function SortableRow({ produto, categoriaMap, onDelete }: { produto: Produto; ca
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-[#F5E6C8] text-sm truncate">{produto.titulo}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-semibold text-[#F5E6C8] text-sm truncate">{produto.titulo}</p>
+          {produto.estoque !== undefined && produto.estoque <= (produto.estoqueMinimo ?? 5) && (
+            <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-red-950 border border-red-800 text-red-400 font-medium">Estoque baixo</span>
+          )}
+        </div>
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
           {produto.preco && <span className="text-xs text-[#b8944a]">R$ {produto.preco}</span>}
+          {produto.estoque !== undefined && <span className="text-xs text-gray-600">· {produto.estoque} un.</span>}
           {categoriaNome && <span className="text-xs text-gray-600">· {categoriaNome}</span>}
         </div>
       </div>

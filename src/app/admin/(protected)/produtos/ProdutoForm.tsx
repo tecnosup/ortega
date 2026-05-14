@@ -110,6 +110,18 @@ export default function ProdutoForm({ action, produto, categorias, submitLabel }
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-400">Estoque atual</label>
+          <input name="estoque" type="number" min={0} defaultValue={produto?.estoque ?? 0} className={inp} style={{ fontSize: 16 }} />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-400">Estoque mínimo</label>
+          <input name="estoqueMinimo" type="number" min={0} defaultValue={produto?.estoqueMinimo ?? 5} className={inp} style={{ fontSize: 16 }} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Status</label>
           <select name="status" defaultValue={produto?.status ?? "draft"} className={inp} style={{ fontSize: 16 }}>
             <option value="draft">Rascunho</option>
