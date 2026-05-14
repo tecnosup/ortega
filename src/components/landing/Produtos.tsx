@@ -1,15 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { ShoppingBag, Tag } from "lucide-react";
+import { useState } from "react";
+import { ShoppingBag, Tag, X } from "lucide-react";
 import { motion } from "framer-motion";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { Produto } from "@/lib/admin-produtos";
 import type { Desconto } from "@/lib/admin-descontos";
 import type { Categoria } from "@/lib/admin-categorias";
-
-gsap.registerPlugin(ScrollTrigger);
 
 interface ProdutosProps {
   produtos: Produto[];
@@ -24,21 +20,99 @@ function precoComDesconto(preco: string, pct: number) {
   return (num * (1 - pct / 100)).toFixed(2).replace(".", ",");
 }
 
+function ProdutoModal({
+  produto,
+  precoFinal,
+  precoOriginal,
+  whatsappNumber,
+  onClose,
+}: {
+  produto: Produto;
+  precoFinal: string | null;
+  precoOriginal: string;
+  whatsappNumber?: string;
+  onClose: () => void;
+}) {
+  const precoExibido = precoFinal
+    ? `R$ ${precoFinal}`
+    : precoOriginal.startsWith("A")
+    ? precoOriginal
+    : `R$ ${precoOriginal}`;
+
+  const mensagemWpp = encodeURIComponent(
+    `Olá! Tenho interesse no produto: ${produto.titulo} - ${precoExibido}`
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="relative bg-[#111] border border-[#C9A84C]/20 rounded-xl w-full max-w-md overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-[#1a1a1a] border border-[#2d2d2d] text-gray-400 hover:text-[#F5E6C8] transition"
+        >
+          <X size={14} />
+        </button>
+
+        {produto.imagem ? (
+          <img src={produto.imagem} alt={produto.titulo} className="w-full h-56 object-cover" />
+        ) : (
+          <div className="w-full h-56 bg-[#1a1a1a] flex items-center justify-center">
+            <ShoppingBag size={48} className="text-[#C9A84C]/20" />
+          </div>
+        )}
+
+        <div className="p-5 flex flex-col gap-3">
+          <h3
+            className="text-lg font-bold text-[#F5E6C8]"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
+            {produto.titulo}
+          </h3>
+
+          {produto.descricao && (
+            <p className="text-sm text-[#F5E6C8]/50 leading-relaxed">{produto.descricao}</p>
+          )}
+
+          {precoOriginal && (
+            <div className="flex items-center gap-2 pt-2 border-t border-[#C9A84C]/10">
+              <Tag size={13} className="text-[#C9A84C]" />
+              {precoFinal ? (
+                <span className="flex items-center gap-2">
+                  <span className="text-sm line-through text-[#F5E6C8]/25">R$ {precoOriginal}</span>
+                  <span className="text-lg font-bold text-[#C9A84C]">R$ {precoFinal}</span>
+                </span>
+              ) : (
+                <span className="text-lg font-bold text-[#C9A84C]">{precoExibido}</span>
+              )}
+            </div>
+          )}
+
+          {whatsappNumber && (
+            <a
+              href={`https://wa.me/${whatsappNumber}?text=${mensagemWpp}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 w-full py-3 bg-[#C9A84C] text-[#0A0A0A] text-sm font-black tracking-widest uppercase text-center rounded hover:bg-[#E2C06A] transition"
+            >
+              Comprar via WhatsApp
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Produtos({ produtos, descontos, whatsappNumber, categorias = [] }: ProdutosProps) {
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [activeCategoria, setActiveCategoria] = useState<string>("todos");
-  const gridRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!gridRef.current) return;
-    const cards = gridRef.current.querySelectorAll<HTMLElement>(".gsap-card");
-    gsap.fromTo(cards,
-      { opacity: 0, y: 36, scale: 0.97 },
-      { opacity: 1, y: 0, scale: 1, duration: 0.7, stagger: 0.08, ease: "power3.out",
-        scrollTrigger: { trigger: gridRef.current, start: "top 80%", once: true } }
-    );
-    return () => { ScrollTrigger.getAll().forEach((t) => t.kill()); };
-  }, [produtos, activeCategoria]);
+  const [modalProduto, setModalProduto] = useState<Produto | null>(null);
 
   if (produtos.length === 0) return null;
 
@@ -52,13 +126,34 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
     ? produtos
     : produtos.filter((p) => p.categoriaId === activeCategoria);
 
+  const getPrecos = (produto: Produto) => {
+    const desconto = descontos?.get(produto.id);
+    const precoOriginal = produto.preco;
+    const precoFinal = desconto && precoOriginal && !precoOriginal.startsWith("A")
+      ? precoComDesconto(precoOriginal, desconto.percentual)
+      : null;
+    return { desconto, precoOriginal, precoFinal };
+  };
+
   return (
     <section id="produtos" className="py-20 md:py-28 bg-[#0A0A0A] relative">
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/20 to-transparent" />
 
+      {modalProduto && (() => {
+        const { precoFinal, precoOriginal } = getPrecos(modalProduto);
+        return (
+          <ProdutoModal
+            produto={modalProduto}
+            precoFinal={precoFinal}
+            precoOriginal={precoOriginal}
+            whatsappNumber={whatsappNumber}
+            onClose={() => setModalProduto(null)}
+          />
+        );
+      })()}
+
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
 
-        {/* cabeçalho */}
         <motion.div
           className="text-center mb-10 md:mb-14"
           initial={{ opacity: 0, y: 24 }}
@@ -78,7 +173,6 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
           <p className="text-[#F5E6C8]/35 text-sm mt-3">Produtos selecionados para o seu estilo</p>
         </motion.div>
 
-        {/* filtro de categorias */}
         {mostrarAbas && (
           <motion.div
             className="flex items-center justify-center gap-2 flex-wrap mb-8"
@@ -113,20 +207,16 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
           </motion.div>
         )}
 
-        {/* mobile: scroll horizontal */}
+        {/* mobile */}
         <div className="md:hidden -mx-4 px-4 overflow-x-auto scrollbar-hide">
           <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
             {produtosFiltrados.map((produto, idx) => {
-              const desconto = descontos?.get(produto.id);
-              const precoOriginal = produto.preco;
-              const precoFinal = desconto && precoOriginal && !precoOriginal.startsWith("A")
-                ? precoComDesconto(precoOriginal, desconto.percentual)
-                : null;
-
+              const { desconto, precoOriginal, precoFinal } = getPrecos(produto);
               return (
-                <motion.div
+                <motion.button
                   key={produto.id}
-                  className="relative flex flex-col bg-white/[0.03] backdrop-blur-sm border border-[#C9A84C]/10 overflow-hidden"
+                  onClick={() => setModalProduto(produto)}
+                  className="relative flex flex-col bg-white/[0.03] backdrop-blur-sm border border-[#C9A84C]/10 overflow-hidden text-left"
                   style={{ width: 180 }}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -156,38 +246,27 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
                       )}
                     </div>
                   </div>
-                  <a
-                    href={whatsappNumber
-                      ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Olá! Tenho interesse no produto: ${produto.titulo}`)}`
-                      : "#"}
-                    target={whatsappNumber ? "_blank" : undefined}
-                    rel="noopener noreferrer"
-                    className="py-2.5 bg-[#C9A84C] text-[#0A0A0A] text-[10px] font-black tracking-widest uppercase text-center active:scale-[0.97] transition-transform"
-                  >
-                    Comprar
-                  </a>
-                </motion.div>
+                  <div className="py-2.5 bg-[#C9A84C] text-[#0A0A0A] text-[10px] font-black tracking-widest uppercase text-center">
+                    Ver produto
+                  </div>
+                </motion.button>
               );
             })}
           </div>
         </div>
 
-        {/* desktop: grid com glassmorphism */}
-        <div ref={gridRef} className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-5">
-          {produtosFiltrados.map((produto, idx) => {
-            const desconto = descontos?.get(produto.id);
-            const precoOriginal = produto.preco;
-            const precoFinal = desconto && precoOriginal && !precoOriginal.startsWith("A")
-              ? precoComDesconto(precoOriginal, desconto.percentual)
-              : null;
+        {/* desktop */}
+        <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-5">
+          {produtosFiltrados.map((produto) => {
+            const { desconto, precoOriginal, precoFinal } = getPrecos(produto);
             const isHovered = hoverId === produto.id;
-
             return (
               <div
                 key={produto.id}
-                className="gsap-card relative flex flex-col bg-white/[0.03] backdrop-blur-sm border border-[#C9A84C]/10 overflow-hidden transition-all duration-500 group"
+                className="relative flex flex-col bg-white/[0.03] backdrop-blur-sm border border-[#C9A84C]/10 overflow-hidden transition-all duration-500 group cursor-pointer"
                 onMouseEnter={() => setHoverId(produto.id)}
                 onMouseLeave={() => setHoverId(null)}
+                onClick={() => setModalProduto(produto)}
                 style={{
                   borderColor: isHovered ? "rgba(201,168,76,0.5)" : undefined,
                   transform: isHovered ? "translateY(-6px)" : "translateY(0)",
@@ -211,6 +290,17 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
                       <ShoppingBag size={40} />
                     </div>
                   )}
+                  <div className={`absolute inset-0 bg-[#0A0A0A]/60 flex items-end transition-opacity duration-400 ${isHovered ? "opacity-100" : "opacity-0"}`}>
+                    <div
+                      className="w-full py-3.5 bg-[#C9A84C] text-[#0A0A0A] text-xs font-black tracking-widest uppercase text-center shadow-[0_0_24px_rgba(201,168,76,0.5)]"
+                      style={{
+                        transform: isHovered ? "translateY(0)" : "translateY(100%)",
+                        transition: "transform 0.35s cubic-bezier(0.34,1.56,0.64,1)",
+                      }}
+                    >
+                      Ver produto
+                    </div>
+                  </div>
                 </div>
                 <div className="p-4 flex flex-col gap-1.5">
                   <h3 className="font-semibold text-[#F5E6C8] text-sm leading-snug">{produto.titulo}</h3>
@@ -233,17 +323,6 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
                     </div>
                   )}
                 </div>
-                <a
-                  href={whatsappNumber
-                    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Olá! Tenho interesse no produto: ${produto.titulo}`)}`
-                    : "#"}
-                  target={whatsappNumber ? "_blank" : undefined}
-                  rel="noopener noreferrer"
-                  className="mx-4 mb-4 flex items-center justify-center py-2.5 bg-[#C9A84C] text-[#0A0A0A] text-xs font-black tracking-widest uppercase hover:bg-[#E2C06A] active:scale-[0.97] transition-all duration-300"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Comprar via WhatsApp
-                </a>
               </div>
             );
           })}

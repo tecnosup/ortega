@@ -17,7 +17,7 @@ const links = [
   { href: "/admin",               label: "Dashboard",    icon: LayoutDashboard, badge: null as "agendamentos" | "financeiro" | null },
   { href: "/admin/agendamentos",  label: "Agendamentos", icon: CalendarCheck,   badge: "agendamentos" as const },
   { href: "/admin/financeiro",    label: "Financeiro",   icon: TrendingUp,      badge: "financeiro" as const },
-  { href: "/admin/barbeiros",     label: "Barbeiros",    icon: Users,           badge: null },
+  { href: "/admin/barbeiros",     label: "Funcionários", icon: Users,           badge: null },
   { href: "/admin/comissoes",     label: "Comissões",    icon: DollarSign,      badge: null },
   { href: "/admin/assinantes",    label: "Assinantes",   icon: CreditCard,      badge: null },
   { href: "/admin/itens",         label: "Serviços",     icon: Scissors,        badge: null },

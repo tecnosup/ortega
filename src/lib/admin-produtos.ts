@@ -9,6 +9,8 @@ export interface Produto {
   status: "draft" | "published";
   order: number;
   categoriaId?: string;
+  estoque?: number;
+  estoqueMinimo?: number;
   createdAt: number;
   updatedAt: number;
 }

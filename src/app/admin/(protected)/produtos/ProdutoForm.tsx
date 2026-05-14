@@ -27,7 +27,6 @@ export default function ProdutoForm({ action, produto, categorias, submitLabel }
   const [state, formAction, pending] = useActionState(action, null);
   const [imageUrl, setImageUrl] = useState(produto?.imagem ?? "");
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState("");
   const [preco, setPreco] = useState(produto?.preco ?? "");
 
@@ -36,40 +35,21 @@ export default function ProdutoForm({ action, produto, categorias, submitLabel }
     if (!file) return;
     setUploading(true);
     setUploadError("");
-    setUploadProgress(0);
+    setUploadProgress(null);
 
     try {
-      const sigRes = await fetch("/api/admin/upload", { credentials: "include" });
-      const { signature, timestamp, cloudName, apiKey, folder } = await sigRes.json();
-
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("signature", signature);
-      fd.append("timestamp", String(timestamp));
-      fd.append("api_key", apiKey);
-      fd.append("folder", folder ?? "ortega/produtos");
-
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`);
-        xhr.upload.onprogress = (ev) => {
-          if (ev.lengthComputable) setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
-        };
-        xhr.onload = () => {
-          const data = JSON.parse(xhr.responseText);
-          if (xhr.status === 200 && data.secure_url) {
-            setImageUrl(data.secure_url);
-            setUploadProgress(100);
-            resolve();
-          } else {
-            reject(new Error(data.error?.message ?? "Erro no upload"));
-          }
-        };
-        xhr.onerror = () => reject(new Error("Erro de rede"));
-        xhr.send(fd);
-      });
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Erro no upload");
+      fd.append("folder", "ortega/produtos");
+      const res = await fetch("/api/admin/upload", { method: "POST", body: fd, credentials: "include" });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        setImageUrl(data.url);
+      } else {
+        setUploadError(data.error ?? "Erro no upload");
+      }
+    } catch {
+      setUploadError("Erro de rede");
     } finally {
       setUploading(false);
     }
@@ -99,14 +79,7 @@ export default function ProdutoForm({ action, produto, categorias, submitLabel }
           </div>
         )}
         <input type="file" accept="image/*" onChange={handleUpload} className="text-sm text-gray-500 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-[#1a1a1a] file:text-gray-400 hover:file:bg-[#252525]" />
-        {uploading && uploadProgress !== null && (
-          <div className="flex items-center gap-2 mt-1">
-            <div className="flex-1 h-1 bg-[#2d2d2d] rounded-full overflow-hidden">
-              <div className="h-full bg-[#b8944a] transition-all duration-200" style={{ width: `${uploadProgress}%` }} />
-            </div>
-            <span className="text-xs text-gray-500">{uploadProgress}%</span>
-          </div>
-        )}
+        {uploading && <span className="text-xs text-gray-500">Enviando...</span>}
         {uploadError && <span className="text-xs text-red-400">{uploadError}</span>}
       </div>
 
@@ -132,6 +105,18 @@ export default function ProdutoForm({ action, produto, categorias, submitLabel }
               <option key={cat.id} value={cat.id}>{cat.nome}</option>
             ))}
           </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-400">Estoque atual</label>
+          <input name="estoque" type="number" min={0} defaultValue={produto?.estoque ?? 0} className={inp} style={{ fontSize: 16 }} />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-400">Estoque mínimo</label>
+          <input name="estoqueMinimo" type="number" min={0} defaultValue={produto?.estoqueMinimo ?? 5} className={inp} style={{ fontSize: 16 }} />
         </div>
       </div>
 
