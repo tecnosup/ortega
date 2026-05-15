@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ShoppingBag, Tag, X } from "lucide-react";
 import { motion } from "framer-motion";
 import type { Produto } from "@/lib/admin-produtos";
@@ -33,6 +33,12 @@ function ProdutoModal({
   whatsappNumber?: string;
   onClose: () => void;
 }) {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   const precoExibido = precoFinal
     ? `R$ ${precoFinal}`
     : precoOriginal.startsWith("A")
