@@ -1,11 +1,7 @@
 "use client";
 
+import { motion, useInView, useMotionValue, useTransform, animate } from "framer-motion";
 import { useEffect, useRef } from "react";
-import { motion } from "framer-motion";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-
-gsap.registerPlugin(ScrollTrigger);
 
 interface SobreProps {
   texto: string;
@@ -18,37 +14,22 @@ const STATS = [
   { num: 100, sufixo: "%", label: "Satisfação" },
 ];
 
-export default function Sobre({ texto, imagem }: SobreProps) {
-  const statsRef = useRef<HTMLDivElement>(null);
+function CountUp({ target, sufixo }: { target: number; sufixo: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
+  const count = useMotionValue(0);
+  const rounded = useTransform(count, (v) => Math.round(v) + sufixo);
 
   useEffect(() => {
-    if (!statsRef.current) return;
+    if (!inView) return;
+    const controls = animate(count, target, { duration: 1.8, ease: "easeOut" });
+    return controls.stop;
+  }, [inView, count, target]);
 
-    const els = statsRef.current.querySelectorAll<HTMLSpanElement>("[data-count]");
+  return <motion.span ref={ref}>{rounded}</motion.span>;
+}
 
-    els.forEach((el) => {
-      const target = Number(el.dataset.count);
-      const sufixo = el.dataset.sufixo ?? "";
-      const obj = { val: 0 };
-
-      gsap.to(obj, {
-        val: target,
-        duration: 1.8,
-        ease: "power2.out",
-        scrollTrigger: {
-          trigger: el,
-          start: "top 85%",
-          once: true,
-        },
-        onUpdate: () => {
-          el.textContent = Math.round(obj.val) + sufixo;
-        },
-      });
-    });
-
-    return () => { ScrollTrigger.getAll().forEach((t) => t.kill()); };
-  }, []);
-
+export default function Sobre({ texto, imagem }: SobreProps) {
   return (
     <section id="sobre" className="py-20 md:py-28 bg-[#0A0A0A] relative overflow-hidden">
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/30 to-transparent" />
@@ -96,16 +77,11 @@ export default function Sobre({ texto, imagem }: SobreProps) {
           </h2>
           <p className="text-sm sm:text-base text-[#F5E6C8]/60 leading-relaxed">{texto}</p>
 
-          {/* stats com contador GSAP */}
-          <div ref={statsRef} className="grid grid-cols-3 gap-3 sm:gap-4 py-4 border-t border-[#C9A84C]/15">
+          <div className="grid grid-cols-3 gap-3 sm:gap-4 py-4 border-t border-[#C9A84C]/15">
             {STATS.map((s) => (
               <div key={s.label} className="flex flex-col gap-1">
-                <span
-                  className="text-xl sm:text-2xl font-bold text-[#C9A84C]"
-                  data-count={s.num}
-                  data-sufixo={s.sufixo}
-                >
-                  0{s.sufixo}
+                <span className="text-xl sm:text-2xl font-bold text-[#C9A84C]">
+                  <CountUp target={s.num} sufixo={s.sufixo} />
                 </span>
                 <span className="text-xs text-[#F5E6C8]/40 tracking-wider uppercase">{s.label}</span>
               </div>

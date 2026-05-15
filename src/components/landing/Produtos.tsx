@@ -210,18 +210,14 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
         {/* mobile */}
         <div className="md:hidden -mx-4 px-4 overflow-x-auto scrollbar-hide">
           <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
-            {produtosFiltrados.map((produto, idx) => {
+            {produtosFiltrados.map((produto) => {
               const { desconto, precoOriginal, precoFinal } = getPrecos(produto);
               return (
-                <motion.button
+                <button
                   key={produto.id}
                   onClick={() => setModalProduto(produto)}
                   className="relative flex flex-col bg-white/[0.03] backdrop-blur-sm border border-[#C9A84C]/10 overflow-hidden text-left"
                   style={{ width: 180 }}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4, delay: idx * 0.06 }}
                 >
                   {desconto && (
                     <span className="absolute top-2 left-2 z-10 bg-[#C9A84C] text-[#0A0A0A] text-[9px] font-black px-1.5 py-0.5 tracking-wider uppercase">
@@ -249,7 +245,7 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
                   <div className="py-2.5 bg-[#C9A84C] text-[#0A0A0A] text-[10px] font-black tracking-widest uppercase text-center">
                     Ver produto
                   </div>
-                </motion.button>
+                </button>
               );
             })}
           </div>

@@ -5,5 +5,8 @@ export interface GastoDia {
   data: string;       // YYYY-MM-DD
   descricao: string;
   valor: number;
+  categoriaId?: string;
+  categoriaNome?: string;
+  categoriaCor?: string;
   criadoEm: number;
 }

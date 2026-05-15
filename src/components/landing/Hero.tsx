@@ -1,12 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-
-gsap.registerPlugin(ScrollTrigger);
 
 interface HeroProps {
   titulo: string;
@@ -17,91 +12,17 @@ interface HeroProps {
 }
 
 export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, imagemRetrato }: HeroProps) {
-  const sectionRef    = useRef<HTMLElement>(null);
-  const bgRef         = useRef<HTMLDivElement>(null);
-  const retratoRef    = useRef<HTMLDivElement>(null);
-  const textColRef    = useRef<HTMLDivElement>(null);
-  const titleRef      = useRef<HTMLHeadingElement>(null);
-  const subtitleRef   = useRef<HTMLParagraphElement>(null);
+  const words = titulo.split(" ");
 
   const whatsappHref = whatsappNumber
     ? `https://wa.me/${whatsappNumber}?text=Olá! Gostaria de agendar um horário na Ortega Barber.`
     : "#";
 
-  /* ---------- entrada do título word-by-word ---------- */
-  useEffect(() => {
-    if (!titleRef.current || !subtitleRef.current) return;
-
-    const words = titulo.split(" ");
-    titleRef.current.innerHTML = words
-      .map((w) => `<span class="gsap-word" style="display:inline-block;overflow:hidden;vertical-align:bottom;"><span style="display:inline-block;">${w}</span></span>`)
-      .join(" ");
-
-    const spans = titleRef.current.querySelectorAll(".gsap-word > span");
-    const tl = gsap.timeline({ delay: 0.15 });
-    tl.fromTo(spans,
-      { y: "110%", opacity: 0 },
-      { y: "0%", opacity: 1, duration: 1, stagger: 0.1, ease: "power3.out" }
-    ).fromTo(subtitleRef.current,
-      { opacity: 0, y: 18 },
-      { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" },
-      "-=0.5"
-    );
-
-    return () => { tl.kill(); };
-  }, [titulo]);
-
-  /* ---------- parallax no scroll ---------- */
-  useEffect(() => {
-    if (!sectionRef.current || !bgRef.current || !retratoRef.current || !textColRef.current) return;
-
-    const ctx = gsap.context(() => {
-      /* camada 1 — fundo: move mais devagar (efeito de profundidade) */
-      gsap.to(bgRef.current, {
-        yPercent: 30,
-        ease: "none",
-        scrollTrigger: {
-          trigger: sectionRef.current,
-          start: "top top",
-          end: "bottom top",
-          scrub: true,
-        },
-      });
-
-      /* camada 2 — retrato: velocidade média */
-      gsap.to(retratoRef.current, {
-        yPercent: -12,
-        ease: "none",
-        scrollTrigger: {
-          trigger: sectionRef.current,
-          start: "top top",
-          end: "bottom top",
-          scrub: 1.2,
-        },
-      });
-
-      /* camada 3 — texto: sobe mais rápido, fade out sutil */
-      gsap.to(textColRef.current, {
-        yPercent: -18,
-        opacity: 0.3,
-        ease: "none",
-        scrollTrigger: {
-          trigger: sectionRef.current,
-          start: "top top",
-          end: "60% top",
-          scrub: 0.8,
-        },
-      });
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
-
   return (
-    <section ref={sectionRef} className="relative md:min-h-screen flex items-center overflow-hidden bg-[#0A0A0A]">
+    <section className="relative md:min-h-screen flex items-center overflow-hidden bg-[#0A0A0A]">
 
-      {/* camada 1 — foto de fundo (parallax lento) */}
-      <div ref={bgRef} className="absolute inset-0 will-change-transform">
+      {/* fundo */}
+      <div className="absolute inset-0">
         <img
           src={imagemFundo || "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1600&q=85"}
           alt=""
@@ -127,8 +48,8 @@ export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, i
       {/* conteúdo */}
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 sm:px-8 pt-24 pb-12 md:pt-0 md:pb-0 md:min-h-screen flex flex-col md:flex-row md:items-center">
 
-        {/* camada 3 — coluna texto (parallax rápido) */}
-        <div ref={textColRef} className="will-change-transform w-full md:w-[55%] flex flex-col gap-6 md:gap-8 md:py-32">
+        {/* coluna texto */}
+        <div className="w-full md:w-[55%] flex flex-col gap-6 md:gap-8 md:py-32">
 
           <motion.div
             className="flex items-center gap-3"
@@ -156,18 +77,33 @@ export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, i
             />
           </motion.div>
 
-          {/* título animado pelo GSAP */}
+          {/* título word-by-word */}
           <div>
             <h1
-              ref={titleRef}
               className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-[#F5E6C8] leading-[1.05] tracking-tight"
               style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
             >
-              {titulo}
+              {words.map((word, i) => (
+                <span key={i} className="inline-block overflow-hidden align-bottom mr-[0.25em] last:mr-0">
+                  <motion.span
+                    className="inline-block"
+                    initial={{ y: "110%", opacity: 0 }}
+                    animate={{ y: "0%", opacity: 1 }}
+                    transition={{ duration: 1, delay: 0.15 + i * 0.1, ease: "easeOut" }}
+                  >
+                    {word}
+                  </motion.span>
+                </span>
+              ))}
             </h1>
-            <p ref={subtitleRef} className="text-sm sm:text-base text-[#F5E6C8]/50 mt-4 leading-relaxed max-w-sm" style={{ opacity: 0 }}>
+            <motion.p
+              className="text-sm sm:text-base text-[#F5E6C8]/50 mt-4 leading-relaxed max-w-sm"
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.15 + words.length * 0.1 }}
+            >
               {subtitulo}
-            </p>
+            </motion.p>
           </div>
 
           <motion.div
@@ -232,8 +168,8 @@ export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, i
           </motion.div>
         </div>
 
-        {/* camada 2 — retrato (parallax médio) */}
-        <div ref={retratoRef} className="will-change-transform hidden md:flex md:flex-1 md:items-center md:justify-center md:relative">
+        {/* coluna retrato */}
+        <div className="hidden md:flex md:flex-1 md:items-center md:justify-center md:relative">
           <motion.div
             className="relative w-72 lg:w-80 xl:w-96"
             initial={{ opacity: 0, x: 40 }}

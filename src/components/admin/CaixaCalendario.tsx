@@ -42,23 +42,38 @@ function ModalConfirm({ titulo, mensagem, confirmLabel, confirmClass, onConfirm,
   );
 }
 
-// ── Form gasto do dia ─────────────────────────────────────────────────────────
+// ── Form despesa do dia ───────────────────────────────────────────────────────
+type CategoriaSimples = { id: string; nome: string; cor: string };
+
 function FormGastoDia({ data, onSalvo, onCancelar }: {
   data: string; onSalvo: () => void; onCancelar: () => void;
 }) {
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
+  const [categoriaId, setCategoriaId] = useState<string>("");
+  const [categorias, setCategorias] = useState<CategoriaSimples[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    fetch("/api/gastos/categorias", { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then(setCategorias)
+      .catch(() => {});
+  }, []);
+
+  const catSel = categorias.find((c) => c.id === categoriaId);
 
   async function salvar() {
     if (!descricao.trim()) { setErro("Descrição obrigatória"); return; }
     if (!valor || isNaN(Number(valor)) || Number(valor) <= 0) { setErro("Valor inválido"); return; }
     setSalvando(true);
+    const body: Record<string, unknown> = { data, descricao, valor: Number(valor) };
+    if (catSel) { body.categoriaId = catSel.id; body.categoriaNome = catSel.nome; body.categoriaCor = catSel.cor; }
     const res = await fetch("/api/gastos-dia", {
       method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data, descricao, valor: Number(valor) }),
+      body: JSON.stringify(body),
     });
     setSalvando(false);
     if (res.ok) onSalvo();
@@ -67,13 +82,31 @@ function FormGastoDia({ data, onSalvo, onCancelar }: {
 
   return (
     <div className="bg-[#0d0d0d] border border-[#2d2d2d] rounded-lg p-4 flex flex-col gap-3 mt-2">
-      <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase">Registrar gasto do dia</p>
+      <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase">Despesa do dia</p>
       {erro && <p className="text-xs text-red-400">{erro}</p>}
       <input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex: Produto comprado, material..." className={inp} />
       <input type="number" min="0" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="Valor (R$)" className={inp} />
+      {categorias.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[10px] font-semibold tracking-widest text-gray-500 uppercase">Categoria</p>
+          <div className="flex flex-wrap gap-1.5">
+            <button onClick={() => setCategoriaId("")}
+              className={`text-xs px-2.5 py-1 rounded-full border transition ${!categoriaId ? "border-[#b8944a] text-[#b8944a] bg-[#b8944a]/10" : "border-[#2d2d2d] text-gray-500 hover:border-gray-500"}`}>
+              Sem categoria
+            </button>
+            {categorias.map((c) => (
+              <button key={c.id} onClick={() => setCategoriaId(c.id)}
+                style={categoriaId === c.id ? { borderColor: c.cor, color: c.cor, backgroundColor: `${c.cor}15` } : {}}
+                className={`text-xs px-2.5 py-1 rounded-full border transition ${categoriaId === c.id ? "" : "border-[#2d2d2d] text-gray-400 hover:border-gray-500"}`}>
+                {c.nome}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex gap-2">
         <button onClick={salvar} disabled={salvando} className="px-4 py-1.5 bg-red-900/50 border border-red-800/60 text-red-300 text-xs font-bold rounded hover:bg-red-900/70 transition disabled:opacity-50">
-          {salvando ? "Salvando..." : "Registrar gasto"}
+          {salvando ? "Salvando..." : "Registrar despesa"}
         </button>
         <button onClick={onCancelar} className="px-4 py-1.5 border border-[#2d2d2d] text-gray-400 text-xs rounded hover:border-[#b8944a] transition">Cancelar</button>
       </div>
@@ -371,6 +404,10 @@ export default function CaixaCalendario({ fechamentos, gastosDia, avulsos, onAtu
       setDiaSel(p);
       const d = new Date(p + "T12:00:00");
       setAno(d.getFullYear()); setMes(d.getMonth());
+      // Scroll até o caixa após um tick para garantir que o DOM está pronto
+      setTimeout(() => {
+        document.getElementById("caixa")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
     } else {
       setDiaSel(hoje);
     }
@@ -751,7 +788,7 @@ export default function CaixaCalendario({ fechamentos, gastosDia, avulsos, onAtu
                 {!ehFuturo && (
                   <button onClick={() => { fecharTodosFormularios(); setMostraFormGasto(true); }}
                     className="w-full flex items-center justify-center gap-2 text-[10px] font-bold tracking-widest border border-red-900/40 text-red-400/70 hover:border-red-800 hover:text-red-400 px-4 py-2.5 rounded transition">
-                    <TrendingDown size={11} /> REGISTRAR GASTO
+                    <TrendingDown size={11} /> DESPESA DO DIA
                   </button>
                 )}
                 {!fechDia && !ehFuturo && (
