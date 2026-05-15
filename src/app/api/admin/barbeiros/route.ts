@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   const endereco = body.endereco ? String(body.endereco).trim().slice(0, 200) : undefined;
   const comissao = Math.min(100, Math.max(0, Number(body.comissao) || 0));
   const ativo = body.ativo !== false;
-  const tipo = body.tipo ? String(body.tipo).trim().slice(0, 60) : undefined;
+  const tipo = ["barbeiro", "faxineira", "secretaria"].includes(body.tipo) ? body.tipo : "barbeiro";
   const comissoesServico = Array.isArray(body.comissoesServico) ? body.comissoesServico : [];
 
   const id = await createBarbeiro({

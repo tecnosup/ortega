@@ -13,6 +13,7 @@ const schema = z.object({
   imagem: z.string().default(""),
   preco: z.string().default(""),
   duracao: z.string().default(""),
+  categoriaId: z.string().default(""),
   status: z.enum(["draft", "published"]),
   order: z.coerce.number().default(0),
 });
