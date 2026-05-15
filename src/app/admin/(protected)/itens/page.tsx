@@ -73,6 +73,7 @@ export default function ServicosPage() {
     setForm({ ...EMPTY, order: String(itens.length) });
     setError("");
     setUploadError("");
+    if (fileRef.current) fileRef.current.value = "";
     setModal({ open: true, editing: null });
   }
 
@@ -89,6 +90,7 @@ export default function ServicosPage() {
     });
     setError("");
     setUploadError("");
+    if (fileRef.current) fileRef.current.value = "";
     setModal({ open: true, editing: item });
   }
 
@@ -103,8 +105,12 @@ export default function ServicosPage() {
       fd.append("folder", "ortega/itens");
       const res = await fetch("/api/admin/upload", { method: "POST", body: fd, credentials: "include" });
       const data = await res.json();
-      if (res.ok && data.url) setForm((f) => ({ ...f, imagem: data.url }));
-      else setUploadError(data.error ?? "Erro no upload");
+      if (res.ok && data.url) {
+        setForm((f) => ({ ...f, imagem: data.url }));
+        if (fileRef.current) fileRef.current.value = "";
+      } else {
+        setUploadError(data.error ?? "Erro no upload");
+      }
     } catch {
       setUploadError("Erro de rede");
     } finally {

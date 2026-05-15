@@ -70,7 +70,6 @@ export default function FuncionariosPage() {
   const [filtroAtivo, setFiltroAtivo] = useState<"todos" | "ativo" | "inativo">("todos");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [togglingPresenca, setTogglingPresenca] = useState<string | null>(null);
-  // gerenciar tipos
   const [tiposOpen, setTiposOpen] = useState(false);
   const [novoTipo, setNovoTipo] = useState("");
   const [tipoSaving, setTipoSaving] = useState(false);
@@ -107,6 +106,7 @@ export default function FuncionariosPage() {
     setForm(EMPTY);
     setError("");
     setUploadError("");
+    if (fileRef.current) fileRef.current.value = "";
     setModal({ open: true, editing: null });
   }
 
@@ -126,6 +126,7 @@ export default function FuncionariosPage() {
     });
     setError("");
     setUploadError("");
+    if (fileRef.current) fileRef.current.value = "";
     setModal({ open: true, editing: b });
   }
 
@@ -258,7 +259,6 @@ export default function FuncionariosPage() {
     setTogglingPresenca(null);
   }
 
-  // Tipos handlers
   async function handleCriarTipo() {
     if (!novoTipo.trim()) { setTipoErro("Nome obrigatório"); return; }
     setTipoSaving(true);
@@ -298,7 +298,6 @@ export default function FuncionariosPage() {
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-6 px-2 sm:px-0">
 
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Users size={22} className="text-[#b8944a]" />
@@ -312,12 +311,10 @@ export default function FuncionariosPage() {
         </button>
       </div>
 
-      {/* Filtros + gerenciar tipos */}
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap gap-2 items-center">
           <div className="flex items-center gap-1 text-gray-500 text-xs"><Filter size={12} /></div>
 
-          {/* filtro "Todos" */}
           <button
             onClick={() => setFiltroTipo("todos")}
             className={`px-3 py-1 text-xs rounded-full border transition ${filtroTipo === "todos" ? "border-[#b8944a] text-[#b8944a] bg-[#b8944a]/10" : "border-[#2d2d2d] text-gray-500 hover:border-[#444]"}`}
@@ -325,7 +322,6 @@ export default function FuncionariosPage() {
             Todos
           </button>
 
-          {/* filtros dinâmicos por tipo */}
           {categorias.map((cat) => (
             <button
               key={cat.id}
@@ -336,7 +332,6 @@ export default function FuncionariosPage() {
             </button>
           ))}
 
-          {/* botão gerenciar tipos */}
           <button
             onClick={() => setTiposOpen((v) => !v)}
             className={`flex items-center gap-1.5 px-3 py-1 text-xs rounded-full border transition ${tiposOpen ? "border-[#b8944a] text-[#b8944a] bg-[#b8944a]/10" : "border-dashed border-[#3d3d3d] text-gray-500 hover:border-[#b8944a] hover:text-[#b8944a]"}`}
@@ -346,7 +341,6 @@ export default function FuncionariosPage() {
 
           <div className="w-px h-4 bg-[#2d2d2d]" />
 
-          {/* filtro ativo/inativo */}
           {(["todos", "ativo", "inativo"] as const).map((s) => (
             <button
               key={s}
@@ -358,7 +352,6 @@ export default function FuncionariosPage() {
           ))}
         </div>
 
-        {/* Painel gerenciar tipos */}
         {tiposOpen && (
           <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 flex flex-col gap-3">
             <p className="text-xs text-gray-400 font-medium">Gerenciar tipos de funcionário</p>
@@ -420,7 +413,6 @@ export default function FuncionariosPage() {
         )}
       </div>
 
-      {/* Lista */}
       {loading ? (
         <div className="flex items-center gap-2 text-gray-500 text-sm"><Loader2 size={16} className="animate-spin" /> Carregando…</div>
       ) : barbeirosFiltered.length === 0 ? (
@@ -431,9 +423,7 @@ export default function FuncionariosPage() {
             const expanded = expandedId === b.id;
             return (
               <div key={b.id} className="bg-[#111] border border-[#2d2d2d] rounded-xl overflow-hidden">
-                {/* Linha principal */}
                 <div className="flex items-center gap-3 px-4 py-3">
-                  {/* Foto */}
                   <div className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-[#2d2d2d] bg-[#1a1a1a] flex items-center justify-center">
                     {b.foto ? (
                       <img src={b.foto} alt={b.nome} className="w-full h-full object-cover" />
@@ -442,7 +432,6 @@ export default function FuncionariosPage() {
                     )}
                   </div>
 
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <p className="font-semibold text-[#F5E6C8] text-sm truncate">
@@ -463,7 +452,6 @@ export default function FuncionariosPage() {
                     </div>
                   </div>
 
-                  {/* Presença + expand */}
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => togglePresenca(b)}
@@ -482,10 +470,8 @@ export default function FuncionariosPage() {
                   </div>
                 </div>
 
-                {/* Expandido */}
                 {expanded && (
                   <div className="border-t border-[#1a1a1a] px-4 py-4 flex flex-col gap-4">
-                    {/* Dados pessoais */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs text-gray-400">
                       {b.telefone && (
                         <div className="flex items-center gap-1.5"><Phone size={11} className="text-gray-600" />{b.telefone}</div>
@@ -501,7 +487,6 @@ export default function FuncionariosPage() {
                       )}
                     </div>
 
-                    {/* Credenciais */}
                     <div className="bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg px-3 py-2.5 flex flex-col gap-1">
                       <p className="text-[10px] text-gray-600 font-medium uppercase tracking-wider">Acesso ao portal</p>
                       {b.uid ? (
@@ -515,7 +500,6 @@ export default function FuncionariosPage() {
                       )}
                     </div>
 
-                    {/* Ações */}
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => openConta(b)}
@@ -557,7 +541,6 @@ export default function FuncionariosPage() {
         </div>
       )}
 
-      {/* Modal acesso ao portal */}
       {contaModal.open && contaModal.barbeiro && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-md flex flex-col gap-5 p-6">
@@ -606,20 +589,16 @@ export default function FuncionariosPage() {
         </div>
       )}
 
-      {/* Modal criar/editar funcionário */}
       {modal.open && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4">
           <div className="bg-[#111] border border-[#2d2d2d] rounded-t-2xl sm:rounded-xl w-full max-w-lg flex flex-col gap-0 max-h-[92dvh] overflow-hidden">
-            {/* Header fixo */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#2d2d2d] shrink-0">
               <h2 className="font-bold text-[#F5E6C8]">{modal.editing ? "Editar funcionário" : "Novo funcionário"}</h2>
               <button onClick={closeModal} className="text-gray-500 hover:text-white transition"><X size={18} /></button>
             </div>
 
-            {/* Corpo scrollável */}
             <div className="flex flex-col gap-5 px-6 py-5 overflow-y-auto">
 
-              {/* Foto */}
               <div className="flex flex-col items-center gap-3">
                 <div className="relative w-20 h-20">
                   <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-[#2d2d2d] bg-[#1a1a1a] flex items-center justify-center">
@@ -645,7 +624,6 @@ export default function FuncionariosPage() {
                 {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
               </div>
 
-              {/* Dados básicos */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="flex flex-col gap-1.5 sm:col-span-2">
                   <span className="text-xs text-gray-400 font-medium">Nome completo *</span>
@@ -673,7 +651,6 @@ export default function FuncionariosPage() {
                 </label>
               </div>
 
-              {/* Tipo (dinâmico) */}
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-gray-400 font-medium">Tipo</span>
                 <select value={form.tipo} onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value }))} className={inp} style={{ fontSize: 16 }}>
@@ -682,13 +659,11 @@ export default function FuncionariosPage() {
                 </select>
               </label>
 
-              {/* Comissão geral */}
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-gray-400 font-medium">Comissão geral (%)</span>
                 <input type="number" min={0} max={100} value={form.comissao} onChange={(e) => setForm((f) => ({ ...f, comissao: e.target.value }))} className={inp} placeholder="40" style={{ fontSize: 16 }} />
               </label>
 
-              {/* Comissão por serviço */}
               {itens.length > 0 && (
                 <div className="flex flex-col gap-2">
                   <span className="text-xs text-gray-400 font-medium">Comissão por serviço <span className="text-gray-600 font-normal">(substitui a geral)</span></span>
@@ -709,7 +684,6 @@ export default function FuncionariosPage() {
                 </div>
               )}
 
-              {/* Toggle ativo */}
               <label className="flex items-center gap-3 cursor-pointer select-none">
                 <div
                   onClick={() => setForm((f) => ({ ...f, ativo: !f.ativo }))}
@@ -723,7 +697,6 @@ export default function FuncionariosPage() {
               {error && <p className="text-red-400 text-xs">{error}</p>}
             </div>
 
-            {/* Footer fixo */}
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-[#2d2d2d] shrink-0">
               <button onClick={closeModal} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition">Cancelar</button>
               <button
