@@ -11,6 +11,11 @@ export async function POST(req: NextRequest) {
   const { data } = await req.json() as { data: string };
   if (!data) return NextResponse.json({ error: "Data obrigatória" }, { status: 400 });
 
+  const fechamentos = await listarFechamentos();
+  if (fechamentos.some((f) => f.data === data)) {
+    return NextResponse.json({ error: "Caixa já fechado para este dia" }, { status: 409 });
+  }
+
   const [todos, avulsos] = await Promise.all([
     listarAgendamentos(),
     listarAtendimentosAvulsosPorData(data),

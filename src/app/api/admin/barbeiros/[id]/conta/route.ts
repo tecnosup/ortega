@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb, getSessionUser } from "@/lib/firebase-admin";
 
+export const dynamic = "force-dynamic";
+
 // POST /api/admin/barbeiros/[id]/conta — cria ou atualiza login Firebase do barbeiro
 export async function POST(
   req: NextRequest,
