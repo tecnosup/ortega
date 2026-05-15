@@ -27,7 +27,7 @@ const links = [
   { href: "/admin/auditoria",     label: "Auditoria",    icon: ClipboardList,   badge: null },
 ];
 
-const bottomLinks = links.slice(0, 4);
+const bottomLinks = [links[0], links[1], links[2], links[7]]; // Dashboard, Agendamentos, Financeiro, Produtos
 
 function BadgeDot({ count, urgencia }: { count: number; urgencia: "normal" | "atencao" | "critico" }) {
   if (count <= 0) return null;

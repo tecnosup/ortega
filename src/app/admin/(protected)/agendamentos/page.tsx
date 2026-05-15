@@ -423,9 +423,11 @@ export default function AgendamentosAdminPage() {
       fetch("/api/fechamento", { credentials: "include" }),
       fetch(`/api/slots?data=${dataSelecionada}`, { credentials: "include" }),
     ]);
-    const ags: Agendamento[] = await resAgs.json();
-    const fechs: FechamentoDia[] = await resFech.json();
+    const agsData = await resAgs.json();
+    const fechsData = await resFech.json();
     const { bloqueados } = await resBloq.json();
+    const ags: Agendamento[] = Array.isArray(agsData) ? agsData : [];
+    const fechs: FechamentoDia[] = Array.isArray(fechsData) ? fechsData : [];
     setAgendamentos(ags);
     setFechamentos(fechs);
     setSlotsBloqueados(bloqueados);

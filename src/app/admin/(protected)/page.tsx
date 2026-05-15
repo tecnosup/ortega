@@ -143,9 +143,11 @@ export default function AdminDashboard() {
       fetch("/api/fechamento", { credentials: "include" }),
       fetch("/api/gastos", { credentials: "include" }),
     ]);
-    setAgendamentos(await resAgs.json());
-    setFechamentos(await resFech.json());
-    if (resGastos.ok) setGastos(await resGastos.json());
+    const agsData = await resAgs.json();
+    const fechData = await resFech.json();
+    setAgendamentos(Array.isArray(agsData) ? agsData : []);
+    setFechamentos(Array.isArray(fechData) ? fechData : []);
+    if (resGastos.ok) { const g = await resGastos.json(); setGastos(Array.isArray(g) ? g : []); }
     setCarregando(false);
   }, []);
 

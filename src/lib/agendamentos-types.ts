@@ -47,6 +47,7 @@ export interface ItemAtendimento {
   tipo: "servico" | "produto";
   descricao: string;
   valor: number;
+  produtoId?: string;
 }
 
 export interface AtendimentoAvulso {
