@@ -12,21 +12,21 @@ export function PushToggle() {
     return (
       <button
         onClick={unsubscribe}
-        className="flex items-center gap-3 px-3 py-2.5 text-sm text-green-400 hover:text-gray-400 hover:bg-[#1a1a1a] transition w-full rounded-lg"
+        className="flex items-center gap-3 px-3 py-2.5 text-sm text-green-400 hover:text-gray-400 hover:bg-[#1a1a1a] transition w-full rounded-lg min-w-0"
         title="Notificações ativas — clique para desativar"
       >
-        <Bell size={16} />
-        <span>Notificações ativas</span>
-        <span className="ml-auto w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+        <Bell size={16} className="shrink-0" />
+        <span className="flex-1 text-left">Notificações</span>
+        <span className="shrink-0 w-2 h-2 rounded-full bg-green-400 animate-pulse" />
       </button>
     );
   }
 
   if (status === "denied") {
     return (
-      <div className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 w-full rounded-lg" title="Notificações bloqueadas pelo navegador">
-        <BellOff size={16} />
-        <span>Notificações bloqueadas</span>
+      <div className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 w-full rounded-lg min-w-0" title="Notificações bloqueadas pelo navegador">
+        <BellOff size={16} className="shrink-0" />
+        <span>Notificações</span>
       </div>
     );
   }
@@ -35,10 +35,10 @@ export function PushToggle() {
     <button
       onClick={subscribe}
       disabled={status === "loading"}
-      className="flex items-center gap-3 px-3 py-2.5 text-sm text-[#b8944a] hover:bg-[#b8944a]/10 transition w-full rounded-lg disabled:opacity-50"
+      className="flex items-center gap-3 px-3 py-2.5 text-sm text-[#b8944a] hover:bg-[#b8944a]/10 transition w-full rounded-lg disabled:opacity-50 min-w-0"
     >
-      {status === "loading" ? <Loader2 size={16} className="animate-spin" /> : <Bell size={16} />}
-      <span>{status === "loading" ? "Ativando..." : "Ativar notificações"}</span>
+      {status === "loading" ? <Loader2 size={16} className="animate-spin shrink-0" /> : <Bell size={16} className="shrink-0" />}
+      <span>{status === "loading" ? "Ativando..." : "Notificações"}</span>
     </button>
   );
 }

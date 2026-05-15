@@ -125,7 +125,7 @@ function FormAtendimento({ data, inicial, agendamento, onSalvo, onCancelar }: {
   onCancelar: () => void;
 }) {
   type CatalogItem = { id: string; titulo: string; preco: number; tipo: "servico" | "produto" };
-  type ItemForm = { catalogKey: string; tipo: "servico" | "produto"; descricao: string; valor: string };
+  type ItemForm = { catalogKey: string; tipo: "servico" | "produto"; descricao: string; valor: string; produtoId?: string };
 
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
 
@@ -149,8 +149,9 @@ function FormAtendimento({ data, inicial, agendamento, onSalvo, onCancelar }: {
       fetch("/api/admin/itens", { credentials: "include" }).then((r) => r.ok ? r.json() : { items: [] }),
       fetch("/api/admin/produtos", { credentials: "include" }).then((r) => r.ok ? r.json() : { produtos: [] }),
     ]).then(([s, p]) => {
-      const servs: CatalogItem[] = (s.items ?? []).filter((i: { status: string }) => i.status === "published").map((i: { id: string; titulo: string; preco: unknown }) => ({ ...i, preco: Number(i.preco) || 0, tipo: "servico" as const }));
-      const prods: CatalogItem[] = (p.produtos ?? []).filter((i: { status: string }) => i.status === "published").map((i: { id: string; titulo: string; preco: unknown }) => ({ ...i, preco: Number(i.preco) || 0, tipo: "produto" as const }));
+      const parsePreco = (v: unknown) => parseFloat(String(v).replace(",", ".")) || 0;
+      const servs: CatalogItem[] = (s.items ?? []).filter((i: { status: string }) => i.status === "published").map((i: { id: string; titulo: string; preco: unknown }) => ({ ...i, preco: parsePreco(i.preco), tipo: "servico" as const }));
+      const prods: CatalogItem[] = (p.produtos ?? []).filter((i: { status: string }) => i.status === "published").map((i: { id: string; titulo: string; preco: unknown }) => ({ ...i, preco: parsePreco(i.preco), tipo: "produto" as const }));
       setCatalog([...servs, ...prods]);
     });
   }, []);
@@ -166,7 +167,7 @@ function FormAtendimento({ data, inicial, agendamento, onSalvo, onCancelar }: {
     const found = catalog.find((c) => `${c.tipo[0]}:${c.id}` === key);
     if (found) {
       setItens((p) => p.map((it, idx) => idx === i
-        ? { catalogKey: key, tipo: found.tipo, descricao: found.titulo, valor: String(found.preco) }
+        ? { catalogKey: key, tipo: found.tipo, descricao: found.titulo, valor: String(found.preco), produtoId: found.tipo === "produto" ? found.id : undefined }
         : it));
     }
   }
@@ -188,6 +189,7 @@ function FormAtendimento({ data, inicial, agendamento, onSalvo, onCancelar }: {
     setErro(""); setSalvando(true);
     const itensFormatados: ItemAtendimento[] = validos.map((it, idx) => ({
       id: String(Date.now() + idx), tipo: it.tipo, descricao: it.descricao.trim(), valor: Number(it.valor),
+      ...(it.produtoId ? { produtoId: it.produtoId } : {}),
     }));
     const payload = {
       clienteNome: clienteNome.trim(),

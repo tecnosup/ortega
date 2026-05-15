@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Plus, ShoppingBag } from "lucide-react";
 import ProdutosList from "./ProdutosList";
 import CategoriasInline from "./CategoriasInline";
+import EstoqueMovimentacoes from "./EstoqueMovimentacoes";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,8 @@ export default async function ProdutosPage() {
       <CategoriasInline categorias={categorias} />
 
       <ProdutosList produtos={produtos} categorias={categorias} />
+
+      <EstoqueMovimentacoes produtos={produtos} />
     </div>
   );
 }
