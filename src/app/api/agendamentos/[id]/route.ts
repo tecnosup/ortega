@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAgendamento, atualizarAgendamento, excluirAgendamento } from "@/lib/agendamentos";
 import type { AgendamentoStatus } from "@/lib/agendamentos";
-import { getSessionUser } from "@/lib/firebase-admin";
+import { getSessionUser, getAdminDb } from "@/lib/firebase-admin";
+
+async function appendLog(id: string, acao: string, adminId: string) {
+  const db = getAdminDb();
+  const entry = { acao, adminId, ts: Date.now() };
+  const doc = db.collection("agendamentos").doc(id);
+  const snap = await doc.get();
+  const historico: unknown[] = snap.data()?.historico ?? [];
+  await doc.update({ historico: [...historico, entry] });
+}
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +38,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (!ag) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
 
   await atualizarAgendamento(id, { status: body.status });
+  appendLog(id, `status → ${body.status}`, user.uid).catch(() => {});
 
   let whatsappLink: string | null = null;
   const dataFormatada = new Date(ag.data + "T12:00:00").toLocaleDateString("pt-BR", {
@@ -74,6 +84,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (body.barbeiroNome !== undefined) patch.barbeiroNome = body.barbeiroNome ?? null;
 
   await atualizarAgendamento(id, patch);
+  const descricaoAcao = (body.data || body.horario)
+    ? `reagendado → ${body.data ?? ag.data} ${body.horario ?? ag.horario}`
+    : `editado serviço/preço`;
+  appendLog(id, descricaoAcao, user.uid).catch(() => {});
 
   const reagendou = body.data !== undefined || body.horario !== undefined;
   let whatsappLink: string | null = null;

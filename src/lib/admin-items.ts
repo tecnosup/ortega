@@ -7,6 +7,7 @@ export interface Item {
   imagem: string;
   preco: string;
   duracao: string;
+  categoriaId?: string;
   status: "draft" | "published";
   order: number;
   createdAt: number;

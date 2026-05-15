@@ -1,13 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { Scissors, Clock, Tag, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import type { Item } from "@/lib/admin-items";
 import type { Desconto } from "@/lib/admin-descontos";
+import type { CategoriaServico } from "@/lib/admin-categorias-servicos";
 
 interface ServicosProps {
   items: Item[];
   descontos?: Map<string, Desconto>;
+  categorias?: CategoriaServico[];
 }
 
 function precoComDesconto(preco: string, pct: number) {
@@ -16,8 +19,19 @@ function precoComDesconto(preco: string, pct: number) {
   return (num * (1 - pct / 100)).toFixed(2).replace(".", ",");
 }
 
-export default function Servicos({ items, descontos }: ServicosProps) {
+export default function Servicos({ items, descontos, categorias = [] }: ServicosProps) {
+  const [activeCategoria, setActiveCategoria] = useState<string>("todos");
+
   if (items.length === 0) return null;
+
+  const categoriasComItens = categorias.filter((cat) =>
+    items.some((i) => i.categoriaId === cat.id)
+  );
+  const mostrarAbas = categoriasComItens.length > 0;
+
+  const itensFiltrados = activeCategoria === "todos"
+    ? items
+    : items.filter((i) => i.categoriaId === activeCategoria);
 
   return (
     <section id="servicos" className="relative bg-[#0D0D0D]">
@@ -45,9 +59,43 @@ export default function Servicos({ items, descontos }: ServicosProps) {
             </h2>
           </motion.div>
 
+          {mostrarAbas && (
+            <motion.div
+              className="flex items-center justify-center gap-2 flex-wrap mb-8"
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <button
+                onClick={() => setActiveCategoria("todos")}
+                className={`px-4 py-1.5 text-sm border transition ${
+                  activeCategoria === "todos"
+                    ? "border-[#C9A84C] text-[#C9A84C] bg-[#C9A84C]/10"
+                    : "border-[#C9A84C]/20 text-[#F5E6C8]/50 hover:border-[#C9A84C]/50 hover:text-[#F5E6C8]/80"
+                }`}
+              >
+                Todos
+              </button>
+              {categoriasComItens.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategoria(cat.id)}
+                  className={`px-4 py-1.5 text-sm border transition ${
+                    activeCategoria === cat.id
+                      ? "border-[#C9A84C] text-[#C9A84C] bg-[#C9A84C]/10"
+                      : "border-[#C9A84C]/20 text-[#F5E6C8]/50 hover:border-[#C9A84C]/50 hover:text-[#F5E6C8]/80"
+                  }`}
+                >
+                  {cat.nome}
+                </button>
+              ))}
+            </motion.div>
+          )}
+
           {/* desktop: grid */}
           <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {items.map((item, idx) => {
+            {itensFiltrados.map((item, idx) => {
               const desc = descontos?.get(item.id);
               const precoOrig = item.preco;
               const precoFinal = desc && precoOrig && !precoOrig.startsWith("A")
@@ -154,7 +202,7 @@ export default function Servicos({ items, descontos }: ServicosProps) {
 
           {/* mobile: cards empilhados */}
           <div className="md:hidden flex flex-col gap-3">
-            {items.map((item, idx) => {
+            {itensFiltrados.map((item, idx) => {
               const desc = descontos?.get(item.id);
               const precoOrig = item.preco;
               const precoFinal = desc && precoOrig && !precoOrig.startsWith("A")

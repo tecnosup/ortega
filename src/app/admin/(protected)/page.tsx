@@ -7,7 +7,7 @@ import Link from "next/link";
 import {
   Scissors, DollarSign, CalendarCheck, TrendingUp,
   ChevronLeft, ChevronRight, AlertTriangle, Bell,
-  Clock, CreditCard, X, CheckCircle2, AlertCircle,
+  Clock, CreditCard, X, CheckCircle2, AlertCircle, ExternalLink,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { Agendamento, FechamentoDia } from "@/lib/agendamentos-types";
@@ -207,28 +207,9 @@ export default function AdminDashboard() {
   fechamentos.forEach((f) => { f.agendamentos.forEach((a) => { if (!contadorServicos[a.servico]) contadorServicos[a.servico] = { quantidade: 0, total: 0 }; contadorServicos[a.servico].quantidade++; contadorServicos[a.servico].total += parsePriceNum(a.preco); }); });
   const rankServicos = Object.entries(contadorServicos).sort((a, b) => b[1].quantidade - a[1].quantidade).slice(0, 5);
 
-  // Alertas — locais + financeiros do hook
+  // Alertas locais (agendamentos) — notificações financeiras ficam no banner separado
   const alertas = (() => {
     const lista = calcularAlertas(agendamentos, gastos, fechamentos);
-    const hoje_str = toDateKey(new Date());
-    notif.caixasAbertosLista.forEach((data) => {
-      if (data !== hoje_str) {
-        lista.push({
-          id: `caixa_retro_${data}`,
-          nivel: "vermelho" as const,
-          mensagem: `Caixa retroativo em aberto — ${new Date(data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}`,
-          href: `/admin/financeiro?dia=${data}#caixa`,
-        });
-      }
-    });
-    notif.vencimentosLista.forEach((v) => {
-      lista.push({
-        id: `venc_${v.data}_${v.descricao}`,
-        nivel: v.dias === 0 ? "laranja" as const : "amarelo" as const,
-        mensagem: `Gasto "${v.descricao}" vence ${v.dias === 0 ? "hoje" : `em ${v.dias}d`} — ${new Date(v.data + "T12:00:00").toLocaleDateString("pt-BR")}`,
-        href: "/admin/financeiro",
-      });
-    });
     const ordem: Record<string, number> = { vermelho: 0, laranja: 1, amarelo: 2, azul: 3 };
     return lista.sort((a, b) => ordem[a.nivel] - ordem[b.nivel]).filter((a) => !alertasDismissed.has(a.id));
   })();
@@ -249,7 +230,55 @@ export default function AdminDashboard() {
         </Link>
       </div>
 
-      {/* ── ALERTAS ─────────────────────────────────────────────────────────── */}
+      {/* ── ALERTAS FINANCEIROS (mesmo estilo do financeiro) ─────────────────── */}
+      {notif.financeiro > 0 && (
+        <div className="flex flex-col gap-1.5">
+          {notif.caixasAbertos > 0 && (
+            <div className="bg-red-950/40 border border-red-800/50 rounded-lg px-3.5 py-2.5 flex items-center gap-2 flex-wrap">
+              <AlertTriangle size={13} className="text-red-400 shrink-0" />
+              <span className="text-xs font-semibold text-red-300 shrink-0">
+                {notif.caixasAbertos} caixa{notif.caixasAbertos > 1 ? "s" : ""} retroativo{notif.caixasAbertos > 1 ? "s" : ""} em aberto
+              </span>
+              {notif.caixasAbertosLista.map((data) => (
+                <Link key={data} href={`/admin/financeiro?dia=${data}#caixa`}
+                  className="text-[10px] font-medium text-red-300/80 border border-red-800/40 rounded px-2 py-0.5 hover:border-red-500/60 hover:text-red-300 transition capitalize">
+                  {new Date(data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}
+                </Link>
+              ))}
+            </div>
+          )}
+          {notif.vencimentos > 0 && (
+            <div className="bg-amber-950/30 border border-amber-700/40 rounded-lg p-3.5 flex flex-col gap-2.5">
+              <div className="flex items-center gap-2">
+                <Bell size={13} className="text-amber-400 shrink-0" />
+                <span className="text-xs font-semibold text-amber-300">
+                  {notif.vencimentos} vencimento{notif.vencimentos > 1 ? "s" : ""} próximo{notif.vencimentos > 1 ? "s" : ""}
+                </span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {notif.vencimentosLista.map((v) => (
+                  <div key={v.id} className="flex items-center justify-between gap-2 pl-4 border-l border-amber-700/30">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-amber-300/90">{v.descricao}</p>
+                      <p className="text-[10px] text-amber-300/60">
+                        {v.dias === 0 ? "Vence hoje" : v.dias < 0 ? `Vencido há ${Math.abs(v.dias)}d` : `Vence em ${v.dias}d`}
+                        {" · "}{new Date(v.data + "T12:00:00").toLocaleDateString("pt-BR")}
+                        {" · "}R$ {v.valor.toFixed(2).replace(".", ",")}
+                      </p>
+                    </div>
+                    <Link href="/admin/financeiro"
+                      className="text-[10px] font-bold tracking-widest uppercase shrink-0 px-2.5 py-1 bg-amber-800/30 border border-amber-700/40 text-amber-300 rounded hover:bg-amber-800/50 transition flex items-center gap-1">
+                      <ExternalLink size={9} /> Ver no financeiro
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── ALERTAS DE AGENDAMENTOS ──────────────────────────────────────────── */}
       {alertas.length > 0 && (
         <div className="flex flex-col gap-2">
           {alertas.map((alerta) => {

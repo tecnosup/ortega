@@ -31,6 +31,18 @@ input, textarea, select {
   font-size: 16px;
 }
 
+/* Selects sempre no modo escuro */
+select {
+  background-color: #0A0A0A;
+  color: #F5E6C8;
+  color-scheme: dark;
+}
+
+select option {
+  background-color: #141414;
+  color: #F5E6C8;
+}
+
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;
