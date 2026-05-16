@@ -37,7 +37,7 @@ export default function NovoItemPage() {
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Título *</label>
-          <input name="titulo" required placeholder="ex: Corte degradê" className={inp} />
+          <input name="titulo" required placeholder="ex: Corte degradê" spellCheck={false} className={inp} />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Descrição</label>
@@ -51,24 +51,19 @@ export default function NovoItemPage() {
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Preço</label>
-          <input name="preco" placeholder="ex: 55 ou A partir de R$ 120" className={inp} />
+          <input name="preco" placeholder="ex: 55 ou A partir de R$ 120" spellCheck={false} className={inp} />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Duração</label>
-          <input name="duracao" placeholder="ex: 45 min" className={inp} />
+          <input name="duracao" placeholder="ex: 45 min" spellCheck={false} className={inp} />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Status</label>
-          <select name="status" defaultValue="draft" className={inp}>
+          <select name="status" defaultValue="draft" spellCheck={false} className={inp}>
             <option value="draft">Rascunho</option>
             <option value="published">Publicado</option>
           </select>
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-400">Ordem</label>
-          <input name="order" type="number" defaultValue={0} className={inp} />
-        </div>
-
         {state && !state.ok && (
           <p className="text-sm text-red-400">{state.error}</p>
         )}

@@ -61,12 +61,12 @@ export default function ProdutoForm({ action, produto, categorias, submitLabel }
 
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium text-gray-400">Nome *</label>
-        <input name="titulo" required defaultValue={produto?.titulo} placeholder="ex: Pomada Modeladora" className={inp} style={{ fontSize: 16 }} />
+        <input name="titulo" required defaultValue={produto?.titulo} placeholder="ex: Pomada Modeladora" className={inp} style={{ fontSize: 16 }} spellCheck={false} />
       </div>
 
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium text-gray-400">Descrição</label>
-        <textarea name="descricao" rows={3} defaultValue={produto?.descricao} placeholder="Descrição do produto..." className={`${inp} resize-none`} style={{ fontSize: 16 }} />
+        <textarea name="descricao" rows={3} defaultValue={produto?.descricao} placeholder="Descrição do produto..." className={`${inp} resize-none`} style={{ fontSize: 16 }} spellCheck={false} />
       </div>
 
       <div className="flex flex-col gap-1">
@@ -92,13 +92,13 @@ export default function ProdutoForm({ action, produto, categorias, submitLabel }
             placeholder="0,00"
             inputMode="numeric"
             className={inp}
-            style={{ fontSize: 16 }}
+            style={{ fontSize: 16 }} spellCheck={false}
           />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Categoria</label>
-          <select name="categoriaId" defaultValue={produto?.categoriaId ?? ""} className={inp} style={{ fontSize: 16 }}>
+          <select name="categoriaId" defaultValue={produto?.categoriaId ?? ""} className={inp} style={{ fontSize: 16 }} spellCheck={false}>
             <option value="">Sem categoria</option>
             {categorias.map((cat) => (
               <option key={cat.id} value={cat.id}>{cat.nome}</option>
@@ -110,29 +110,23 @@ export default function ProdutoForm({ action, produto, categorias, submitLabel }
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Estoque atual</label>
-          <input name="estoque" type="number" min={0} defaultValue={produto?.estoque ?? 0} className={inp} style={{ fontSize: 16 }} />
+          <input name="estoque" type="number" min={0} defaultValue={produto?.estoque ?? 0} className={inp} style={{ fontSize: 16 }} spellCheck={false} />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Estoque mínimo</label>
-          <input name="estoqueMinimo" type="number" min={0} defaultValue={produto?.estoqueMinimo ?? 5} className={inp} style={{ fontSize: 16 }} />
+          <input name="estoqueMinimo" type="number" min={0} defaultValue={produto?.estoqueMinimo ?? 5} className={inp} style={{ fontSize: 16 }} spellCheck={false} />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-400">Status</label>
-          <select name="status" defaultValue={produto?.status ?? "draft"} className={inp} style={{ fontSize: 16 }}>
-            <option value="draft">Rascunho</option>
-            <option value="published">Publicado</option>
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-400">Ordem</label>
-          <input name="order" type="number" defaultValue={produto?.order ?? 0} className={inp} style={{ fontSize: 16 }} />
-        </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-medium text-gray-400">Status</label>
+        <select name="status" defaultValue={produto?.status ?? "draft"} className={inp} style={{ fontSize: 16 }} spellCheck={false}>
+          <option value="draft">Rascunho</option>
+          <option value="published">Publicado</option>
+        </select>
       </div>
+      <input type="hidden" name="order" value={produto?.order ?? 0} />
 
       {state && !state.ok && (
         <p className="text-sm text-red-400">{state.error}</p>

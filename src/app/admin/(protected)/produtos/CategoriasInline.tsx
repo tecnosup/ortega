@@ -67,7 +67,7 @@ export default function CategoriasInline({ categorias: initial }: { categorias: 
               onKeyDown={(e) => e.key === "Enter" && handleCriar()}
               placeholder="Ex: Pomadas, Shampoos…"
               className={inp}
-              style={{ fontSize: 16 }}
+              style={{ fontSize: 16 }} spellCheck={false}
             />
             <button
               onClick={handleCriar}

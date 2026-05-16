@@ -58,7 +58,7 @@ export default function EditarItemPage() {
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Título *</label>
-          <input name="titulo" required defaultValue={item.titulo} className={inp} />
+          <input name="titulo" required defaultValue={item.titulo} spellCheck={false} className={inp} />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Descrição</label>
@@ -72,24 +72,19 @@ export default function EditarItemPage() {
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Preço</label>
-          <input name="preco" defaultValue={item.preco} className={inp} />
+          <input name="preco" defaultValue={item.preco} spellCheck={false} className={inp} />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Duração</label>
-          <input name="duracao" defaultValue={item.duracao} className={inp} />
+          <input name="duracao" defaultValue={item.duracao} spellCheck={false} className={inp} />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Status</label>
-          <select name="status" defaultValue={item.status} className={inp}>
+          <select name="status" defaultValue={item.status} spellCheck={false} className={inp}>
             <option value="draft">Rascunho</option>
             <option value="published">Publicado</option>
           </select>
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-400">Ordem</label>
-          <input name="order" type="number" defaultValue={item.order} className={inp} />
-        </div>
-
         {state && !state.ok && (
           <p className="text-sm text-red-400">{state.error}</p>
         )}

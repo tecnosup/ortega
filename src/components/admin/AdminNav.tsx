@@ -17,17 +17,17 @@ const links = [
   { href: "/admin",               label: "Dashboard",    icon: LayoutDashboard, badge: null as "agendamentos" | "financeiro" | null },
   { href: "/admin/agendamentos",  label: "Agendamentos", icon: CalendarCheck,   badge: "agendamentos" as const },
   { href: "/admin/financeiro",    label: "Financeiro",   icon: TrendingUp,      badge: "financeiro" as const },
+  { href: "/admin/produtos",      label: "Produtos",     icon: ShoppingBag,     badge: null },
+  { href: "/admin/itens",         label: "Serviços",     icon: Scissors,        badge: null },
   { href: "/admin/barbeiros",     label: "Funcionários", icon: Users,           badge: null },
   { href: "/admin/comissoes",     label: "Comissões",    icon: DollarSign,      badge: null },
   { href: "/admin/assinantes",    label: "Assinantes",   icon: CreditCard,      badge: null },
-  { href: "/admin/itens",         label: "Serviços",     icon: Scissors,        badge: null },
-  { href: "/admin/produtos",      label: "Produtos",     icon: ShoppingBag,     badge: null },
-  { href: "/admin/descontos",     label: "Descontos",    icon: Tag,             badge: null },
+  { href: "/admin/descontos",     label: "Cupons",       icon: Tag,             badge: null },
   { href: "/admin/vitrine",       label: "Vitrine",      icon: Star,            badge: null },
   { href: "/admin/auditoria",     label: "Auditoria",    icon: ClipboardList,   badge: null },
 ];
 
-const bottomLinks = [links[0], links[1], links[2], links[7]]; // Dashboard, Agendamentos, Financeiro, Produtos
+const bottomLinks = [links[0], links[1], links[2], links[3]]; // Dashboard, Agendamentos, Financeiro, Produtos
 
 function BadgeDot({ count, urgencia }: { count: number; urgencia: "normal" | "atencao" | "critico" }) {
   if (count <= 0) return null;

@@ -362,7 +362,7 @@ export default function FuncionariosPage() {
                 onKeyDown={(e) => e.key === "Enter" && handleCriarTipo()}
                 placeholder="Ex: Barbeiro, Manicure…"
                 className={inp}
-                style={{ fontSize: 16 }}
+                style={{ fontSize: 16 }} spellCheck={false}
               />
               <button
                 onClick={handleCriarTipo}
@@ -387,7 +387,7 @@ export default function FuncionariosPage() {
                           onChange={(e) => setTipoEditNome(e.target.value)}
                           onKeyDown={(e) => e.key === "Enter" && handleSalvarTipoEdit()}
                           className="flex-1 bg-transparent text-sm text-[#F5E6C8] focus:outline-none"
-                          autoFocus
+                          autoFocus spellCheck={false}
                         />
                         <button onClick={handleSalvarTipoEdit} className="text-green-400 hover:text-green-300 transition"><Check size={14} /></button>
                         <button onClick={() => setTipoEditId(null)} className="text-gray-500 hover:text-white transition"><X size={14} /></button>
@@ -562,7 +562,7 @@ export default function FuncionariosPage() {
                 <input
                   type="email" value={contaForm.email}
                   onChange={(e) => setContaForm((f) => ({ ...f, email: e.target.value }))}
-                  className={inp} placeholder="funcionario@email.com" style={{ fontSize: 16 }}
+                  className={inp} placeholder="funcionario@email.com" style={{ fontSize: 16 }} spellCheck={false}
                 />
               </label>
               <label className="flex flex-col gap-1.5">
@@ -570,7 +570,7 @@ export default function FuncionariosPage() {
                 <input
                   type="password" value={contaForm.senha}
                   onChange={(e) => setContaForm((f) => ({ ...f, senha: e.target.value }))}
-                  className={inp} placeholder="••••••" style={{ fontSize: 16 }}
+                  className={inp} placeholder="••••••" style={{ fontSize: 16 }} spellCheck={false}
                 />
               </label>
             </div>
@@ -627,33 +627,33 @@ export default function FuncionariosPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="flex flex-col gap-1.5 sm:col-span-2">
                   <span className="text-xs text-gray-400 font-medium">Nome completo *</span>
-                  <input value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))} className={inp} placeholder="Ex: João Silva" style={{ fontSize: 16 }} />
+                  <input value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))} className={inp} placeholder="Ex: João Silva" style={{ fontSize: 16 }} spellCheck={false} />
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className="text-xs text-gray-400 font-medium">Apelido</span>
-                  <input value={form.apelido} onChange={(e) => setForm((f) => ({ ...f, apelido: e.target.value }))} className={inp} placeholder="Ex: João" style={{ fontSize: 16 }} />
+                  <input value={form.apelido} onChange={(e) => setForm((f) => ({ ...f, apelido: e.target.value }))} className={inp} placeholder="Ex: João" style={{ fontSize: 16 }} spellCheck={false} />
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className="text-xs text-gray-400 font-medium">Telefone</span>
-                  <input value={form.telefone} onChange={(e) => setForm((f) => ({ ...f, telefone: maskTel(e.target.value) }))} className={inp} placeholder="(11) 99999-9999" inputMode="numeric" style={{ fontSize: 16 }} />
+                  <input value={form.telefone} onChange={(e) => setForm((f) => ({ ...f, telefone: maskTel(e.target.value) }))} className={inp} placeholder="(11) 99999-9999" inputMode="numeric" style={{ fontSize: 16 }} spellCheck={false} />
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className="text-xs text-gray-400 font-medium">CPF</span>
-                  <input value={form.cpf} onChange={(e) => setForm((f) => ({ ...f, cpf: maskCpf(e.target.value) }))} className={inp} placeholder="000.000.000-00" inputMode="numeric" style={{ fontSize: 16 }} />
+                  <input value={form.cpf} onChange={(e) => setForm((f) => ({ ...f, cpf: maskCpf(e.target.value) }))} className={inp} placeholder="000.000.000-00" inputMode="numeric" style={{ fontSize: 16 }} spellCheck={false} />
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className="text-xs text-gray-400 font-medium">Data de nascimento</span>
-                  <input type="date" value={form.dataNascimento} onChange={(e) => setForm((f) => ({ ...f, dataNascimento: e.target.value }))} className={inp} style={{ fontSize: 16 }} />
+                  <input type="date" value={form.dataNascimento} onChange={(e) => setForm((f) => ({ ...f, dataNascimento: e.target.value }))} className={inp} style={{ fontSize: 16 }} spellCheck={false} />
                 </label>
                 <label className="flex flex-col gap-1.5 sm:col-span-2">
                   <span className="text-xs text-gray-400 font-medium">Endereço</span>
-                  <input value={form.endereco} onChange={(e) => setForm((f) => ({ ...f, endereco: e.target.value }))} className={inp} placeholder="Rua, número, bairro" style={{ fontSize: 16 }} />
+                  <input value={form.endereco} onChange={(e) => setForm((f) => ({ ...f, endereco: e.target.value }))} className={inp} placeholder="Rua, número, bairro" style={{ fontSize: 16 }} spellCheck={false} />
                 </label>
               </div>
 
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-gray-400 font-medium">Tipo</span>
-                <select value={form.tipo} onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value }))} className={inp} style={{ fontSize: 16 }}>
+                <select value={form.tipo} onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value }))} className={inp} style={{ fontSize: 16 }} spellCheck={false}>
                   <option value="">Sem tipo</option>
                   {categorias.map((c) => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                 </select>
@@ -661,7 +661,7 @@ export default function FuncionariosPage() {
 
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-gray-400 font-medium">Comissão geral (%)</span>
-                <input type="number" min={0} max={100} value={form.comissao} onChange={(e) => setForm((f) => ({ ...f, comissao: e.target.value }))} className={inp} placeholder="40" style={{ fontSize: 16 }} />
+                <input type="number" min={0} max={100} value={form.comissao} onChange={(e) => setForm((f) => ({ ...f, comissao: e.target.value }))} className={inp} placeholder="40" style={{ fontSize: 16 }} spellCheck={false} />
               </label>
 
               {itens.length > 0 && (

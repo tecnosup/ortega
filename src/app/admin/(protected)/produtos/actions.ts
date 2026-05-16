@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createProduto, updateProduto, deleteProduto, getProdutoById } from "@/lib/admin-produtos";
+import { criarMovimentacao } from "@/lib/estoque-movimentacoes";
 import { logAudit } from "@/lib/audit";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { cookies } from "next/headers";
@@ -42,6 +43,15 @@ export async function createProdutoAction(
   try {
     const actor = await getActor();
     const id = await createProduto(parsed.data);
+    if (parsed.data.estoque > 0) {
+      await criarMovimentacao({
+        produtoId: id,
+        produtoNome: parsed.data.titulo,
+        tipo: "reposicao",
+        quantidade: parsed.data.estoque,
+        obs: "Estoque inicial",
+      });
+    }
     await logAudit({
       ...actor,
       action: "produto.create",
@@ -82,12 +92,17 @@ export async function updateProdutoAction(
   redirect("/admin/produtos");
 }
 
-export async function deleteProdutoAction(formData: FormData) {
+export async function deleteProdutoAction(formData: FormData): Promise<{ ok: boolean; error?: string }> {
   const id = formData.get("id") as string;
+  let before: Awaited<ReturnType<typeof getProdutoById>> = null;
+  try {
+    before = await getProdutoById(id);
+    await deleteProduto(id);
+  } catch {
+    return { ok: false, error: "Erro ao remover produto" };
+  }
   try {
     const actor = await getActor();
-    const before = await getProdutoById(id);
-    await deleteProduto(id);
     await logAudit({
       ...actor,
       action: "produto.delete",
@@ -97,10 +112,8 @@ export async function deleteProdutoAction(formData: FormData) {
       snapshot: before ?? undefined,
       snapshotAntes: before ?? undefined,
     });
-  } catch {
-    // silencia erro de delete
-  }
-  redirect("/admin/produtos");
+  } catch { /* auditoria não bloqueia a operação */ }
+  return { ok: true };
 }
 
 export async function toggleStatusAction(formData: FormData): Promise<{ ok: boolean; error?: string }> {

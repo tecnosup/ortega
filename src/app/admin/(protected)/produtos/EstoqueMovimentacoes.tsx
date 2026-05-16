@@ -127,7 +127,7 @@ function NovaMovimentacaoModal({
               onChange={(e) => setQuantidade(e.target.value)}
               placeholder="0"
               className={inp}
-              style={{ fontSize: 16 }}
+              style={{ fontSize: 16 }} spellCheck={false}
             />
           </div>
 
@@ -139,7 +139,7 @@ function NovaMovimentacaoModal({
               onChange={(e) => setObs(e.target.value)}
               placeholder="Ex: Venda no caixa, Reposição fornecedor..."
               className={inp}
-              style={{ fontSize: 16 }}
+              style={{ fontSize: 16 }} spellCheck={false}
             />
           </div>
         </div>
