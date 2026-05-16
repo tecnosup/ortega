@@ -52,7 +52,7 @@ function StatusToggle({ produto }: { produto: Produto }) {
   );
 }
 
-function DeleteModal({ produto, onClose }: { produto: Produto; onClose: () => void }) {
+function DeleteModal({ produto, onClose, onDeleted }: { produto: Produto; onClose: () => void; onDeleted: (id: string) => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,10 +60,11 @@ function DeleteModal({ produto, onClose }: { produto: Produto; onClose: () => vo
     setLoading(true);
     const fd = new FormData();
     fd.append("id", produto.id);
-    try {
-      await deleteProdutoAction(fd);
-    } catch {
-      setError("Erro ao remover produto");
+    const result = await deleteProdutoAction(fd);
+    if (result.ok) {
+      onDeleted(produto.id);
+    } else {
+      setError(result.error ?? "Erro ao remover produto");
       setLoading(false);
     }
   }
@@ -72,10 +73,10 @@ function DeleteModal({ produto, onClose }: { produto: Produto; onClose: () => vo
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-sm p-6 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3">
-          {produto.imagem && <img src={produto.imagem} alt={produto.titulo} className="w-12 h-12 object-cover rounded border border-[#2d2d2d] shrink-0" />}
+          {produto.imagem && <img src={produto.imagem} alt={produto.titulo} className="w-12 h-12 object-cover rounded border border-[#2d2d2d] shrink-0" loading="lazy" />}
           <div>
-            <h2 className="text-[#F5E6C8] font-semibold">Remover produto?</h2>
-            <p className="text-sm text-gray-400 mt-0.5">"{produto.titulo}" será removido permanentemente.</p>
+            <h2 className="text-[#F5E6C8] font-semibold">Remover "{produto.titulo}"?</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Esta ação é irreversível e não pode ser desfeita.</p>
           </div>
         </div>
         {error && <p className="text-xs text-red-400">{error}</p>}
@@ -90,7 +91,7 @@ function DeleteModal({ produto, onClose }: { produto: Produto; onClose: () => vo
   );
 }
 
-function SortableRow({ produto, categoriaMap, onDelete }: { produto: Produto; categoriaMap: Map<string, string>; onDelete: (p: Produto) => void }) {
+function SortableRow({ produto, onDelete }: { produto: Produto; onDelete: (p: Produto) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: produto.id });
 
   const style = {
@@ -99,29 +100,27 @@ function SortableRow({ produto, categoriaMap, onDelete }: { produto: Produto; ca
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const categoriaNome = produto.categoriaId ? categoriaMap.get(produto.categoriaId) : null;
-
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 px-4 py-3 hover:bg-[#151515] transition border-b border-[#1a1a1a] last:border-0"
+      className="flex items-center gap-3 px-3 py-3 hover:bg-[#151515] transition border-b border-[#1a1a1a] last:border-0"
     >
-      <button {...attributes} {...listeners} className="text-gray-700 hover:text-gray-400 transition cursor-grab active:cursor-grabbing shrink-0">
+      <button {...attributes} {...listeners} className="text-gray-700 hover:text-gray-400 transition cursor-grab active:cursor-grabbing shrink-0 touch-none">
         <GripVertical size={16} />
       </button>
 
-      <div className="w-14 h-14 shrink-0 rounded border border-[#2d2d2d] overflow-hidden bg-[#1a1a1a] flex items-center justify-center">
+      <div className="w-12 h-12 shrink-0 rounded border border-[#2d2d2d] overflow-hidden bg-[#1a1a1a] flex items-center justify-center">
         {produto.imagem ? (
-          <img src={produto.imagem} alt={produto.titulo} className="w-full h-full object-cover" />
+          <img src={produto.imagem} alt={produto.titulo} className="w-full h-full object-cover" loading="lazy" />
         ) : (
-          <ShoppingBag size={20} className="text-[#2d2d2d]" />
+          <ShoppingBag size={18} className="text-[#2d2d2d]" />
         )}
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="font-semibold text-[#F5E6C8] text-sm truncate">{produto.titulo}</p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <p className="font-semibold text-[#F5E6C8] text-sm sm:truncate line-clamp-2 sm:line-clamp-1">{produto.titulo}</p>
           {produto.estoque !== undefined && produto.estoque <= (produto.estoqueMinimo ?? 5) && (
             <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-red-950 border border-red-800 text-red-400 font-medium">Estoque baixo</span>
           )}
@@ -129,11 +128,27 @@ function SortableRow({ produto, categoriaMap, onDelete }: { produto: Produto; ca
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
           {produto.preco && <span className="text-xs text-[#b8944a]">R$ {produto.preco}</span>}
           {produto.estoque !== undefined && <span className="text-xs text-gray-600">· {produto.estoque} un.</span>}
-          {categoriaNome && <span className="text-xs text-gray-600">· {categoriaNome}</span>}
+        </div>
+        {/* Ações no mobile ficam abaixo do nome */}
+        <div className="flex items-center gap-1.5 mt-2 sm:hidden">
+          <StatusToggle produto={produto} />
+          <Link
+            href={`/admin/produtos/${produto.id}/editar`}
+            className="flex items-center gap-1 px-2 py-1 border border-[#2d2d2d] text-gray-400 text-xs rounded hover:border-[#b8944a] hover:text-[#b8944a] transition"
+          >
+            <Edit2 size={11} /> Editar
+          </Link>
+          <button
+            onClick={() => onDelete(produto)}
+            className="flex items-center px-2 py-1 border border-[#2d2d2d] text-gray-500 text-xs rounded hover:border-red-700 hover:text-red-400 transition"
+          >
+            <Trash2 size={11} />
+          </button>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
+      {/* Ações no desktop ficam à direita */}
+      <div className="hidden sm:flex items-center gap-2 shrink-0">
         <StatusToggle produto={produto} />
         <Link
           href={`/admin/produtos/${produto.id}/editar`}
@@ -161,46 +176,102 @@ export default function ProdutosList({ produtos: initial, categorias }: { produt
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+  const handleDragEndForGroup = useCallback(async (event: DragEndEvent, groupIds: string[]) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const oldIndex = produtos.findIndex((p) => p.id === active.id);
-    const newIndex = produtos.findIndex((p) => p.id === over.id);
-    const reordered = arrayMove(produtos, oldIndex, newIndex);
-    setProdutos(reordered);
+    const oldIndex = groupIds.indexOf(active.id as string);
+    const newIndex = groupIds.indexOf(over.id as string);
+    const reorderedGroupIds = arrayMove(groupIds, oldIndex, newIndex);
 
+    // Reconstrói a lista global substituindo os itens do grupo na posição correta
+    const reordered = produtos.map((p) => {
+      const pos = reorderedGroupIds.indexOf(p.id);
+      return pos !== -1 ? { ...p, _newOrder: pos } : p;
+    });
+    // Mantém a ordem relativa dos outros grupos e reposiciona os do grupo arrastado
+    const groupSet = new Set(groupIds);
+    const others = reordered.filter((p) => !groupSet.has(p.id));
+    const groupReordered = reorderedGroupIds.map((id) => produtos.find((p) => p.id === id)!);
+
+    // Intercala de volta na posição original do grupo
+    const firstGroupIndex = produtos.findIndex((p) => groupSet.has(p.id));
+    const final = [...produtos];
+    let gi = 0;
+    for (let i = firstGroupIndex; i < final.length && gi < groupReordered.length; i++) {
+      if (groupSet.has(final[i].id)) {
+        final[i] = groupReordered[gi++];
+      }
+    }
+
+    setProdutos(final);
     setSaving(true);
-    await reorderProdutosAction(reordered.map((p) => p.id));
+    await reorderProdutosAction(final.map((p) => p.id));
     setSaving(false);
   }, [produtos]);
 
+  function handleDeleted(id: string) {
+    setProdutos((prev) => prev.filter((p) => p.id !== id));
+    setDeleteTarget(null);
+  }
+
   if (produtos.length === 0) return <p className="text-gray-500 text-sm">Nenhum produto cadastrado.</p>;
+
+  // Agrupar por categoria mantendo a ordem global
+  const grupos: { categoriaId: string | null; nome: string; itens: Produto[] }[] = [];
+  const visto = new Set<string | null>();
+
+  for (const p of produtos) {
+    const cid = p.categoriaId ?? null;
+    if (!visto.has(cid)) {
+      visto.add(cid);
+      grupos.push({
+        categoriaId: cid,
+        nome: cid ? (categoriaMap.get(cid) ?? "Sem categoria") : "Sem categoria",
+        itens: [],
+      });
+    }
+    grupos.find((g) => g.categoriaId === cid)!.itens.push(p);
+  }
 
   return (
     <>
       {deleteTarget && (
-        <DeleteModal produto={deleteTarget} onClose={() => setDeleteTarget(null)} />
+        <DeleteModal produto={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={handleDeleted} />
       )}
 
       {saving && (
         <p className="text-xs text-gray-500 text-right -mb-2">Salvando ordem...</p>
       )}
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={produtos.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-          <div className="bg-[#111] border border-[#2d2d2d] rounded-lg overflow-hidden">
-            {produtos.map((produto) => (
-              <SortableRow
-                key={produto.id}
-                produto={produto}
-                categoriaMap={categoriaMap}
-                onDelete={setDeleteTarget}
-              />
-            ))}
+      <div className="flex flex-col gap-4">
+            {grupos.map((grupo) => {
+              const groupIds = grupo.itens.map((p) => p.id);
+              return (
+              <div key={grupo.categoriaId ?? "__sem__"} className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 px-1">
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-[#b8944a]">
+                    {grupo.nome}
+                  </span>
+                  <span className="text-[10px] text-gray-600">{grupo.itens.length} produto{grupo.itens.length !== 1 ? "s" : ""}</span>
+                </div>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEndForGroup(e, groupIds)}>
+                  <SortableContext items={groupIds} strategy={verticalListSortingStrategy}>
+                    <div className="bg-[#111] border border-[#2d2d2d] rounded-lg overflow-hidden">
+                      {grupo.itens.map((produto) => (
+                        <SortableRow
+                          key={produto.id}
+                          produto={produto}
+                          onDelete={setDeleteTarget}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </div>
+            );
+            })}
           </div>
-        </SortableContext>
-      </DndContext>
     </>
   );
 }

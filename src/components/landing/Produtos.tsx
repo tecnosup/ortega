@@ -66,7 +66,7 @@ function ProdutoModal({
         </button>
 
         {produto.imagem ? (
-          <img src={produto.imagem} alt={produto.titulo} className="w-full h-56 object-cover" />
+          <img src={produto.imagem} alt={produto.titulo} className="w-full h-56 object-cover" loading="lazy" />
         ) : (
           <div className="w-full h-56 bg-[#1a1a1a] flex items-center justify-center">
             <ShoppingBag size={48} className="text-[#C9A84C]/20" />
@@ -232,7 +232,7 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
                   )}
                   <div className="relative overflow-hidden bg-[#1a1a1a]" style={{ aspectRatio: "3/4" }}>
                     {produto.imagem ? (
-                      <img src={produto.imagem} alt={produto.titulo} className="w-full h-full object-cover" />
+                      <img src={produto.imagem} alt={produto.titulo} className="w-full h-full object-cover" loading="lazy" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-[#C9A84C]/15">
                         <ShoppingBag size={32} />

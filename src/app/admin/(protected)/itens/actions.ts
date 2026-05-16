@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createItem, updateItem, deleteItem, getItemById } from "@/lib/admin-items";
 import { logAudit } from "@/lib/audit";
-import { adminAuth } from "@/lib/firebase-admin";
+import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { cookies } from "next/headers";
 
 const schema = z.object({
@@ -63,6 +63,20 @@ export async function updateItemAction(
     return { ok: false, error: "Erro ao atualizar. Tente novamente." };
   }
   redirect("/admin/itens");
+}
+
+export async function reorderItensAction(ids: string[]): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const db = adminDb;
+    const batch = db.batch();
+    ids.forEach((id, index) => {
+      batch.update(db.collection("servicos").doc(id), { order: index, updatedAt: Date.now() });
+    });
+    await batch.commit();
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Erro ao reordenar" };
+  }
 }
 
 export async function deleteItemAction(formData: FormData) {

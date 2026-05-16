@@ -60,7 +60,7 @@ export default function EditarDescontoPage() {
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Tipo</label>
-          <select name="tipo" value={tipo} onChange={(e) => { setTipo(e.target.value as "item" | "produto"); setEntityId(""); }} className={inp}>
+          <select name="tipo" value={tipo} onChange={(e) => { setTipo(e.target.value as "item" | "produto"); setEntityId(""); }} spellCheck={false} className={inp}>
             <option value="item">Serviço</option>
             <option value="produto">Produto</option>
           </select>
@@ -68,7 +68,7 @@ export default function EditarDescontoPage() {
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">{tipo === "item" ? "Serviço" : "Produto"}</label>
-          <select name="entityId" value={entityId} onChange={(e) => setEntityId(e.target.value)} required className={inp}>
+          <select name="entityId" value={entityId} onChange={(e) => setEntityId(e.target.value)} required spellCheck={false} className={inp}>
             <option value="">Selecione...</option>
             {lista.map((e) => <option key={e.id} value={e.id}>{e.titulo}</option>)}
           </select>
@@ -76,22 +76,22 @@ export default function EditarDescontoPage() {
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Desconto (%)</label>
-          <input name="percentual" type="number" min={1} max={100} required defaultValue={desconto.percentual} className={inp} />
+          <input name="percentual" type="number" min={1} max={100} required defaultValue={desconto.percentual} spellCheck={false} className={inp} />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Início</label>
-          <input name="inicioAt" type="datetime-local" required defaultValue={toDatetimeLocal(desconto.inicioAt)} className={inp} />
+          <input name="inicioAt" type="datetime-local" required defaultValue={toDatetimeLocal(desconto.inicioAt)} spellCheck={false} className={inp} />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Fim</label>
-          <input name="fimAt" type="datetime-local" required defaultValue={toDatetimeLocal(desconto.fimAt)} className={inp} />
+          <input name="fimAt" type="datetime-local" required defaultValue={toDatetimeLocal(desconto.fimAt)} spellCheck={false} className={inp} />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Status</label>
-          <select name="ativo" defaultValue={String(desconto.ativo)} className={inp}>
+          <select name="ativo" defaultValue={String(desconto.ativo)} spellCheck={false} className={inp}>
             <option value="true">Ativo</option>
             <option value="false">Inativo</option>
           </select>

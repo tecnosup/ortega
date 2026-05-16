@@ -21,15 +21,13 @@ Antes de qualquer deploy em produção (Vercel), confirme que todas as variávei
 | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Idem |
 | `NEXT_PUBLIC_FIREBASE_APP_ID` | Idem |
 
-## Cloudflare R2 (obrigatório — sem isso upload de imagens não funciona)
+## Cloudinary (obrigatório — sem isso upload de imagens não funciona)
 
 | Variável | Onde encontrar |
 |---|---|
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Dashboard → R2 |
-| `R2_ACCESS_KEY_ID` | Cloudflare Dashboard → R2 → Manage API tokens |
-| `R2_SECRET_ACCESS_KEY` | Idem |
-| `R2_BUCKET_NAME` | Nome do bucket criado no R2 |
-| `R2_PUBLIC_URL` | URL pública do bucket (ex: `https://pub-xxx.r2.dev`) |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary Dashboard → Settings → Account |
+| `CLOUDINARY_API_KEY` | Cloudinary Dashboard → Settings → API Keys |
+| `CLOUDINARY_API_SECRET` | Idem |
 
 ## Outros
 
