@@ -69,7 +69,7 @@ export default function AdminNav() {
 
   const modalAleratasContent = modalAlertas && (
     <div className="fixed inset-0 z-[60] flex items-start justify-start" onClick={() => setModalAlertas(false)}>
-      <div className="md:ml-56 mt-14 md:mt-0 w-full md:w-80 bg-[#141414] border-r border-b border-[#2d2d2d] shadow-2xl h-[calc(100vh-3.5rem)] md:h-screen flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <div className="md:ml-56 md:mt-0 md:h-screen w-full md:w-80 bg-[#141414] border-r border-b border-[#2d2d2d] shadow-2xl flex flex-col" style={{ marginTop: "calc(env(safe-area-inset-top) + 3.5rem)", height: "calc(100dvh - env(safe-area-inset-top) - 3.5rem)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#1e1e1e] shrink-0">
           <div className="flex items-center gap-2">
             <BellRing size={15} className={urgenciaTotal === "critico" ? "text-red-400" : urgenciaTotal === "atencao" ? "text-amber-400" : "text-gray-400"} />
@@ -234,7 +234,7 @@ export default function AdminNav() {
       </aside>
 
       {/* ── MOBILE: topbar ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-b border-[#2d2d2d] flex items-center justify-between px-4 h-14">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-b border-[#2d2d2d] flex items-end justify-between px-4 pb-3 pt-safe" style={{ paddingTop: "max(env(safe-area-inset-top), 0.75rem)" }}>
         <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega</span>
         <Link href="/" className="p-2 text-gray-400 hover:text-[#b8944a] transition" aria-label="Ver site">
           <ExternalLink size={18} />
@@ -242,7 +242,7 @@ export default function AdminNav() {
       </div>
 
       {/* ── MOBILE: bottom navigation bar ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-t border-[#2d2d2d] flex items-stretch h-16 safe-area-inset-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-t border-[#2d2d2d] flex items-stretch pb-safe" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         {bottomLinks.map(({ href, label, icon: Icon, badge }) => {
           const active = pathname === href;
           const { count, urg } = getBadgeInfo(badge);
