@@ -27,6 +27,16 @@
   box-sizing: border-box;
 }
 
+/* PWA safe area utilities */
+.pt-safe { padding-top: env(safe-area-inset-top); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Admin main content area — mobile respects status bar + topbar */
+.admin-main-mobile {
+  padding-top: calc(env(safe-area-inset-top) + 4rem);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 5rem);
+}
+
 input, textarea, select {
   font-size: 16px;
 }
