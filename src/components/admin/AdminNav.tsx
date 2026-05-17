@@ -68,8 +68,8 @@ export default function AdminNav() {
   const urgenciaTotal = caixasAbertos > 0 || pendentes > 0 ? "critico" : vencimentos > 0 ? "atencao" : "normal";
 
   const modalAleratasContent = modalAlertas && (
-    <div className="fixed inset-0 z-50 flex items-start justify-start" onClick={() => setModalAlertas(false)}>
-      <div className="md:ml-56 mt-0 md:mt-0 w-full md:w-80 bg-[#141414] border-r border-b border-[#2d2d2d] shadow-2xl h-screen flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[60] flex items-start justify-start" onClick={() => setModalAlertas(false)}>
+      <div className="md:ml-56 mt-14 md:mt-0 w-full md:w-80 bg-[#141414] border-r border-b border-[#2d2d2d] shadow-2xl h-[calc(100vh-3.5rem)] md:h-screen flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#1e1e1e] shrink-0">
           <div className="flex items-center gap-2">
             <BellRing size={15} className={urgenciaTotal === "critico" ? "text-red-400" : urgenciaTotal === "atencao" ? "text-amber-400" : "text-gray-400"} />
@@ -286,7 +286,7 @@ export default function AdminNav() {
       )}
 
       <aside
-        className={`md:hidden fixed top-0 left-0 z-50 h-full w-72 bg-[#111] border-r border-[#2d2d2d] flex flex-col transition-transform duration-300 ${
+        className={`md:hidden fixed top-0 left-0 z-50 h-full w-72 bg-[#111] border-r border-[#2d2d2d] flex flex-col transition-transform duration-300 overflow-y-auto ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
