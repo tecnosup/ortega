@@ -68,7 +68,7 @@ export default function AdminNav() {
   const urgenciaTotal = caixasAbertos > 0 || pendentes > 0 ? "critico" : vencimentos > 0 ? "atencao" : "normal";
 
   const modalAleratasContent = modalAlertas && (
-    <div className="fixed inset-0 z-[60] flex items-start justify-start" onClick={() => setModalAlertas(false)}>
+    <div className="fixed inset-0 z-[60] flex items-start justify-start bg-black/60 md:bg-transparent" onClick={() => setModalAlertas(false)}>
       <div className="md:ml-56 md:mt-0 md:h-screen w-full md:w-80 bg-[#141414] border-r border-b border-[#2d2d2d] shadow-2xl flex flex-col" style={{ marginTop: "calc(env(safe-area-inset-top) + 3.5rem)", height: "calc(100dvh - env(safe-area-inset-top) - 3.5rem)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#1e1e1e] shrink-0">
           <div className="flex items-center gap-2">
@@ -201,7 +201,7 @@ export default function AdminNav() {
 
       <div className="p-3 border-t border-[#2d2d2d] flex flex-col gap-0.5">
         <button
-          onClick={() => setModalAlertas(true)}
+          onClick={() => { setModalAlertas(true); setOpen(false); }}
           className={`flex items-center gap-3 px-3 py-2.5 text-sm transition w-full rounded-lg ${totalAlertas > 0 ? "text-[#b8944a] hover:bg-[#b8944a]/10" : "text-gray-500 hover:bg-[#1a1a1a]"}`}
         >
           <BellRing size={16} />
