@@ -233,8 +233,11 @@ export default function AdminNav() {
         {sidebarContent}
       </aside>
 
+      {/* ── MOBILE: bloco que tampa a status bar (mesmo fundo da topbar) ── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#111]" style={{ height: "env(safe-area-inset-top, 0px)" }} />
+
       {/* ── MOBILE: topbar ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#111] border-b border-[#2d2d2d] flex items-end justify-between px-4 pb-3" style={{ paddingTop: "calc(var(--sat, env(safe-area-inset-top, 0px)) + 0.5rem)" }}>
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-b border-[#2d2d2d] flex items-end justify-between px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px), 0.75rem)" }}>
         <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega</span>
         <Link href="/" className="p-2 text-gray-400 hover:text-[#b8944a] transition" aria-label="Ver site">
           <ExternalLink size={18} />
@@ -242,7 +245,7 @@ export default function AdminNav() {
       </div>
 
       {/* ── MOBILE: bottom navigation bar ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#111] border-t border-[#2d2d2d] flex items-stretch" style={{ paddingBottom: "calc(var(--sab, env(safe-area-inset-bottom, 0px)) + 0.25rem)" }}>
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-t border-[#2d2d2d] flex items-stretch" style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 0.5rem)" }}>
         {bottomLinks.map(({ href, label, icon: Icon, badge }) => {
           const active = pathname === href;
           const { count, urg } = getBadgeInfo(badge);
