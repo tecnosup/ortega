@@ -75,15 +75,22 @@ function ConfirmacaoConteudo() {
           </p>
         </div>
 
+        <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 w-full text-left">
+          <p className="text-xs text-gray-500 mb-1">Próximo passo</p>
+          <p className="text-sm text-[#F5E6C8]">
+            Acesse sua área do cliente com o e-mail e senha cadastrados para agendar seus cortes.
+          </p>
+        </div>
+
         <div className="flex flex-col gap-3 w-full">
           <a
-            href="/agendamento"
+            href="/cliente/login?msg=conta-criada"
             className="w-full py-3 bg-[#b8944a] text-[#0A0A0A] font-bold rounded-xl hover:bg-[#c9a84c] transition text-center"
           >
-            Agendar agora
+            Entrar na área do cliente
           </a>
-          <a href="/assinatura/minha" className="text-sm text-gray-500 hover:text-[#b8944a] transition">
-            Ver minha assinatura
+          <a href="/" className="text-sm text-gray-500 hover:text-[#b8944a] transition text-center">
+            Voltar para o site
           </a>
         </div>
       </div>

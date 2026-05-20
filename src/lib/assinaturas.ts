@@ -81,6 +81,19 @@ export async function atualizarAssinatura(
   await db.collection(COL).doc(id).update({ ...data, atualizadoEm: Date.now() });
 }
 
+export async function devolverCredito(id: string): Promise<boolean> {
+  const db = getAdminDb();
+  const ref = db.collection(COL).doc(id);
+  return db.runTransaction(async (t) => {
+    const doc = await t.get(ref);
+    if (!doc.exists) return false;
+    const assinatura = doc.data() as Assinatura;
+    const novoTotal = Math.min(assinatura.cortesRestantes + 1, assinatura.planoCortesTotal);
+    t.update(ref, { cortesRestantes: novoTotal, atualizadoEm: Date.now() });
+    return true;
+  });
+}
+
 export async function consumirCredito(id: string): Promise<boolean> {
   const db = getAdminDb();
   const ref = db.collection(COL).doc(id);

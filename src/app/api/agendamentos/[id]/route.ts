@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAgendamento, atualizarAgendamento, excluirAgendamento } from "@/lib/agendamentos";
 import type { AgendamentoStatus } from "@/lib/agendamentos";
 import { getSessionUser, getAdminDb } from "@/lib/firebase-admin";
+import { devolverCredito } from "@/lib/assinaturas";
 
 async function appendLog(id: string, acao: string, adminId: string) {
   const db = getAdminDb();
@@ -39,6 +40,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   await atualizarAgendamento(id, { status: body.status });
   appendLog(id, `status → ${body.status}`, user.uid).catch(() => {});
+
+  // Reembolso de crédito quando barbeiro/admin cancela agendamento coberto por assinatura
+  if (body.status === "cancelado" && ag.cobertoPorAssinatura && ag.assinaturaId) {
+    devolverCredito(ag.assinaturaId).catch(() => {});
+  }
 
   let whatsappLink: string | null = null;
   const dataFormatada = new Date(ag.data + "T12:00:00").toLocaleDateString("pt-BR", {

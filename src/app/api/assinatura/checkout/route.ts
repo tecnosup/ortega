@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { hash } from "bcryptjs";
 import { getStripe, getPlanoPorId } from "@/lib/stripe";
+import { getAdminDb } from "@/lib/firebase-admin";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -9,15 +11,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Muitas tentativas" }, { status: 429 });
   }
 
-  const { planoId, email, nome, telefone } = await req.json() as {
+  const { planoId, email, nome, telefone, senha } = await req.json() as {
     planoId: string;
     email: string;
     nome: string;
     telefone?: string;
+    senha: string;
   };
 
-  if (!planoId || !email || !nome) {
+  if (!planoId || !email || !nome || !senha) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
+  }
+
+  if (String(senha).length < 6) {
+    return NextResponse.json({ error: "A senha deve ter no mínimo 6 caracteres" }, { status: 400 });
   }
 
   const plano = getPlanoPorId(planoId);
@@ -30,6 +37,8 @@ export async function POST(req: NextRequest) {
   const nomeSanitizado = String(nome).slice(0, 100);
   const telefoneSanitizado = telefone ? String(telefone).replace(/\D/g, "").slice(0, 15) : undefined;
 
+  // Salva hash da senha no Firestore temporário — não passa pelo Stripe
+  const senhaHash = await hash(String(senha), 12);
   const origin = req.nextUrl.origin;
   const stripe = getStripe();
 
@@ -57,6 +66,15 @@ export async function POST(req: NextRequest) {
     },
     allow_promotion_codes: true,
     locale: "pt-BR",
+  });
+
+  // Persiste hash temporário associado ao session_id — TTL de 2h via campo expiresAt
+  const db = getAdminDb();
+  await db.collection("assinaturas_pendentes").doc(session.id).set({
+    senhaHash,
+    email: emailSanitizado,
+    criadoEm: Date.now(),
+    expiresAt: Date.now() + 2 * 60 * 60 * 1000,
   });
 
   return NextResponse.json({ url: session.url });

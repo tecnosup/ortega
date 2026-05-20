@@ -23,19 +23,21 @@ function AssinaturaConteudo() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
 
   async function handleAssinar() {
     if (!planoSel) { setErro("Selecione um plano"); return; }
     if (!nome.trim() || !email.trim()) { setErro("Nome e e-mail são obrigatórios"); return; }
+    if (senha.length < 6) { setErro("A senha deve ter no mínimo 6 caracteres"); return; }
     setErro("");
     setLoading(true);
     try {
       const res = await fetch("/api/assinatura/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planoId: planoSel.id, nome: nome.trim(), email: email.trim(), telefone }),
+        body: JSON.stringify({ planoId: planoSel.id, nome: nome.trim(), email: email.trim(), telefone, senha }),
       });
       const json = await res.json();
       if (!res.ok) { setErro(json.error ?? "Erro ao criar sessão"); return; }
@@ -155,12 +157,24 @@ function AssinaturaConteudo() {
                 />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs text-gray-400 font-medium">Telefone (para verificar créditos no agendamento)</span>
+                <span className="text-xs text-gray-400 font-medium">Telefone</span>
                 <input
                   type="tel"
                   value={telefone}
                   onChange={(e) => setTelefone(e.target.value)}
                   placeholder="(12) 99999-9999"
+                  className={inp}
+                  style={{ fontSize: 16 }}
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs text-gray-400 font-medium">Crie uma senha para sua área do cliente *</span>
+                <input
+                  type="password"
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  autoComplete="new-password"
                   className={inp}
                   style={{ fontSize: 16 }}
                 />

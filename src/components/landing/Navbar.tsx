@@ -61,12 +61,20 @@ export default function Navbar() {
         </nav>
 
         {/* cta desktop */}
-        <Link
-          href="/agendamento"
-          className="hidden md:inline-flex items-center px-5 py-2.5 border border-[#C9A84C] text-[#C9A84C] text-sm font-medium tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] transition-all duration-300"
-        >
-          Agendar
-        </Link>
+        <div className="hidden md:flex items-center gap-3">
+          <Link
+            href="/cliente/login"
+            className="inline-flex items-center px-4 py-2.5 text-[#C9A84C]/70 text-sm font-medium tracking-wider uppercase hover:text-[#C9A84C] transition-colors duration-200"
+          >
+            Área do cliente
+          </Link>
+          <Link
+            href="/agendamento"
+            className="inline-flex items-center px-5 py-2.5 border border-[#C9A84C] text-[#C9A84C] text-sm font-medium tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] transition-all duration-300"
+          >
+            Agendar
+          </Link>
+        </div>
 
         {/* mobile: botão agendar + hamburger */}
         <div className="md:hidden flex items-center gap-3">
@@ -102,12 +110,25 @@ export default function Navbar() {
                 <Link
                   href={href}
                   onClick={() => setOpen(false)}
-                  className="block py-3.5 text-base text-[#F5E6C8]/70 hover:text-[#C9A84C] transition-colors tracking-wide border-b border-[#1a1a1a] last:border-0"
+                  className="block py-3.5 text-base text-[#F5E6C8]/70 hover:text-[#C9A84C] transition-colors tracking-wide border-b border-[#1a1a1a]"
                 >
                   {label}
                 </Link>
               </motion.div>
             ))}
+            <motion.div
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.2, delay: NAV_LINKS.length * 0.05 }}
+            >
+              <Link
+                href="/cliente/login"
+                onClick={() => setOpen(false)}
+                className="block py-3.5 text-base text-[#C9A84C]/80 hover:text-[#C9A84C] transition-colors tracking-wide"
+              >
+                Área do cliente →
+              </Link>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
