@@ -31,10 +31,10 @@
 .pt-safe { padding-top: env(safe-area-inset-top); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
-/* Admin main content area — mobile respects status bar + topbar */
+/* Admin main content area — mobile respects status bar + topbar + bottom nav */
 .admin-main-mobile {
   padding-top: calc(max(env(safe-area-inset-top), 0.75rem) + 3.5rem);
-  padding-bottom: calc(env(safe-area-inset-bottom) + 6rem);
+  padding-bottom: calc(max(env(safe-area-inset-bottom), 1rem) + 4rem);
 }
 
 input, textarea, select {
