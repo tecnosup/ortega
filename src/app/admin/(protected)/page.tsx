@@ -333,7 +333,7 @@ export default function AdminDashboard() {
         <div className={`${card} p-6 flex flex-col gap-4`}>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500">Faturamento por caixa (últimos 30 dias)</p>
+              <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500">Faturamento — últimos 30 dias</p>
               <p className="text-xs text-gray-600 mt-0.5">Receita acumulada</p>
               <p className="text-2xl font-bold text-[#F5E6C8] mt-1">{brl(faturamentoMes)}</p>
               {ultimos30.length > 0 && (() => {
