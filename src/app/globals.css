@@ -31,21 +31,10 @@
 .pt-safe { padding-top: env(safe-area-inset-top); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
-/* Admin main content area — mobile */
-@media (max-width: 767px) {
-  .admin-main-mobile {
-    padding-top: 0;
-    padding-bottom: 0;
-    display: flex;
-    flex-direction: column;
-    min-height: 100dvh;
-  }
-  .admin-main-inner {
-    flex: 1;
-    overflow-y: auto;
-    padding-top: calc(env(safe-area-inset-top, 0px) + 56px);
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
-  }
+/* Admin main content area — mobile (iPhone 12: notch=44px, home=34px) */
+.admin-main-mobile {
+  padding-top: calc(env(safe-area-inset-top, 44px) + 44px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 34px) + 60px);
 }
 
 input, textarea, select {
