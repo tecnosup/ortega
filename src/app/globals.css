@@ -31,10 +31,15 @@
 .pt-safe { padding-top: env(safe-area-inset-top); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
-/* Admin main content area — mobile (iPhone 12: notch=44px, home=34px) */
+/* Evita bounce scroll que revela o fundo do sistema */
+html, body {
+  overscroll-behavior-y: none;
+}
+
+/* Admin main content area — mobile */
 .admin-main-mobile {
-  padding-top: calc(env(safe-area-inset-top, 44px) + 44px);
-  padding-bottom: calc(env(safe-area-inset-bottom, 34px) + 60px);
+  padding-top: calc(env(safe-area-inset-top) + 44px);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 60px);
 }
 
 input, textarea, select {
