@@ -227,9 +227,11 @@ function Modal({ titulo, mensagem, confirmLabel, confirmClass, onConfirm, onCanc
   );
 }
 
+interface AssinaturaInfo { id: string; clienteNome: string; cortesRestantes: number; planoCortesTotal: number; status: string; }
+
 function WalkInModal({ horario, dataSelecionada, barbeiros, onConfirm, onCancel }: {
   horario: string; dataSelecionada: string; barbeiros: Barbeiro[];
-  onConfirm: (dados: { nome: string; telefone: string; servico: string; preco: string; barbeiroId?: string; barbeiroNome?: string }) => void;
+  onConfirm: (dados: { nome: string; telefone: string; servico: string; preco: string; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string }) => void;
   onCancel: () => void;
 }) {
   const [nome, setNome] = useState("");
@@ -238,15 +240,44 @@ function WalkInModal({ horario, dataSelecionada, barbeiros, onConfirm, onCancel 
   const [preco, setPreco] = useState("");
   const [barbeiroId, setBarbeiroId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [assinatura, setAssinatura] = useState<AssinaturaInfo | null>(null);
+  const [buscandoAssinatura, setBuscandoAssinatura] = useState(false);
+  const [usarCredito, setUsarCredito] = useState(false);
   const dataLabel = new Date(dataSelecionada + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "long" });
   const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a]";
+
+  // Busca assinatura quando telefone tem dígitos suficientes
+  useEffect(() => {
+    const tel = telefone.replace(/\D/g, "");
+    if (tel.length < 10) { setAssinatura(null); setUsarCredito(false); return; }
+    const timer = setTimeout(async () => {
+      setBuscandoAssinatura(true);
+      try {
+        const res = await fetch(`/api/assinatura/status?telefone=${tel}`, { credentials: "include" });
+        const json = await res.json();
+        const a = json.assinatura ?? null;
+        setAssinatura(a);
+        setUsarCredito(a?.status === "ativa" && a?.cortesRestantes > 0);
+        if (a && !nome.trim()) setNome(a.clienteNome);
+      } catch { setAssinatura(null); }
+      finally { setBuscandoAssinatura(false); }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [telefone, nome]);
 
   function handleConfirm() {
     if (!nome.trim() || submitting) return;
     setSubmitting(true);
     const b = barbeiros.find((x) => x.id === barbeiroId);
-    onConfirm({ nome, telefone, servico, preco, barbeiroId: b?.id, barbeiroNome: b ? (b.apelido ?? b.nome) : undefined });
+    onConfirm({
+      nome, telefone, servico, preco,
+      barbeiroId: b?.id, barbeiroNome: b ? (b.apelido ?? b.nome) : undefined,
+      usarCredito: usarCredito && !!assinatura,
+      assinaturaId: usarCredito && assinatura ? assinatura.id : undefined,
+    });
   }
+
+  const temCredito = assinatura?.status === "ativa" && (assinatura?.cortesRestantes ?? 0) > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
@@ -257,7 +288,37 @@ function WalkInModal({ horario, dataSelecionada, barbeiros, onConfirm, onCancel 
         </div>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Nome do cliente</label><input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: João Silva" className={inp} /></div>
-          <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">WhatsApp (opcional)</label><input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="11999999999" className={inp} /></div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-400">WhatsApp (opcional)</label>
+            <input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="11999999999" className={inp} />
+            {buscandoAssinatura && <p className="text-[10px] text-gray-600">Verificando assinatura...</p>}
+            {assinatura && !buscandoAssinatura && (
+              <div className={`rounded-lg px-3 py-2.5 flex flex-col gap-2 border ${temCredito ? "bg-[#b8944a]/8 border-[#b8944a]/30" : "bg-[#1a1a1a] border-[#2d2d2d]"}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-xs font-semibold ${temCredito ? "text-[#b8944a]" : "text-gray-500"}`}>
+                      {temCredito ? "Assinante ativo" : "Assinante sem créditos"}
+                    </p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">
+                      {assinatura.cortesRestantes}/{assinatura.planoCortesTotal} cortes restantes
+                    </p>
+                  </div>
+                  {temCredito && (
+                    <button
+                      type="button"
+                      onClick={() => setUsarCredito((v) => !v)}
+                      className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${usarCredito ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`}
+                    >
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${usarCredito ? "left-5" : "left-0.5"}`} />
+                    </button>
+                  )}
+                </div>
+                {usarCredito && (
+                  <p className="text-[10px] text-[#b8944a]/80">1 crédito será consumido da assinatura</p>
+                )}
+              </div>
+            )}
+          </div>
           <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Serviço</label><select value={servico} onChange={(e) => setServico(e.target.value)} className={inp}>{SERVICOS_LISTA.map((s) => <option key={s}>{s}</option>)}</select></div>
           <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Preço (R$)</label><input value={preco} onChange={(e) => setPreco(e.target.value)} placeholder="55" className={inp} /></div>
           {barbeiros.length > 0 && (
@@ -511,8 +572,18 @@ export default function AgendamentosAdminPage() {
     setSlotsBloqueados((prev) => jaBloqueado ? prev.filter((s) => s !== horario) : [...prev, horario]);
   }
 
-  async function criarWalkIn(dados: { nome: string; telefone: string; servico: string; preco: string; barbeiroId?: string; barbeiroNome?: string }) {
-    const res = await fetch("/api/agendamentos", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...dados, telefone: dados.telefone || "00000000000", data: dataSelecionada, horario: walkInHorario }) });
+  async function criarWalkIn(dados: { nome: string; telefone: string; servico: string; preco: string; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string }) {
+    const body: Record<string, unknown> = {
+      ...dados,
+      telefone: dados.telefone || "00000000000",
+      data: dataSelecionada,
+      horario: walkInHorario,
+    };
+    if (dados.usarCredito && dados.assinaturaId) {
+      body.assinaturaId = dados.assinaturaId;
+      body.cobertoPorAssinatura = true;
+    }
+    const res = await fetch("/api/agendamentos", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const { id } = await res.json();
     await fetch(`/api/agendamentos/${id}`, { credentials: "include", method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "confirmado" }) });
     setWalkInHorario(null);

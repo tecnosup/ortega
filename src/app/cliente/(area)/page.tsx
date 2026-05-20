@@ -47,13 +47,14 @@ export default async function ClienteDashboard() {
     .collection("agendamentos")
     .where("telefone", "==", assinatura.clienteTelefone ?? "")
     .where("data", ">=", hojeKey)
-    .where("status", "in", ["pendente", "confirmado"])
     .orderBy("data", "asc")
-    .orderBy("horario", "asc")
-    .limit(3)
+    .limit(20)
     .get();
 
-  const proximos: Agendamento[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Agendamento));
+  const proximos: Agendamento[] = snap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as Agendamento))
+    .filter((a) => a.status === "pendente" || a.status === "confirmado")
+    .slice(0, 3);
 
   return (
     <div className="flex flex-col gap-5">

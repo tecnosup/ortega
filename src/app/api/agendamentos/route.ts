@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { nome, telefone, servico, preco, data, horario, cupom, desconto, barbeiroId, barbeiroNome, email } = body;
+  const { nome, telefone, servico, preco, data, horario, cupom, desconto, barbeiroId, barbeiroNome, email, assinaturaId: assinaturaIdExplicito, cobertoPorAssinatura: cobertoPorAssinaturaExplicito } = body;
 
   if (!nome || !telefone || !servico || !data || !horario) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
@@ -34,17 +34,27 @@ export async function POST(req: NextRequest) {
   if (barbeiroId) payload.barbeiroId = String(barbeiroId).slice(0, 64);
   if (barbeiroNome) payload.barbeiroNome = String(barbeiroNome).slice(0, 80);
 
-  // verifica assinatura pelo telefone ou email para consumir crédito
-  const emailSanitizado = email ? String(email).slice(0, 200).toLowerCase().trim() : null;
-  const assinatura = telefoneSanitizado.length >= 10
-    ? (await getAssinaturaPorTelefone(telefoneSanitizado) ?? (emailSanitizado ? await getAssinaturaPorEmail(emailSanitizado) : null))
-    : (emailSanitizado ? await getAssinaturaPorEmail(emailSanitizado) : null);
-
-  if (assinatura) {
-    const consumido = await consumirCredito(assinatura.id);
+  // Admin pode passar assinaturaId explicitamente (walk-in com crédito selecionado)
+  // Nesse caso consome o crédito diretamente, sem buscar pelo telefone
+  if (assinaturaIdExplicito && cobertoPorAssinaturaExplicito) {
+    const consumido = await consumirCredito(String(assinaturaIdExplicito).slice(0, 64));
     if (consumido) {
-      payload.assinaturaId = assinatura.id;
+      payload.assinaturaId = String(assinaturaIdExplicito).slice(0, 64);
       payload.cobertoPorAssinatura = true;
+    }
+  } else {
+    // Fluxo público: verifica assinatura pelo telefone ou email
+    const emailSanitizado = email ? String(email).slice(0, 200).toLowerCase().trim() : null;
+    const assinatura = telefoneSanitizado.length >= 10
+      ? (await getAssinaturaPorTelefone(telefoneSanitizado) ?? (emailSanitizado ? await getAssinaturaPorEmail(emailSanitizado) : null))
+      : (emailSanitizado ? await getAssinaturaPorEmail(emailSanitizado) : null);
+
+    if (assinatura) {
+      const consumido = await consumirCredito(assinatura.id);
+      if (consumido) {
+        payload.assinaturaId = assinatura.id;
+        payload.cobertoPorAssinatura = true;
+      }
     }
   }
 
