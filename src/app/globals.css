@@ -33,8 +33,8 @@
 
 /* Admin main content area — mobile respects status bar + topbar */
 .admin-main-mobile {
-  padding-top: calc(env(safe-area-inset-top) + 4.5rem);
-  padding-bottom: calc(env(safe-area-inset-bottom) + 5.5rem);
+  padding-top: calc(max(env(safe-area-inset-top), 0.75rem) + 3.5rem);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 6rem);
 }
 
 input, textarea, select {

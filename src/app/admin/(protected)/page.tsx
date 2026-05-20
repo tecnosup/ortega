@@ -305,24 +305,24 @@ export default function AdminDashboard() {
       {/* ── KPIs ────────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className={`${card} p-3.5`}>
-          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Faturamento este mês</p>
+          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1 truncate">Faturamento</p>
           <p className="text-xl font-bold text-[#F5E6C8]">{brl(faturamentoMes)}</p>
-          <p className="text-xs text-gray-500 mt-1">{fechamentosMes.length} fechamentos</p>
+          <p className="text-xs text-gray-500 mt-1 truncate">{fechamentosMes.length} fechamentos</p>
         </div>
         <div className={`${card} p-3.5 ${pendentesHoje > 0 ? "border-orange-600/40" : ""}`}>
-          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Agendamentos hoje</p>
+          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1 truncate">Hoje</p>
           <p className={`text-xl font-bold ${pendentesHoje > 0 ? "text-orange-300" : "text-[#F5E6C8]"}`}>{pendentesHoje}</p>
-          <p className="text-xs text-gray-500 mt-1">pendentes / confirmados</p>
+          <p className="text-xs text-gray-500 mt-1 truncate">pendentes</p>
         </div>
         <div className={`${card} p-3.5 border ${lucroEstimado >= 0 ? "border-green-800/30" : "border-red-800/30"}`}>
-          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Lucro estimado</p>
+          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1 truncate">Lucro est.</p>
           <p className={`text-xl font-bold ${lucroEstimado >= 0 ? "text-green-400" : "text-red-400"}`}>{brl(lucroEstimado)}</p>
-          <p className="text-xs text-gray-500 mt-1">Gastos: {brl(totalGastos)}/mês</p>
+          <p className="text-xs text-gray-500 mt-1 truncate">Gastos: {brl(totalGastos)}/mês</p>
         </div>
         <div className={`${card} p-3.5`}>
-          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Ticket médio</p>
+          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1 truncate">Ticket médio</p>
           <p className="text-xl font-bold text-[#F5E6C8]">{brl(ticketMedio)}</p>
-          <p className="text-xs text-gray-500 mt-1">{servicosMes} serviços este mês</p>
+          <p className="text-xs text-gray-500 mt-1 truncate">{servicosMes} serviços</p>
         </div>
       </div>
 

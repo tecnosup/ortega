@@ -69,7 +69,7 @@ export default function AdminNav() {
 
   const modalAleratasContent = modalAlertas && (
     <div className="fixed inset-0 z-[60] flex items-start justify-start bg-black/60 md:bg-transparent" onClick={() => setModalAlertas(false)}>
-      <div className="md:ml-56 md:mt-0 md:h-screen w-full md:w-80 bg-[#141414] border-r border-b border-[#2d2d2d] shadow-2xl flex flex-col" style={{ marginTop: "calc(env(safe-area-inset-top) + 3.5rem)", height: "calc(100dvh - env(safe-area-inset-top) - 3.5rem)" }} onClick={(e) => e.stopPropagation()}>
+      <div className="md:ml-56 md:mt-0 md:h-screen w-full md:w-80 bg-[#141414] border-r border-b border-[#2d2d2d] shadow-2xl flex flex-col" style={{ marginTop: "calc(max(env(safe-area-inset-top), 0.75rem) + 3.5rem)", height: "calc(100dvh - max(env(safe-area-inset-top), 0.75rem) - 3.5rem)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#1e1e1e] shrink-0">
           <div className="flex items-center gap-2">
             <BellRing size={15} className={urgenciaTotal === "critico" ? "text-red-400" : urgenciaTotal === "atencao" ? "text-amber-400" : "text-gray-400"} />
