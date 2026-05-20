@@ -31,10 +31,21 @@
 .pt-safe { padding-top: env(safe-area-inset-top); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
-/* Admin main content area — mobile respects status bar + topbar + bottom nav */
-.admin-main-mobile {
-  padding-top: calc(max(env(safe-area-inset-top), 0.75rem) + 3.5rem);
-  padding-bottom: calc(max(env(safe-area-inset-bottom), 1rem) + 4rem);
+/* Admin main content area — mobile */
+@media (max-width: 767px) {
+  .admin-main-mobile {
+    padding-top: 0;
+    padding-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+  }
+  .admin-main-inner {
+    flex: 1;
+    overflow-y: auto;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 56px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+  }
 }
 
 input, textarea, select {

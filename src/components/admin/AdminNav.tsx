@@ -234,7 +234,7 @@ export default function AdminNav() {
       </aside>
 
       {/* ── MOBILE: topbar ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-b border-[#2d2d2d] flex items-end justify-between px-4 pb-3 pt-safe" style={{ paddingTop: "max(env(safe-area-inset-top), 0.75rem)" }}>
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-b border-[#2d2d2d] flex items-end justify-between px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px), 0.75rem)" }}>
         <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega</span>
         <Link href="/" className="p-2 text-gray-400 hover:text-[#b8944a] transition" aria-label="Ver site">
           <ExternalLink size={18} />
@@ -242,7 +242,7 @@ export default function AdminNav() {
       </div>
 
       {/* ── MOBILE: bottom navigation bar ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-t border-[#2d2d2d] flex items-stretch pb-safe" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-t border-[#2d2d2d] flex items-stretch" style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 0.5rem)" }}>
         {bottomLinks.map(({ href, label, icon: Icon, badge }) => {
           const active = pathname === href;
           const { count, urg } = getBadgeInfo(badge);
