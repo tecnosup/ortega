@@ -36,11 +36,15 @@
   .admin-main-mobile {
     padding-top: 0;
     padding-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
   }
   .admin-main-inner {
+    flex: 1;
     overflow-y: auto;
-    padding-top: calc(var(--sat, env(safe-area-inset-top, 0px)) + 56px);
-    padding-bottom: calc(var(--sab, env(safe-area-inset-bottom, 0px)) + 80px);
+    padding-top: calc(env(safe-area-inset-top, 0px) + 56px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
   }
 }
 
