@@ -233,6 +233,9 @@ export default function AdminNav() {
         {sidebarContent}
       </aside>
 
+      {/* ── MOBILE: bloco que tampa a status bar (mesmo fundo da topbar) ── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#111]" style={{ height: "env(safe-area-inset-top, 0px)" }} />
+
       {/* ── MOBILE: topbar ── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-b border-[#2d2d2d] flex items-end justify-between px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px), 0.75rem)" }}>
         <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega</span>
