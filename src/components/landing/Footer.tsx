@@ -37,14 +37,14 @@ export default function Footer() {
             {whatsapp && (
               <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer" className="hover:text-[#C9A84C] transition-colors">WhatsApp</a>
             )}
-            <a href="https://instagram.com/igorortega_" target="_blank" rel="noopener noreferrer" className="hover:text-[#C9A84C] transition-colors">@igorortega_</a>
+            <a href="#" target="_blank" rel="noopener noreferrer" className="hover:text-[#C9A84C] transition-colors">Instagram</a>
           </div>
 
           <span className="col-span-2 md:col-span-1 text-xs text-[#F5E6C8]/20 md:text-right">© {year} Ortega Barber</span>
         </div>
 
         <div className="mt-6 pt-6 border-t border-[#C9A84C]/08 text-center text-xs text-[#F5E6C8]/20 tracking-wide">
-          R. Cap. Neco, 300 — Vila Ana Rosa Novaes · (12) 9258-5538
+          R. Cap. Neco, 300 — Vila Ana Rosa Novaes · (12) 99258-5538
         </div>
       </div>
     </footer>

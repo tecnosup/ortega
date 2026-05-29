@@ -63,7 +63,7 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center px-6 py-12">
+    <div className="min-h-[100dvh] bg-[#0A0A0A] flex flex-col items-center justify-center px-6 py-12">
 
       {/* Brilho sutil no topo */}
       <div
