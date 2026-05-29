@@ -32,9 +32,9 @@
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
 /* Evita bounce scroll que revela o fundo do sistema */
-html, body {
+/* html, body {
   overscroll-behavior-y: none;
-}
+} */
 
 /* Admin main content area — mobile */
 .admin-main-mobile {
