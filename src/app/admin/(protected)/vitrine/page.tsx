@@ -193,11 +193,11 @@ export default function VitrinePage() {
       <form onSubmit={handleSalvarTextos} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-400 uppercase tracking-wide">Título do hero</label>
-          <input name="heroTitulo" defaultValue={settings.heroTitulo} className={inp} required />
+          <input name="heroTitulo" defaultValue={settings.heroTitulo} spellCheck={false} className={inp} required />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-400 uppercase tracking-wide">Subtítulo do hero</label>
-          <input name="heroSubtitulo" defaultValue={settings.heroSubtitulo} className={inp} required />
+          <input name="heroSubtitulo" defaultValue={settings.heroSubtitulo} spellCheck={false} className={inp} required />
         </div>
         <ImageUpload label="Imagem de fundo do hero" name="heroImagemFundo" current={settings.heroImagemFundo} folder="ortega/hero" />
         <ImageUpload label="Foto retrato do hero" name="heroImagemRetrato" current={settings.heroImagemRetrato} folder="ortega/hero" />
@@ -208,11 +208,11 @@ export default function VitrinePage() {
         <ImageUpload label="Foto da seção Sobre Nós" name="sobreImagem" current={settings.sobreImagem} folder="ortega/sobre" />
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-400 uppercase tracking-wide">WhatsApp (com DDI, ex: 5511999999999)</label>
-          <input name="whatsappNumber" defaultValue={settings.whatsappNumber} className={inp} />
+          <input name="whatsappNumber" defaultValue={settings.whatsappNumber} spellCheck={false} className={inp} />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-400 uppercase tracking-wide">E-mail de contato</label>
-          <input name="emailContato" type="email" defaultValue={settings.emailContato} className={inp} />
+          <input name="emailContato" type="email" defaultValue={settings.emailContato} spellCheck={false} className={inp} />
         </div>
 
         {msg && <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}

@@ -27,8 +27,35 @@
   box-sizing: border-box;
 }
 
+/* PWA safe area utilities */
+.pt-safe { padding-top: env(safe-area-inset-top); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Evita bounce scroll que revela o fundo do sistema */
+/* html, body {
+  overscroll-behavior-y: none;
+} */
+
+/* Admin main content area — mobile */
+.admin-main-mobile {
+  padding-top: calc(env(safe-area-inset-top) + 56px);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 60px);
+}
+
 input, textarea, select {
   font-size: 16px;
+}
+
+/* Selects sempre no modo escuro */
+select {
+  background-color: #0A0A0A;
+  color: #F5E6C8;
+  color-scheme: dark;
+}
+
+select option {
+  background-color: #141414;
+  color: #F5E6C8;
 }
 
 html {

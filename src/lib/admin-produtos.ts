@@ -9,6 +9,8 @@ export interface Produto {
   status: "draft" | "published";
   order: number;
   categoriaId?: string;
+  estoque?: number;
+  estoqueMinimo?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -26,12 +28,18 @@ export async function getProdutoById(id: string): Promise<Produto | null> {
 
 export async function createProduto(data: Omit<Produto, "id" | "createdAt" | "updatedAt">) {
   const now = Date.now();
-  const ref = await adminDb.collection("produtos").add({ ...data, createdAt: now, updatedAt: now });
+  const clean = Object.fromEntries(
+    Object.entries({ ...data, createdAt: now, updatedAt: now }).filter(([, v]) => v !== undefined)
+  );
+  const ref = await adminDb.collection("produtos").add(clean);
   return ref.id;
 }
 
 export async function updateProduto(id: string, data: Partial<Omit<Produto, "id" | "createdAt">>) {
-  await adminDb.collection("produtos").doc(id).update({ ...data, updatedAt: Date.now() });
+  const clean = Object.fromEntries(
+    Object.entries({ ...data, updatedAt: Date.now() }).filter(([, v]) => v !== undefined)
+  );
+  await adminDb.collection("produtos").doc(id).update(clean);
 }
 
 export async function deleteProduto(id: string) {

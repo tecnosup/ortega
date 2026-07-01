@@ -35,7 +35,7 @@ export default function ConfiguracoesPage() {
         ).map(({ label, field }) => (
           <div key={field} className="flex flex-col gap-1">
             <label className="text-xs text-gray-400 uppercase tracking-wide">{label}</label>
-            <input name={field} defaultValue={settings[field]} className={inp} />
+            <input name={field} defaultValue={settings[field]} spellCheck={false} className={inp} />
           </div>
         ))}
 

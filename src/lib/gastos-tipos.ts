@@ -9,7 +9,7 @@ export type CategoriaGasto =
   | "servicos"
   | "outros";
 
-export type FrequenciaGasto = "mensal" | "quinzenal" | "semanal" | "anual" | "unico";
+export type FrequenciaGasto = "mensal" | "quinzenal" | "semanal" | "anual" | "unico" | "personalizado";
 
 export interface Gasto {
   id: string;
@@ -17,6 +17,8 @@ export interface Gasto {
   categoria: CategoriaGasto;
   valor: number;
   frequencia: FrequenciaGasto;
+  frequenciaCustom?: string;      // label livre p/ "personalizado"
+  intervaloDias?: number;          // usado p/ cálculo do equivalente mensal
   ativo: boolean;
   vencimento: number | null;
   criadoEm: number;
@@ -28,12 +30,16 @@ export interface Gasto {
 
 export function gastoMensalEquivalente(gasto: Gasto): number {
   switch (gasto.frequencia) {
-    case "mensal":    return gasto.valor;
-    case "quinzenal": return gasto.valor * 2;
-    case "semanal":   return gasto.valor * 4.33;
-    case "anual":     return gasto.valor / 12;
-    case "unico":     return 0;
-    default:          return gasto.valor;
+    case "mensal":       return gasto.valor;
+    case "quinzenal":    return gasto.valor * 2;
+    case "semanal":      return gasto.valor * 4.33;
+    case "anual":        return gasto.valor / 12;
+    case "unico":        return 0;
+    case "personalizado":
+      return gasto.intervaloDias && gasto.intervaloDias > 0
+        ? gasto.valor * (30 / gasto.intervaloDias)
+        : gasto.valor;
+    default:             return gasto.valor;
   }
 }
 
@@ -48,11 +54,12 @@ export const CATEGORIA_LABEL: Record<CategoriaGasto, string> = {
 };
 
 export const FREQUENCIA_LABEL: Record<FrequenciaGasto, string> = {
-  mensal: "Mensal",
-  quinzenal: "Quinzenal",
-  semanal: "Semanal",
-  anual: "Anual",
   unico: "Único",
+  semanal: "Semanal",
+  quinzenal: "Quinzenal",
+  mensal: "Mensal",
+  anual: "Anual",
+  personalizado: "Personalizado",
 };
 
 export interface CategoriaGastoCustom {

@@ -6,6 +6,12 @@ export function parsePriceNum(preco: string): number {
 
 export type AgendamentoStatus = "pendente" | "confirmado" | "cancelado" | "concluido" | "nao_compareceu";
 
+export interface LogEntry {
+  acao: string;
+  adminId: string;
+  ts: number;
+}
+
 export interface Agendamento {
   id: string;
   nome: string;
@@ -15,6 +21,7 @@ export interface Agendamento {
   data: string;
   horario: string;
   status: AgendamentoStatus;
+  duracaoMin?: number;
   cupom?: string;
   desconto?: number;
   barbeiroId?: string;
@@ -22,6 +29,7 @@ export interface Agendamento {
   visualizadoAdmin?: boolean;
   assinaturaId?: string;       // ID Firestore da assinatura usada
   cobertoPorAssinatura?: boolean;
+  historico?: LogEntry[];
   criadoEm: number;
   atualizadoEm: number;
 }
@@ -39,6 +47,7 @@ export interface ItemAtendimento {
   tipo: "servico" | "produto";
   descricao: string;
   valor: number;
+  produtoId?: string;
 }
 
 export interface AtendimentoAvulso {

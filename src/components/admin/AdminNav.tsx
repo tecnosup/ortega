@@ -17,17 +17,17 @@ const links = [
   { href: "/admin",               label: "Dashboard",    icon: LayoutDashboard, badge: null as "agendamentos" | "financeiro" | null },
   { href: "/admin/agendamentos",  label: "Agendamentos", icon: CalendarCheck,   badge: "agendamentos" as const },
   { href: "/admin/financeiro",    label: "Financeiro",   icon: TrendingUp,      badge: "financeiro" as const },
-  { href: "/admin/barbeiros",     label: "Barbeiros",    icon: Users,           badge: null },
+  { href: "/admin/produtos",      label: "Produtos",     icon: ShoppingBag,     badge: null },
+  { href: "/admin/itens",         label: "Serviços",     icon: Scissors,        badge: null },
+  { href: "/admin/barbeiros",     label: "Funcionários", icon: Users,           badge: null },
   { href: "/admin/comissoes",     label: "Comissões",    icon: DollarSign,      badge: null },
   { href: "/admin/assinantes",    label: "Assinantes",   icon: CreditCard,      badge: null },
-  { href: "/admin/itens",         label: "Serviços",     icon: Scissors,        badge: null },
-  { href: "/admin/produtos",      label: "Produtos",     icon: ShoppingBag,     badge: null },
-  { href: "/admin/descontos",     label: "Descontos",    icon: Tag,             badge: null },
+  { href: "/admin/descontos",     label: "Cupons",       icon: Tag,             badge: null },
   { href: "/admin/vitrine",       label: "Vitrine",      icon: Star,            badge: null },
   { href: "/admin/auditoria",     label: "Auditoria",    icon: ClipboardList,   badge: null },
 ];
 
-const bottomLinks = links.slice(0, 4);
+const bottomLinks = [links[0], links[1], links[2], links[3]]; // Dashboard, Agendamentos, Financeiro, Produtos
 
 function BadgeDot({ count, urgencia }: { count: number; urgencia: "normal" | "atencao" | "critico" }) {
   if (count <= 0) return null;
@@ -68,8 +68,8 @@ export default function AdminNav() {
   const urgenciaTotal = caixasAbertos > 0 || pendentes > 0 ? "critico" : vencimentos > 0 ? "atencao" : "normal";
 
   const modalAleratasContent = modalAlertas && (
-    <div className="fixed inset-0 z-50 flex items-start justify-start" onClick={() => setModalAlertas(false)}>
-      <div className="md:ml-56 mt-0 md:mt-0 w-full md:w-80 bg-[#141414] border-r border-b border-[#2d2d2d] shadow-2xl h-screen flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[60] flex items-start justify-start bg-black/60 md:bg-transparent" onClick={() => setModalAlertas(false)}>
+      <div className="md:ml-56 md:mt-0 md:h-screen w-full md:w-80 bg-[#141414] border-r border-b border-[#2d2d2d] shadow-2xl flex flex-col" style={{ marginTop: "calc(max(env(safe-area-inset-top), 0.75rem) + 3.5rem)", height: "calc(100dvh - max(env(safe-area-inset-top), 0.75rem) - 3.5rem)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#1e1e1e] shrink-0">
           <div className="flex items-center gap-2">
             <BellRing size={15} className={urgenciaTotal === "critico" ? "text-red-400" : urgenciaTotal === "atencao" ? "text-amber-400" : "text-gray-400"} />
@@ -163,7 +163,7 @@ export default function AdminNav() {
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      <div className="p-5 border-b border-[#2d2d2d] flex items-center justify-between">
+      <div className="px-5 pb-5 border-b border-[#2d2d2d] flex items-center justify-between" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)" }}>
         <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega Barber</span>
         <button onClick={() => setOpen(false)} className="md:hidden p-1.5 text-gray-500 hover:text-white transition rounded-lg hover:bg-[#2d2d2d]">
           <X size={18} />
@@ -201,7 +201,7 @@ export default function AdminNav() {
 
       <div className="p-3 border-t border-[#2d2d2d] flex flex-col gap-0.5">
         <button
-          onClick={() => setModalAlertas(true)}
+          onClick={() => { setModalAlertas(true); setOpen(false); }}
           className={`flex items-center gap-3 px-3 py-2.5 text-sm transition w-full rounded-lg ${totalAlertas > 0 ? "text-[#b8944a] hover:bg-[#b8944a]/10" : "text-gray-500 hover:bg-[#1a1a1a]"}`}
         >
           <BellRing size={16} />
@@ -233,8 +233,11 @@ export default function AdminNav() {
         {sidebarContent}
       </aside>
 
+      {/* ── MOBILE: bloco que tampa a status bar (mesmo fundo da topbar) ── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#111]" style={{ height: "env(safe-area-inset-top, 0px)" }} />
+
       {/* ── MOBILE: topbar ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-b border-[#2d2d2d] flex items-center justify-between px-4 h-14">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-b border-[#2d2d2d] flex items-end justify-between px-4 pb-3" style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.25rem)" }}>
         <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega</span>
         <Link href="/" className="p-2 text-gray-400 hover:text-[#b8944a] transition" aria-label="Ver site">
           <ExternalLink size={18} />
@@ -242,7 +245,7 @@ export default function AdminNav() {
       </div>
 
       {/* ── MOBILE: bottom navigation bar ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-t border-[#2d2d2d] flex items-stretch h-16 safe-area-inset-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-t border-[#2d2d2d] flex items-stretch" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.25rem)" }}>
         {bottomLinks.map(({ href, label, icon: Icon, badge }) => {
           const active = pathname === href;
           const { count, urg } = getBadgeInfo(badge);
@@ -286,7 +289,7 @@ export default function AdminNav() {
       )}
 
       <aside
-        className={`md:hidden fixed top-0 left-0 z-50 h-full w-72 bg-[#111] border-r border-[#2d2d2d] flex flex-col transition-transform duration-300 ${
+        className={`md:hidden fixed top-0 left-0 z-50 h-full w-72 bg-[#111] border-r border-[#2d2d2d] flex flex-col transition-transform duration-300 overflow-y-auto ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >

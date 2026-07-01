@@ -1,6 +1,32 @@
+"use client";
+
+import { motion, useInView, useMotionValue, useTransform, animate } from "framer-motion";
+import { useEffect, useRef } from "react";
+
 interface SobreProps {
   texto: string;
   imagem?: string;
+}
+
+const STATS = [
+  { num: 500, sufixo: "+", label: "Clientes" },
+  { num: 5,   sufixo: "+", label: "Anos" },
+  { num: 100, sufixo: "%", label: "Satisfação" },
+];
+
+function CountUp({ target, sufixo }: { target: number; sufixo: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
+  const count = useMotionValue(0);
+  const rounded = useTransform(count, (v) => Math.round(v) + sufixo);
+
+  useEffect(() => {
+    if (!inView) return;
+    const controls = animate(count, target, { duration: 1.8, ease: "easeOut" });
+    return controls.stop;
+  }, [inView, count, target]);
+
+  return <motion.span ref={ref}>{rounded}</motion.span>;
 }
 
 export default function Sobre({ texto, imagem }: SobreProps) {
@@ -9,8 +35,15 @@ export default function Sobre({ texto, imagem }: SobreProps) {
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/30 to-transparent" />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center">
+
         {/* imagem */}
-        <div className="relative">
+        <motion.div
+          className="relative"
+          initial={{ opacity: 0, x: -30 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.8 }}
+        >
           <div className="absolute -inset-1 bg-gradient-to-br from-[#C9A84C]/30 via-transparent to-[#C9A84C]/10 rounded-sm" />
           <div className="relative w-full h-56 sm:h-72 md:h-80 overflow-hidden border border-[#C9A84C]/20">
             <img
@@ -22,9 +55,15 @@ export default function Sobre({ texto, imagem }: SobreProps) {
           </div>
           <div className="absolute -bottom-3 -right-3 w-12 h-12 md:w-16 md:h-16 border-r-2 border-b-2 border-[#C9A84C]/40" />
           <div className="absolute -top-3 -left-3 w-12 h-12 md:w-16 md:h-16 border-l-2 border-t-2 border-[#C9A84C]/40" />
-        </div>
+        </motion.div>
 
-        <div className="flex flex-col gap-5 md:gap-6">
+        <motion.div
+          className="flex flex-col gap-5 md:gap-6"
+          initial={{ opacity: 0, y: 32 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7 }}
+        >
           <div className="flex items-center gap-3">
             <span className="w-8 h-px bg-[#C9A84C]" />
             <span className="text-[#C9A84C] text-xs font-medium tracking-[0.3em] uppercase">Nossa história</span>
@@ -38,15 +77,12 @@ export default function Sobre({ texto, imagem }: SobreProps) {
           </h2>
           <p className="text-sm sm:text-base text-[#F5E6C8]/60 leading-relaxed">{texto}</p>
 
-          {/* stats */}
           <div className="grid grid-cols-3 gap-3 sm:gap-4 py-4 border-t border-[#C9A84C]/15">
-            {[
-              { num: "500+", label: "Clientes" },
-              { num: "5+", label: "Anos" },
-              { num: "100%", label: "Satisfação" },
-            ].map((s) => (
+            {STATS.map((s) => (
               <div key={s.label} className="flex flex-col gap-1">
-                <span className="text-xl sm:text-2xl font-bold text-[#C9A84C]">{s.num}</span>
+                <span className="text-xl sm:text-2xl font-bold text-[#C9A84C]">
+                  <CountUp target={s.num} sufixo={s.sufixo} />
+                </span>
                 <span className="text-xs text-[#F5E6C8]/40 tracking-wider uppercase">{s.label}</span>
               </div>
             ))}
@@ -58,7 +94,7 @@ export default function Sobre({ texto, imagem }: SobreProps) {
           >
             Ver serviços
           </a>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

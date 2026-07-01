@@ -19,25 +19,28 @@ function ModalSuporte({ onFechar }: { onFechar: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6" onClick={onFechar}>
       <div
-        className="relative bg-[#0d1117] border border-[#1e3a5f] rounded-2xl p-8 w-full max-w-xs flex flex-col items-center gap-5 shadow-2xl"
+        className="relative bg-[#111] border border-[#2d2d2d] rounded-xl p-6 w-full max-w-xs flex flex-col gap-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <button onClick={onFechar} className="absolute top-4 right-4 text-gray-500 hover:text-gray-300 transition">
+        <button onClick={onFechar} className="absolute top-4 right-4 text-gray-600 hover:text-gray-300 transition">
           <X size={16} />
         </button>
 
-        <h3 className="text-base font-bold text-white">Escolha o Consultor</h3>
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-bold text-[#F5E6C8]">Contatar suporte</h3>
+          <p className="text-xs text-gray-500">Escolha um consultor para abrir o WhatsApp.</p>
+        </div>
 
-        <div className="flex flex-col gap-3 w-full">
+        <div className="flex flex-col gap-2 w-full">
           {SUPORTE.map(({ nome, tel }) => (
             <a
               key={nome}
               href={waLink(tel)}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 px-5 py-3.5 bg-[#111c2a] border border-[#1e3a5f] rounded-xl text-white text-sm font-medium hover:border-green-600 hover:bg-[#0d1f10] transition"
+              className="flex items-center gap-3 px-4 py-3 bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg text-[#F5E6C8] text-sm font-medium hover:border-[#b8944a] hover:text-[#b8944a] transition"
             >
-              <MessageCircle size={18} className="text-green-400 shrink-0" />
+              <MessageCircle size={16} className="text-[#b8944a] shrink-0" />
               {nome}
             </a>
           ))}
@@ -57,7 +60,7 @@ export default function AdminError({
   const [mostraModal, setMostraModal] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center px-6">
+    <div className="min-h-[100dvh] bg-[#0A0A0A] flex items-center justify-center px-6">
       {mostraModal && <ModalSuporte onFechar={() => setMostraModal(false)} />}
 
       <div className="text-center flex flex-col items-center gap-5 max-w-sm w-full">

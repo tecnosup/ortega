@@ -30,13 +30,19 @@ export function getAdminDb(): Firestore {
 // Aliases para retrocompatibilidade com código que importa diretamente
 export const adminAuth = new Proxy({} as Auth, {
   get(_, prop) {
-    return (getAdminAuth() as unknown as Record<string, unknown>)[prop as string];
+    const auth = getAdminAuth();
+    const value = (auth as unknown as Record<string, unknown>)[prop as string];
+    if (typeof value === "function") return (value as (...args: unknown[]) => unknown).bind(auth);
+    return value;
   },
 });
 
 export const adminDb = new Proxy({} as Firestore, {
   get(_, prop) {
-    return (getAdminDb() as unknown as Record<string, unknown>)[prop as string];
+    const db = getAdminDb();
+    const value = (db as unknown as Record<string, unknown>)[prop as string];
+    if (typeof value === "function") return (value as (...args: unknown[]) => unknown).bind(db);
+    return value;
   },
 });
 

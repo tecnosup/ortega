@@ -67,7 +67,7 @@ export function useAdminNotificacoes() {
 
   useEffect(() => {
     fetchNotificacoes();
-    const interval = setInterval(fetchNotificacoes, 30_000);
+    const interval = setInterval(fetchNotificacoes, 5 * 60_000);
     return () => clearInterval(interval);
   }, []);
 

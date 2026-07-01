@@ -5,6 +5,7 @@ import {
   getAssinaturaPorStripeId,
   atualizarAssinatura,
 } from "@/lib/assinaturas";
+import { getAdminDb } from "@/lib/firebase-admin";
 import type Stripe from "stripe";
 
 export const dynamic = "force-dynamic";
@@ -67,7 +68,15 @@ async function handleEvent(stripe: Stripe, event: Stripe.Event) {
       const plano = getPlanoPorPriceId(priceId);
       const cortes = plano?.cortes ?? Number(meta.planoCortesTotal ?? 1);
 
-      await criarAssinatura({
+      // Recupera hash da senha salvo temporariamente no checkout
+      const db = getAdminDb();
+      const pendente = await db.collection("assinaturas_pendentes").doc(session.id).get();
+      const senhaHash: string | undefined = pendente.exists ? (pendente.data()?.senhaHash as string) : undefined;
+      if (pendente.exists) {
+        pendente.ref.delete().catch(() => {});
+      }
+
+      const payload: Parameters<typeof criarAssinatura>[0] = {
         stripeSubscriptionId: sub.id as string,
         stripeCustomerId: sub.customer as string,
         planoId: meta.planoId ?? plano?.id ?? "desconhecido",
@@ -79,7 +88,9 @@ async function handleEvent(stripe: Stripe, event: Stripe.Event) {
         clienteTelefone: meta.clienteTelefone || undefined,
         inicioEm: (sub.start_date as number) * 1000,
         proximoVencimento: getPeriodEnd(sub),
-      });
+      };
+      if (senhaHash) (payload as Record<string, unknown>).senhaHash = senhaHash;
+      await criarAssinatura(payload);
       break;
     }
 

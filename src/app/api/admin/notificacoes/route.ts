@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest) {
     const limite30dStr = limite30d.toISOString().split("T")[0];
 
     // ── Agendamentos pendentes ──────────────────────────────────────────────────
-    const agSnap = await db.collection("agendamentos").where("status", "==", "pendente").get();
+    const agSnap = await db.collection("agendamentos").where("status", "==", "pendente").limit(500).get();
 
     let pendentes = 0, hoje_count = 0;
     let urgencia: Urgencia = "normal";
@@ -40,24 +40,21 @@ export async function GET(_req: NextRequest) {
       }
     }
 
-    // ── Caixas retroativos abertos ─────────────────────────────────────────────
+    // ── Caixas retroativos abertos (apenas últimos 30 dias) ───────────────────
     const [fechSnap, concluidosSnap, avulsosSnap] = await Promise.all([
-      db.collection("fechamentos").get(),
-      db.collection("agendamentos").where("status", "==", "concluido").get(),
-      db.collection("atendimentos_avulsos").get(),
+      db.collection("fechamentos").where("data", ">=", limite30dStr).where("data", "<", hoje).get(),
+      db.collection("agendamentos").where("data", ">=", limite30dStr).where("data", "<", hoje).get(),
+      db.collection("atendimentos_avulsos").where("data", ">=", limite30dStr).where("data", "<", hoje).get(),
     ]);
 
-    const fechDatas = new Set(
-      fechSnap.docs.map(d => d.data().data as string).filter(d => d >= limite30dStr && d < hoje)
-    );
+    const fechDatas = new Set(fechSnap.docs.map(d => d.data().data as string));
     const datasComAtividade = new Set<string>();
     concluidosSnap.docs.forEach(doc => {
-      const d = doc.data().data as string;
-      if (d >= limite30dStr && d < hoje) datasComAtividade.add(d);
+      const d = doc.data();
+      if (d.status === "concluido") datasComAtividade.add(d.data as string);
     });
     avulsosSnap.docs.forEach(doc => {
-      const d = doc.data().data as string;
-      if (d >= limite30dStr && d < hoje) datasComAtividade.add(d);
+      datasComAtividade.add(doc.data().data as string);
     });
 
     const caixasAbertosLista = [...datasComAtividade]
@@ -70,7 +67,7 @@ export async function GET(_req: NextRequest) {
     const em10d = new Date(); em10d.setDate(em10d.getDate() + 10);
     const em10dStr = em10d.toISOString().split("T")[0];
 
-    const gastosSnap = await db.collection("gastos").where("lembrarRenovacao", "==", true).get();
+    const gastosSnap = await db.collection("gastos").where("lembrarRenovacao", "==", true).limit(200).get();
     let vencimentos = 0;
     const vencimentosLista: { id: string; descricao: string; data: string; dias: number; valor: number; frequencia: string }[] = [];
     for (const doc of gastosSnap.docs) {

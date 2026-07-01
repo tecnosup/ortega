@@ -4,6 +4,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+const NAV_LINKS = [
+  { href: "#sobre", label: "Sobre" },
+  { href: "#servicos", label: "Serviços" },
+  { href: "#produtos", label: "Produtos" },
+  { href: "#assinaturas", label: "Assinaturas" },
+  { href: "#depoimentos", label: "Depoimentos" },
+];
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -39,21 +48,35 @@ export default function Navbar() {
         </Link>
 
         {/* nav desktop */}
-        <nav className="hidden md:flex items-center gap-8 text-sm text-[#F5E6C8]/60">
-          <Link href="#sobre" className="hover:text-[#C9A84C] transition-colors duration-200 tracking-wide">Sobre</Link>
-          <Link href="#servicos" className="hover:text-[#C9A84C] transition-colors duration-200 tracking-wide">Serviços</Link>
-          <Link href="#depoimentos" className="hover:text-[#C9A84C] transition-colors duration-200 tracking-wide">Depoimentos</Link>
+        <nav className="hidden md:flex items-center gap-6 text-sm text-[#F5E6C8]/60">
+          {NAV_LINKS.map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              className="hover:text-[#C9A84C] transition-colors duration-200 tracking-wide"
+            >
+              {label}
+            </Link>
+          ))}
         </nav>
 
         {/* cta desktop */}
-        <Link
-          href="/agendamento"
-          className="hidden md:inline-flex items-center px-5 py-2.5 border border-[#C9A84C] text-[#C9A84C] text-sm font-medium tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] transition-all duration-300"
-        >
-          Agendar
-        </Link>
+        <div className="hidden md:flex items-center gap-3">
+          <Link
+            href="/cliente/login"
+            className="inline-flex items-center px-4 py-2.5 text-[#C9A84C]/70 text-sm font-medium tracking-wider uppercase hover:text-[#C9A84C] transition-colors duration-200"
+          >
+            Área do cliente
+          </Link>
+          <Link
+            href="/agendamento"
+            className="inline-flex items-center px-5 py-2.5 border border-[#C9A84C] text-[#C9A84C] text-sm font-medium tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] transition-all duration-300"
+          >
+            Agendar
+          </Link>
+        </div>
 
-        {/* botão agendar mobile — sempre visível */}
+        {/* mobile: botão agendar + hamburger */}
         <div className="md:hidden flex items-center gap-3">
           <Link
             href="/agendamento"
@@ -67,25 +90,48 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* menu mobile */}
-      {open && (
-        <div className="md:hidden border-t border-[#C9A84C]/20 bg-[#0A0A0A]/98 backdrop-blur-md px-6 py-6 flex flex-col gap-1">
-          {[
-            { href: "#sobre", label: "Sobre" },
-            { href: "#servicos", label: "Serviços" },
-            { href: "#depoimentos", label: "Depoimentos" },
-          ].map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => setOpen(false)}
-              className="py-3.5 text-base text-[#F5E6C8]/70 hover:text-[#C9A84C] transition-colors tracking-wide border-b border-[#1a1a1a] last:border-0"
+      {/* menu mobile com animação */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="md:hidden border-t border-[#C9A84C]/20 bg-[#0A0A0A]/98 backdrop-blur-md px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col gap-0 overflow-hidden"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+          >
+            {NAV_LINKS.map(({ href, label }, idx) => (
+              <motion.div
+                key={href}
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.2, delay: idx * 0.05 }}
+              >
+                <Link
+                  href={href}
+                  onClick={() => setOpen(false)}
+                  className="block py-3.5 text-base text-[#F5E6C8]/70 hover:text-[#C9A84C] transition-colors tracking-wide border-b border-[#1a1a1a]"
+                >
+                  {label}
+                </Link>
+              </motion.div>
+            ))}
+            <motion.div
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.2, delay: NAV_LINKS.length * 0.05 }}
             >
-              {label}
-            </Link>
-          ))}
-        </div>
-      )}
+              <Link
+                href="/cliente/login"
+                onClick={() => setOpen(false)}
+                className="block py-3.5 text-base text-[#C9A84C]/80 hover:text-[#C9A84C] transition-colors tracking-wide"
+              >
+                Área do cliente →
+              </Link>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }

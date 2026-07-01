@@ -72,7 +72,6 @@ export default function ComissoesPage() {
         </button>
       </div>
 
-      {/* filtros */}
       <div className="flex flex-wrap gap-3 items-end bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
         <label className="flex flex-col gap-1">
           <span className="text-xs text-gray-500">De</span>
@@ -87,10 +86,9 @@ export default function ComissoesPage() {
       {carregando ? (
         <div className="flex items-center gap-2 text-gray-500 text-sm"><Loader2 size={16} className="animate-spin" /> Carregando…</div>
       ) : barbeiros.length === 0 ? (
-        <p className="text-gray-500 text-sm">Nenhum barbeiro cadastrado. <a href="/admin/barbeiros" className="text-[#b8944a] underline">Cadastre barbeiros</a> primeiro.</p>
+        <p className="text-gray-500 text-sm">Nenhum funcionário cadastrado. <a href="/admin/funcionarios" className="text-[#b8944a] underline">Cadastre funcionários</a> primeiro.</p>
       ) : (
         <>
-          {/* cards por barbeiro */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {resumos.map((r) => (
               <div key={r.barbeiro.id} className="bg-[#111] border border-[#2d2d2d] rounded-xl p-5 flex flex-col gap-3">
@@ -126,7 +124,6 @@ export default function ComissoesPage() {
             ))}
           </div>
 
-          {/* sem barbeiro */}
           {agsSemBarbeiro.length > 0 && (
             <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-5">
               <p className="text-sm font-semibold text-gray-400 mb-2">Sem barbeiro atribuído ({agsSemBarbeiro.length} serviços)</p>
@@ -136,7 +133,6 @@ export default function ComissoesPage() {
             </div>
           )}
 
-          {/* totais */}
           <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-5 flex flex-col gap-3">
             <p className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Total do período</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -154,7 +150,6 @@ export default function ComissoesPage() {
               </div>
             </div>
 
-            {/* tabela detalhada */}
             {resumos.some((r) => r.atendimentos > 0) && (
               <div className="mt-2 border-t border-[#1a1a1a] pt-3">
                 <table className="w-full text-sm">
