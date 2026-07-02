@@ -13,9 +13,38 @@ export function usePushNotifications() {
       setStatus("unsupported");
       return;
     }
-    if (Notification.permission === "granted") setStatus("granted");
-    else if (Notification.permission === "denied") setStatus("denied");
+    if (Notification.permission === "granted") {
+      setStatus("granted");
+      // re-sincroniza a subscription com o servidor — se o endpoint expirou e foi
+      // removido no backend, o navegador continua achando que está "granted"
+      // mas nenhum push chega até re-registrar
+      ressincronizar();
+    } else if (Notification.permission === "denied") {
+      setStatus("denied");
+    }
   }, []);
+
+  async function ressincronizar() {
+    try {
+      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      await navigator.serviceWorker.ready;
+
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+      });
+
+      const json = sub.toJSON();
+      await fetch("/api/admin/push-subscription", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
+      });
+    } catch {
+      // silencia — próxima abertura do painel tenta de novo
+    }
+  }
 
   async function subscribe() {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
