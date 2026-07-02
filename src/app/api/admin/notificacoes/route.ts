@@ -29,19 +29,23 @@ export async function GET(_req: NextRequest) {
 
     let pendentes = 0, hoje_count = 0;
     let urgencia: Urgencia = "normal";
+    const pendentesLista: { id: string; nome: string; servico: string; data: string; horario: string; atrasado: boolean }[] = [];
 
     for (const doc of agSnap.docs) {
       const d = doc.data();
       pendentes++;
       if (d.data === hoje) hoje_count++;
-      if (urgencia !== "critico" && d.data && d.horario) {
+      let atrasado = false;
+      if (d.data && d.horario) {
         const ts = new Date(`${d.data}T${d.horario}:00`).getTime();
-        if (ts < agora) { urgencia = "critico"; continue; }
+        if (ts < agora) { atrasado = true; urgencia = "critico"; }
       }
-      if (urgencia === "normal" && d.criadoEm && agora - d.criadoEm > DUAS_HORAS) {
+      if (!atrasado && urgencia === "normal" && d.criadoEm && agora - d.criadoEm > DUAS_HORAS) {
         urgencia = "atencao";
       }
+      pendentesLista.push({ id: doc.id, nome: d.nome as string, servico: d.servico as string, data: d.data as string, horario: d.horario as string, atrasado });
     }
+    pendentesLista.sort((a, b) => a.data === b.data ? a.horario.localeCompare(b.horario) : a.data.localeCompare(b.data));
 
     // ── Agendamentos de hoje (confirmados/pendentes) para lembrete client-side ──
     const agendamentosHojeSnap = await db.collection("agendamentos")
@@ -115,7 +119,7 @@ export async function GET(_req: NextRequest) {
     const urgenciaFinanceiro: Urgencia = caixasAbertos > 0 ? "critico" : vencimentos > 0 ? "atencao" : "normal";
 
     return NextResponse.json({
-      pendentes, hoje: hoje_count, total: pendentes, urgencia, agendamentosHoje,
+      pendentes, hoje: hoje_count, total: pendentes, urgencia, agendamentosHoje, pendentesLista,
       financeiro, caixasAbertos, caixasAbertosLista, vencimentos, vencimentosLista, urgenciaFinanceiro,
     });
   } catch {

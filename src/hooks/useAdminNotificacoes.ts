@@ -18,6 +18,15 @@ export interface AgendamentoProximo {
   horario: string;
 }
 
+export interface PendenteItem {
+  id: string;
+  nome: string;
+  servico: string;
+  data: string;
+  horario: string;
+  atrasado: boolean;
+}
+
 export interface VencimentoItem {
   id: string;
   descricao: string;
@@ -33,6 +42,7 @@ interface Notificacoes {
   total: number;
   urgencia: Urgencia;
   agendamentosHoje: AgendamentoProximo[];
+  pendentesLista: PendenteItem[];
   financeiro: number;
   caixasAbertos: number;
   caixasAbertosLista: string[];
@@ -42,7 +52,7 @@ interface Notificacoes {
 }
 
 const INITIAL: Notificacoes = {
-  pendentes: 0, hoje: 0, total: 0, urgencia: "normal", agendamentosHoje: [],
+  pendentes: 0, hoje: 0, total: 0, urgencia: "normal", agendamentosHoje: [], pendentesLista: [],
   financeiro: 0, caixasAbertos: 0, caixasAbertosLista: [],
   vencimentos: 0, vencimentosLista: [], urgenciaFinanceiro: "normal",
 };
