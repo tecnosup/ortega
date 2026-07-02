@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin";
+import { sendPushToAll } from "@/lib/web-push";
+import { pushVencimentoProximo } from "@/lib/push-messages";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +42,17 @@ export async function GET(_req: NextRequest) {
       }
     }
 
+    // ── Agendamentos de hoje (confirmados/pendentes) para lembrete client-side ──
+    const agendamentosHojeSnap = await db.collection("agendamentos")
+      .where("data", "==", hoje)
+      .where("status", "in", ["pendente", "confirmado"])
+      .limit(100)
+      .get();
+    const agendamentosHoje = agendamentosHojeSnap.docs.map((doc) => {
+      const d = doc.data();
+      return { id: doc.id, nome: d.nome as string, servico: d.servico as string, data: d.data as string, horario: d.horario as string };
+    });
+
     // ── Caixas retroativos abertos (apenas últimos 30 dias) ───────────────────
     const [fechSnap, concluidosSnap, avulsosSnap] = await Promise.all([
       db.collection("fechamentos").where("data", ">=", limite30dStr).where("data", "<", hoje).get(),
@@ -70,12 +83,21 @@ export async function GET(_req: NextRequest) {
     const gastosSnap = await db.collection("gastos").where("lembrarRenovacao", "==", true).limit(200).get();
     let vencimentos = 0;
     const vencimentosLista: { id: string; descricao: string; data: string; dias: number; valor: number; frequencia: string }[] = [];
+    const AVISO_PUSH_DIAS = 3;
+    const UM_DIA_MS = 24 * 60 * 60 * 1000;
     for (const doc of gastosSnap.docs) {
       const g = doc.data();
       if (g.proximoVencimento && g.proximoVencimento >= hoje && g.proximoVencimento <= em10dStr) {
         vencimentos++;
         const dias = Math.ceil((new Date(g.proximoVencimento + "T12:00:00").getTime() - Date.now()) / 86400000);
         vencimentosLista.push({ id: doc.id, descricao: g.descricao, data: g.proximoVencimento, dias, valor: Number(g.valor) || 0, frequencia: g.frequencia ?? "mensal" });
+
+        // dispara push uma única vez por vencimento ao entrar na janela de aviso
+        if (dias <= AVISO_PUSH_DIAS && (agora - (g.ultimoAvisoPushEm ?? 0)) > UM_DIA_MS) {
+          const { title, body: pushBody } = pushVencimentoProximo(g.descricao, dias, Number(g.valor) || 0);
+          sendPushToAll(title, pushBody, "/admin/financeiro").catch(() => {});
+          doc.ref.update({ ultimoAvisoPushEm: agora }).catch(() => {});
+        }
       }
     }
 
@@ -83,7 +105,7 @@ export async function GET(_req: NextRequest) {
     const urgenciaFinanceiro: Urgencia = caixasAbertos > 0 ? "critico" : vencimentos > 0 ? "atencao" : "normal";
 
     return NextResponse.json({
-      pendentes, hoje: hoje_count, total: pendentes, urgencia,
+      pendentes, hoje: hoje_count, total: pendentes, urgencia, agendamentosHoje,
       financeiro, caixasAbertos, caixasAbertosLista, vencimentos, vencimentosLista, urgenciaFinanceiro,
     });
   } catch {

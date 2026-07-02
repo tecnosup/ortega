@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { criarAgendamento, listarAgendamentos } from "@/lib/agendamentos";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { sendPushToAll, sendPushToBarbeiro } from "@/lib/web-push";
+import { pushNovoAgendamento } from "@/lib/push-messages";
 import { getAssinaturaPorTelefone, getAssinaturaPorEmail, consumirCredito } from "@/lib/assinaturas";
 
 export const dynamic = "force-dynamic";
@@ -61,12 +62,9 @@ export async function POST(req: NextRequest) {
   const id = await criarAgendamento(payload);
 
   // push em background — não bloqueia resposta ao cliente
-  const dataFormatada = new Date(data + "T12:00:00").toLocaleDateString("pt-BR", {
-    weekday: "short", day: "numeric", month: "short",
+  const { title: pushTitle, body: pushBody } = pushNovoAgendamento({
+    nome: nomeSanitizado, servico: servicoSanitizado, data, horario, barbeiroNome,
   });
-  const barbeiroLabel = barbeiroNome ? ` com ${barbeiroNome}` : "";
-  const pushTitle = `✂️ Novo agendamento${barbeiroLabel}`;
-  const pushBody = `${nomeSanitizado} · ${servicoSanitizado} · ${dataFormatada} às ${horario}`;
   sendPushToAll(pushTitle, pushBody).catch(() => {});
   if (payload.barbeiroId) {
     sendPushToBarbeiro(payload.barbeiroId, pushTitle, pushBody).catch(() => {});
