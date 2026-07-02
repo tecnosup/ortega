@@ -88,3 +88,80 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #C9A84C88;
 }
+
+/* ============================================================
+   Fallback para Safari antigo (iOS 15 / iPhone 7)
+   ------------------------------------------------------------
+   O Tailwind v4 gera cores com color-mix()/oklch(), que o
+   Safari < 16.4 não entende — isso derruba fundos, bordas e
+   textos e "quebra a página inteira". Este bloco SÓ é aplicado
+   quando o navegador NÃO suporta color-mix(), então navegadores
+   modernos ignoram tudo aqui e nada muda para eles.
+   ============================================================ */
+@supports not (color: color-mix(in oklab, red, red)) {
+  /* backdrop-filter é caro/instável no Safari 15 e deixaria
+     áreas semi-transparentes ilegíveis — desligamos. */
+  [class*="backdrop-blur"] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Cor base garantida: sem as variáveis oklch, forçamos a
+     paleta em valores sólidos para fundo e texto. */
+  body {
+    background-color: #0A0A0A !important;
+    color: #F5E6C8 !important;
+  }
+
+  /* Cards/superfícies translúcidas (bg-white/[0.02..0.05])
+     viram um cinza sólido sutil, em vez de sumirem. */
+  .bg-white\/\[0\.02\],
+  .bg-white\/\[0\.03\],
+  .bg-white\/\[0\.04\],
+  .bg-white\/\[0\.05\] {
+    background-color: #17171a !important;
+  }
+
+  /* Barras/painéis escuros translúcidos (navbar, menus, modais)
+     ficam sólidos para não vazar o conteúdo por trás. */
+  .bg-\[\#0A0A0A\]\/95,
+  .bg-\[\#0A0A0A\]\/98,
+  .bg-\[\#111\]\/95 {
+    background-color: #0A0A0A !important;
+  }
+
+  /* Overlays de modal: preto sólido translúcido -> preto opaco. */
+  .bg-black\/70 {
+    background-color: rgba(0, 0, 0, 0.92) !important;
+  }
+
+  /* Bordas douradas com opacidade (border-[#C9A84C]/10..60)
+     viram uma borda dourada fixa e discreta. */
+  [class*="border-[#C9A84C]\/"] {
+    border-color: #4a3f22 !important;
+  }
+
+  /* --- Cores de estado com opacidade (red/amber/green/yellow) ---
+     Nas telas públicas aparecem como avisos/erros translúcidos que
+     o Tailwind emite via color-mix(var(...)). Sem suporte a
+     color-mix, ficariam invisíveis; forçamos versões sólidas. */
+  [class*="bg-red-900\/"],
+  [class*="bg-red-800\/"] {
+    background-color: #3a1414 !important;
+  }
+  [class*="border-red-"][class*="\/"] {
+    border-color: #7f1d1d !important;
+  }
+  [class*="bg-yellow-900\/"],
+  [class*="bg-amber-900\/"] {
+    background-color: #3a2e0a !important;
+  }
+  [class*="border-yellow-"][class*="\/"],
+  [class*="border-amber-"][class*="\/"] {
+    border-color: #854d0e !important;
+  }
+  [class*="bg-green-"][class*="\/"],
+  [class*="bg-emerald-"][class*="\/"] {
+    background-color: #14532d !important;
+  }
+}
