@@ -6,6 +6,18 @@ import { playNovoAgendamento, playAtencao, playCritico } from "./useAdminSounds"
 
 type Urgencia = "normal" | "atencao" | "critico";
 
+const INTERVALO_POLLING_MS = 30_000;
+const JANELA_LEMBRETE_MIN_MS = 30 * 60_000;
+const JANELA_LEMBRETE_MAX_MS = 60 * 60_000;
+
+export interface AgendamentoProximo {
+  id: string;
+  nome: string;
+  servico: string;
+  data: string;
+  horario: string;
+}
+
 export interface VencimentoItem {
   id: string;
   descricao: string;
@@ -20,6 +32,7 @@ interface Notificacoes {
   hoje: number;
   total: number;
   urgencia: Urgencia;
+  agendamentosHoje: AgendamentoProximo[];
   financeiro: number;
   caixasAbertos: number;
   caixasAbertosLista: string[];
@@ -29,10 +42,18 @@ interface Notificacoes {
 }
 
 const INITIAL: Notificacoes = {
-  pendentes: 0, hoje: 0, total: 0, urgencia: "normal",
+  pendentes: 0, hoje: 0, total: 0, urgencia: "normal", agendamentosHoje: [],
   financeiro: 0, caixasAbertos: 0, caixasAbertosLista: [],
   vencimentos: 0, vencimentosLista: [], urgenciaFinanceiro: "normal",
 };
+
+function notificarLembreteLocal(ag: AgendamentoProximo) {
+  if (typeof window === "undefined" || Notification.permission !== "granted") return;
+  new Notification(`⏰ Agendamento em breve`, {
+    body: `${ag.nome} · ${ag.servico} às ${ag.horario}`,
+    icon: "/icons/icon-192.png",
+  });
+}
 
 export function useAdminNotificacoes() {
   const [data, setData] = useState<Notificacoes>(INITIAL);
@@ -40,6 +61,7 @@ export function useAdminNotificacoes() {
   const prevTotal = useRef<number | null>(null);
   const prevUrgencia = useRef<Urgencia | null>(null);
   const primeiroFetch = useRef(true);
+  const lembretesEnviados = useRef<Set<string>>(new Set());
 
   async function fetchNotificacoes() {
     try {
@@ -56,6 +78,18 @@ export function useAdminNotificacoes() {
         else if (merged.urgencia === "atencao" && urgenciaAnterior === "normal") playAtencao();
       }
 
+      // lembrete local de agendamento entrando na janela de 30-60min
+      const agora = Date.now();
+      for (const ag of merged.agendamentosHoje) {
+        if (lembretesEnviados.current.has(ag.id)) continue;
+        const ts = new Date(`${ag.data}T${ag.horario}:00`).getTime();
+        const restante = ts - agora;
+        if (restante > 0 && restante <= JANELA_LEMBRETE_MAX_MS && restante >= JANELA_LEMBRETE_MIN_MS - INTERVALO_POLLING_MS) {
+          notificarLembreteLocal(ag);
+          lembretesEnviados.current.add(ag.id);
+        }
+      }
+
       primeiroFetch.current = false;
       prevTotal.current = merged.total;
       prevUrgencia.current = merged.urgencia;
@@ -67,7 +101,7 @@ export function useAdminNotificacoes() {
 
   useEffect(() => {
     fetchNotificacoes();
-    const interval = setInterval(fetchNotificacoes, 5 * 60_000);
+    const interval = setInterval(fetchNotificacoes, INTERVALO_POLLING_MS);
     return () => clearInterval(interval);
   }, []);
 
