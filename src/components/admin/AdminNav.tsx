@@ -8,7 +8,7 @@ import { auth } from "@/lib/firebase";
 import {
   LayoutDashboard, Scissors, Star, ClipboardList,
   LogOut, CalendarCheck, Tag, Menu, X, ShoppingBag, TrendingUp, ExternalLink, Users, DollarSign, CreditCard,
-  BellRing, AlertTriangle, Bell, Calendar, Wallet,
+  BellRing, AlertTriangle, Bell, Calendar, Wallet, ChevronRight,
 } from "lucide-react";
 import { useAdminNotificacoes } from "@/hooks/useAdminNotificacoes";
 import { PushToggle } from "@/components/admin/PushToggle";
@@ -46,6 +46,7 @@ export default function AdminNav() {
   const notif = useAdminNotificacoes();
   const { pendentes, urgencia, caixasAbertos, vencimentos } = notif;
   const [modalAlertas, setModalAlertas] = useState(false);
+  const [pendentesExpandido, setPendentesExpandido] = useState(false);
   const totalAlertas = pendentes + caixasAbertos + vencimentos;
 
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -68,9 +69,16 @@ export default function AdminNav() {
   const urgenciaTotal = caixasAbertos > 0 || pendentes > 0 ? "critico" : vencimentos > 0 ? "atencao" : "normal";
 
   const modalAleratasContent = modalAlertas && (
-    <div className="fixed inset-0 z-[60] flex items-start justify-start bg-black/60 md:bg-transparent" onClick={() => setModalAlertas(false)}>
-      <div className="md:ml-56 md:mt-0 md:h-screen w-full md:w-80 bg-[#141414] border-r border-b border-[#2d2d2d] shadow-2xl flex flex-col" style={{ marginTop: "calc(max(env(safe-area-inset-top), 0.75rem) + 3.5rem)", height: "calc(100dvh - max(env(safe-area-inset-top), 0.75rem) - 3.5rem)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#1e1e1e] shrink-0">
+    <>
+      {/* overlay — no desktop não escurece o resto da tela, no mobile sim */}
+      <div className="fixed inset-0 z-[60] bg-black/60 md:bg-black/30" onClick={() => setModalAlertas(false)} />
+
+      {/* ── drawer: desliza da direita, altura cheia ── */}
+      <div
+        className="fixed top-0 right-0 z-[61] h-full w-full md:w-[420px] bg-[#141414] border-l border-[#2d2d2d] shadow-2xl flex flex-col transition-transform duration-200 translate-x-0"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#1e1e1e] shrink-0" style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.875rem)" }}>
           <div className="flex items-center gap-2">
             <BellRing size={15} className={urgenciaTotal === "critico" ? "text-red-400" : urgenciaTotal === "atencao" ? "text-amber-400" : "text-gray-400"} />
             <h3 className="font-bold text-[#F5E6C8] text-sm">Alertas ativos</h3>
@@ -96,17 +104,36 @@ export default function AdminNav() {
               {pendentes > 0 && (
                 <div className="px-3 pb-2">
                   <p className="text-[9px] font-bold tracking-widest uppercase text-gray-600 px-1 py-2">Agendamentos</p>
-                  <Link href="/admin/agendamentos" onClick={() => setModalAlertas(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#1a1a1a] transition group">
+                  <button
+                    onClick={() => setPendentesExpandido((v) => !v)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#1a1a1a] transition group"
+                  >
                     <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${urgencia === "critico" ? "bg-red-900/30" : "bg-orange-900/30"}`}>
                       <Calendar size={13} className={urgencia === "critico" ? "text-red-400" : "text-orange-400"} />
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 text-left">
                       <p className="text-xs font-medium text-[#F5E6C8]">{pendentes} pendente{pendentes > 1 ? "s" : ""}</p>
                       {notif.hoje > 0 && <p className="text-[10px] text-gray-500">{notif.hoje} para hoje</p>}
                     </div>
-                    <span className="text-[10px] text-gray-600 group-hover:text-[#b8944a] transition">→</span>
-                  </Link>
+                    <ChevronRight size={14} className={`text-gray-600 shrink-0 transition-transform duration-200 ${pendentesExpandido ? "rotate-90" : ""}`} />
+                  </button>
+
+                  {pendentesExpandido && (
+                    <div className="mt-1 flex flex-col gap-0.5 max-h-72 overflow-y-auto">
+                      {notif.pendentesLista.map((p) => (
+                        <Link key={p.id} href="/admin/agendamentos" onClick={() => setModalAlertas(false)}
+                          className="flex items-center gap-3 pl-12 pr-3 py-2 rounded-lg hover:bg-[#1a1a1a] transition group">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-gray-300 truncate">{p.nome} · {p.servico}</p>
+                            <p className={`text-[10px] ${p.atrasado ? "text-red-400" : "text-gray-500"}`}>
+                              {p.atrasado ? "Atrasado · " : ""}{new Date(p.data + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} às {p.horario}
+                            </p>
+                          </div>
+                          <ChevronRight size={14} className="text-gray-600 group-hover:text-[#b8944a] transition shrink-0" />
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -126,7 +153,7 @@ export default function AdminNav() {
                           {new Date(data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "short" })}
                         </p>
                       </div>
-                      <span className="text-[10px] text-gray-600 group-hover:text-red-400 transition">→</span>
+                      <ChevronRight size={14} className="text-gray-600 group-hover:text-red-400 transition shrink-0" />
                     </Link>
                   ))}
                 </div>
@@ -149,7 +176,7 @@ export default function AdminNav() {
                           {" · "}{new Date(v.data + "T12:00:00").toLocaleDateString("pt-BR")}
                         </p>
                       </div>
-                      <span className="text-[10px] text-gray-600 group-hover:text-amber-400 transition">→</span>
+                      <ChevronRight size={14} className="text-gray-600 group-hover:text-amber-400 transition shrink-0" />
                     </Link>
                   ))}
                 </div>
@@ -158,7 +185,7 @@ export default function AdminNav() {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 
   const sidebarContent = (
