@@ -127,7 +127,7 @@ function StatusContent() {
   }, [buscou, agendamentos, buscar]);
 
   return (
-    <main className="min-h-screen bg-[#0A0A0A] pt-8 pb-20 px-4">
+    <main className="min-h-[100dvh] bg-[#0A0A0A] pt-8 pb-20 px-4">
       <div className="max-w-lg mx-auto flex flex-col gap-6">
 
         {/* Header */}
@@ -261,7 +261,7 @@ function StatusContent() {
 export default function StatusAgendamentoPage() {
   return (
     <Suspense fallback={
-      <main className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+      <main className="min-h-[100dvh] bg-[#0A0A0A] flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-[#b8944a] border-t-transparent rounded-full animate-spin" />
       </main>
     }>

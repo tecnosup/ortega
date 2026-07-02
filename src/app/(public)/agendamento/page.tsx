@@ -104,8 +104,9 @@ export default function AgendamentoPage() {
   const [mesAtual, setMesAtual] = useState(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
-  const [erros, setErros] = useState<{ nome?: string; telefone?: string }>({});
+  const [erros, setErros] = useState<{ nome?: string; telefone?: string; geral?: string }>({});
   const [salvando, setSalvando] = useState(false);
+  const [carregandoDados, setCarregandoDados] = useState(true);
   const [agendamentoId, setAgendamentoId] = useState<string | null>(null);
   const [statusAtual, setStatusAtual] = useState<Agendamento["status"]>("pendente");
 
@@ -121,15 +122,16 @@ export default function AgendamentoPage() {
 
   // busca serviços, barbeiros e settings ao montar
   useEffect(() => {
-    fetch("/api/publico/servicos")
-      .then((r) => r.json())
-      .then((d) => setServicos(d.items ?? []));
-    fetch("/api/publico/barbeiros")
-      .then((r) => r.json())
-      .then((d) => setBarbeiros(d.barbeiros ?? []));
-    fetch("/api/publico/settings")
-      .then((r) => r.json())
-      .then((d) => { if (d.whatsappNumber) setWhatsappNumber(d.whatsappNumber); });
+    Promise.all([
+      fetch("/api/publico/servicos").then((r) => r.json()).catch(() => ({ items: [] })),
+      fetch("/api/publico/barbeiros").then((r) => r.json()).catch(() => ({ barbeiros: [] })),
+      fetch("/api/publico/settings").then((r) => r.json()).catch(() => ({}))
+    ]).then(([dServicos, dBarbeiros, dSettings]) => {
+      setServicos(dServicos.items ?? []);
+      setBarbeiros(dBarbeiros.barbeiros ?? []);
+      if (dSettings.whatsappNumber) setWhatsappNumber(dSettings.whatsappNumber);
+      setCarregandoDados(false);
+    });
   }, []);
 
   // busca slots ocupados quando muda de data ou barbeiro
@@ -272,41 +274,51 @@ export default function AgendamentoPage() {
     );
     const precoFinalStr = precoFinal > 0 ? precoFinal.toFixed(2).replace(".", ",") : selecao.preco;
 
-    const res = await fetch("/api/agendamentos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nome, telefone,
-        servico: selecao.servico,
-        preco: precoFinalStr,
-        cupom: cupomAplicado?.codigo ?? null,
-        data: dataKey,
-        horario: selecao.horario,
-        barbeiroId: selecao.barbeiroId ?? undefined,
-        barbeiroNome: selecao.barbeiroNome ?? undefined,
-      }),
-    });
+    try {
+      const res = await fetch("/api/agendamentos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome, telefone,
+          servico: selecao.servico,
+          preco: precoFinalStr,
+          cupom: cupomAplicado?.codigo ?? null,
+          data: dataKey,
+          horario: selecao.horario,
+          barbeiroId: selecao.barbeiroId ?? undefined,
+          barbeiroNome: selecao.barbeiroNome ?? undefined,
+        }),
+      });
 
-    const data = await res.json();
-    setSalvando(false);
-    setSelecao((s) => ({ ...s, nome, telefone }));
-    setAgendamentoId(data.id);
-    setStatusAtual("pendente");
-    // invalida cache do slot que acabou de ser ocupado
-    setSlotsOcupados((prev) => {
-      const prev2 = { ...prev };
-      delete prev2[dataKey];
-      if (selecao.barbeiroId) {
-        delete prev2[`${dataKey}__${selecao.barbeiroId}`];
-      } else {
-        // "qualquer": slot pode ter sido atribuído a qualquer barbeiro — invalida todos os caches deste dia
-        for (const key of Object.keys(prev2)) {
-          if (key.startsWith(`${dataKey}__`)) delete prev2[key];
-        }
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.error || "Ocorreu um erro ao agendar. Tente novamente.");
       }
-      return prev2;
-    });
-    setStep("confirmado");
+
+      const data = await res.json();
+      setSelecao((s) => ({ ...s, nome, telefone }));
+      setAgendamentoId(data.id);
+      setStatusAtual("pendente");
+      // invalida cache do slot que acabou de ser ocupado
+      setSlotsOcupados((prev) => {
+        const prev2 = { ...prev };
+        delete prev2[dataKey];
+        if (selecao.barbeiroId) {
+          delete prev2[`${dataKey}__${selecao.barbeiroId}`];
+        } else {
+          // "qualquer": slot pode ter sido atribuído a qualquer barbeiro — invalida todos os caches deste dia
+          for (const key of Object.keys(prev2)) {
+            if (key.startsWith(`${dataKey}__`)) delete prev2[key];
+          }
+        }
+        return prev2;
+      });
+      setStep("confirmado");
+    } catch (err: any) {
+      setErros({ geral: err.message });
+    } finally {
+      setSalvando(false);
+    }
   }
 
   const dataKey = selecao.data
@@ -324,15 +336,17 @@ export default function AgendamentoPage() {
   // ── STEP: SERVIÇO ─────────────────────────────────────────────────────────
   if (step === "servico") {
     return (
-      <section className="min-h-screen pt-20 pb-10 bg-[#0A0A0A]">
+      <section className="min-h-[100dvh] pt-20 pb-10 bg-[#0A0A0A]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-8">
             <StepIndicator atual={1} />
             <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 1 de 4</span>
             <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Escolha o serviço</h1>
           </div>
-          {servicos.length === 0 ? (
+          {carregandoDados ? (
             <p className="text-center text-gray-500 text-sm py-10">Carregando serviços...</p>
+          ) : servicos.length === 0 ? (
+            <p className="text-center text-gray-500 text-sm py-10">Nenhum serviço disponível no momento.</p>
           ) : (
             <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3 sm:gap-4">
               {servicos.map((s) => (
@@ -363,7 +377,7 @@ export default function AgendamentoPage() {
   // ── STEP: BARBEIRO ────────────────────────────────────────────────────────
   if (step === "barbeiro") {
     return (
-      <section className="min-h-screen pt-20 pb-10 bg-[#0A0A0A]">
+      <section className="min-h-[100dvh] pt-20 pb-10 bg-[#0A0A0A]">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-8">
             <StepIndicator atual={2} />
@@ -434,7 +448,7 @@ export default function AgendamentoPage() {
   // ── STEP: CALENDÁRIO ──────────────────────────────────────────────────────
   if (step === "calendario") {
     return (
-      <section className="min-h-screen pt-20 pb-10 bg-[#0A0A0A]">
+      <section className="min-h-[100dvh] pt-20 pb-10 bg-[#0A0A0A]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-6">
             <StepIndicator atual={3} />
@@ -580,7 +594,7 @@ export default function AgendamentoPage() {
   // ── STEP: DADOS PESSOAIS ──────────────────────────────────────────────────
   if (step === "dados") {
     return (
-      <section className="min-h-screen pt-20 pb-10 bg-[#0A0A0A]">
+      <section className="min-h-[100dvh] pt-20 pb-10 bg-[#0A0A0A]">
         <div className="max-w-xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-6">
             <StepIndicator atual={4} />
@@ -669,6 +683,7 @@ export default function AgendamentoPage() {
               <input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(11) 99999-9999" inputMode="tel" className={`${inp} ${erros.telefone ? "border-red-500" : ""}`} />
               {erros.telefone && <span className="text-xs text-red-400">{erros.telefone}</span>}
             </div>
+            {erros.geral && <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg text-sm text-red-400 text-center">{erros.geral}</div>}
             <div className="flex gap-3 mt-1">
               <button onClick={() => setStep("calendario")} className="flex-1 py-3.5 border border-[#2d2d2d] text-sm text-gray-500 rounded-xl hover:border-[#b8944a] hover:text-[#b8944a] transition active:scale-[0.98]">
                 ← Voltar
@@ -687,7 +702,7 @@ export default function AgendamentoPage() {
   const statusConfig = STATUS_CONFIG[statusAtual as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pendente;
 
   return (
-    <section className="min-h-screen pt-20 pb-10 bg-[#0A0A0A]">
+    <section className="min-h-[100dvh] pt-20 pb-10 bg-[#0A0A0A]">
       <div className="max-w-xl mx-auto px-4 sm:px-6 flex flex-col gap-4">
         <div className={`border rounded-lg p-5 flex items-start gap-4 ${statusConfig.cor}`}>
           <span className="text-2xl">{statusConfig.icone}</span>
