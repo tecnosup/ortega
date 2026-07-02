@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { criarAgendamento, listarAgendamentos } from "@/lib/agendamentos";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { sendPushToAll, sendPushToBarbeiro } from "@/lib/web-push";
@@ -61,14 +62,16 @@ export async function POST(req: NextRequest) {
 
   const id = await criarAgendamento(payload);
 
-  // push em background — não bloqueia resposta ao cliente
+  // push em background — não bloqueia resposta ao cliente, mas roda até completar via after()
   const { title: pushTitle, body: pushBody } = pushNovoAgendamento({
     nome: nomeSanitizado, servico: servicoSanitizado, data, horario, barbeiroNome,
   });
-  sendPushToAll(pushTitle, pushBody).catch(() => {});
-  if (payload.barbeiroId) {
-    sendPushToBarbeiro(payload.barbeiroId, pushTitle, pushBody).catch(() => {});
-  }
+  after(async () => {
+    await sendPushToAll(pushTitle, pushBody).catch(() => {});
+    if (payload.barbeiroId) {
+      await sendPushToBarbeiro(payload.barbeiroId, pushTitle, pushBody).catch(() => {});
+    }
+  });
 
   return NextResponse.json({ id });
 }

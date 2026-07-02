@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { cookies } from "next/headers";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin";
 import { sendPushToAll } from "@/lib/web-push";
@@ -85,6 +86,7 @@ export async function GET(_req: NextRequest) {
     const vencimentosLista: { id: string; descricao: string; data: string; dias: number; valor: number; frequencia: string }[] = [];
     const AVISO_PUSH_DIAS = 3;
     const UM_DIA_MS = 24 * 60 * 60 * 1000;
+    const avisosPendentes: { title: string; body: string; docRef: FirebaseFirestore.DocumentReference }[] = [];
     for (const doc of gastosSnap.docs) {
       const g = doc.data();
       if (g.proximoVencimento && g.proximoVencimento >= hoje && g.proximoVencimento <= em10dStr) {
@@ -95,10 +97,18 @@ export async function GET(_req: NextRequest) {
         // dispara push uma única vez por vencimento ao entrar na janela de aviso
         if (dias <= AVISO_PUSH_DIAS && (agora - (g.ultimoAvisoPushEm ?? 0)) > UM_DIA_MS) {
           const { title, body: pushBody } = pushVencimentoProximo(g.descricao, dias, Number(g.valor) || 0);
-          sendPushToAll(title, pushBody, "/admin/financeiro").catch(() => {});
-          doc.ref.update({ ultimoAvisoPushEm: agora }).catch(() => {});
+          avisosPendentes.push({ title, body: pushBody, docRef: doc.ref });
         }
       }
+    }
+
+    if (avisosPendentes.length > 0) {
+      after(async () => {
+        for (const aviso of avisosPendentes) {
+          await sendPushToAll(aviso.title, aviso.body, "/admin/financeiro").catch(() => {});
+          await aviso.docRef.update({ ultimoAvisoPushEm: agora }).catch(() => {});
+        }
+      });
     }
 
     const financeiro = caixasAbertos + vencimentos;
