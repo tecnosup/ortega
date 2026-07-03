@@ -43,7 +43,7 @@ export default function Footer() {
           <span className="col-span-2 md:col-span-1 text-xs text-[#F5E6C8]/20 md:text-right">© {year} Ortega Barber</span>
         </div>
 
-        <div className="mt-6 pt-6 border-t border-[#C9A84C]/08 text-center text-xs text-[#F5E6C8]/20 tracking-wide">
+        <div className="mt-6 pt-6 border-t border-[#C9A84C]/8 text-center text-xs text-[#F5E6C8]/20 tracking-wide">
           R. Cap. Neco, 300 — Vila Ana Rosa Novaes · (12) 99258-5538
         </div>
       </div>

@@ -177,7 +177,7 @@ export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, i
             transition={{ duration: 0.9, delay: 0.4 }}
           >
             <div className="absolute -inset-3 border border-[#C9A84C]/20" />
-            <div className="absolute -inset-6 border border-[#C9A84C]/08" />
+            <div className="absolute -inset-6 border border-[#C9A84C]/8" />
             <div className="relative overflow-hidden aspect-[3/4]">
               <img
                 src={imagemRetrato || "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=800&q=85"}
