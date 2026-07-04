@@ -222,7 +222,7 @@ function FormAtendimento({ data, inicial, agendamento, onSalvo, onCancelar }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onCancelar}>
       <div
         className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-lg flex flex-col"
-        style={{ maxHeight: "calc(100dvh - 2rem)" }}
+        style={{ maxHeight: "calc(100vh - 2rem)" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

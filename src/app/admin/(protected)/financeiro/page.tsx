@@ -159,7 +159,7 @@ function ModalCategorias({ categorias, onFechar, onChanged }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onFechar}>
-      <div className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-sm flex flex-col" style={{ maxHeight: "calc(100dvh - 2rem)" }} onClick={(e) => e.stopPropagation()}>
+      <div className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-sm flex flex-col" style={{ maxHeight: "calc(100vh - 2rem)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e1e] shrink-0">
           <h3 className="font-bold text-[#F5E6C8] text-sm">Categorias de gastos</h3>
           <button onClick={onFechar} className="text-gray-600 hover:text-gray-300 transition"><X size={16} /></button>
@@ -262,7 +262,7 @@ function FormGasto({ inicial, categorias, onSalvar, onCancelar, salvando }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onCancelar}>
-      <div className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: "calc(100dvh - 2rem)" }} onClick={(e) => e.stopPropagation()}>
+      <div className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: "calc(100vh - 2rem)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e1e] shrink-0">
           <h3 className="font-bold text-[#F5E6C8] text-sm">{inicial?.id ? "Editar gasto" : "Novo gasto"}</h3>
           <button onClick={onCancelar} className="text-gray-600 hover:text-gray-300 transition"><X size={16} /></button>

@@ -336,7 +336,7 @@ export default function AgendamentoPage() {
   // ── STEP: SERVIÇO ─────────────────────────────────────────────────────────
   if (step === "servico") {
     return (
-      <section className="min-h-[100dvh] pt-20 pb-10 bg-[#0A0A0A]">
+      <section className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-8">
             <StepIndicator atual={1} />
@@ -377,7 +377,7 @@ export default function AgendamentoPage() {
   // ── STEP: BARBEIRO ────────────────────────────────────────────────────────
   if (step === "barbeiro") {
     return (
-      <section className="min-h-[100dvh] pt-20 pb-10 bg-[#0A0A0A]">
+      <section className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A]">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-8">
             <StepIndicator atual={2} />
@@ -448,7 +448,7 @@ export default function AgendamentoPage() {
   // ── STEP: CALENDÁRIO ──────────────────────────────────────────────────────
   if (step === "calendario") {
     return (
-      <section className="min-h-[100dvh] pt-20 pb-10 bg-[#0A0A0A]">
+      <section className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-6">
             <StepIndicator atual={3} />
@@ -594,7 +594,7 @@ export default function AgendamentoPage() {
   // ── STEP: DADOS PESSOAIS ──────────────────────────────────────────────────
   if (step === "dados") {
     return (
-      <section className="min-h-[100dvh] pt-20 pb-10 bg-[#0A0A0A]">
+      <section className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A]">
         <div className="max-w-xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-6">
             <StepIndicator atual={4} />
@@ -702,7 +702,7 @@ export default function AgendamentoPage() {
   const statusConfig = STATUS_CONFIG[statusAtual as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pendente;
 
   return (
-    <section className="min-h-[100dvh] pt-20 pb-10 bg-[#0A0A0A]">
+    <section className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A]">
       <div className="max-w-xl mx-auto px-4 sm:px-6 flex flex-col gap-4">
         <div className={`border rounded-lg p-5 flex items-start gap-4 ${statusConfig.cor}`}>
           <span className="text-2xl">{statusConfig.icone}</span>

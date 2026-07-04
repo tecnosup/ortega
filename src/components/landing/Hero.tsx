@@ -19,7 +19,7 @@ export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, i
     : "#";
 
   return (
-    <section className="relative min-h-[100svh] flex items-center overflow-hidden bg-[#0A0A0A]">
+    <section className="relative min-h-screen-safe flex items-center overflow-hidden bg-[#0A0A0A]">
 
       {/* fundo */}
       <div className="absolute inset-0">
@@ -46,7 +46,7 @@ export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, i
       <div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-[#C9A84C]/40 to-transparent" />
 
       {/* conteúdo */}
-      <div className="relative z-10 w-full max-w-6xl mx-auto px-6 sm:px-8 pt-24 pb-12 md:pt-0 md:pb-0 min-h-[100svh] flex flex-col md:flex-row md:items-center">
+      <div className="relative z-10 w-full max-w-6xl mx-auto px-6 sm:px-8 pt-24 pb-12 md:pt-0 md:pb-0 min-h-screen-safe flex flex-col md:flex-row md:items-center">
 
         {/* coluna texto */}
         <div className="w-full md:w-[55%] flex flex-col gap-6 md:gap-8 md:py-32">
@@ -177,7 +177,7 @@ export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, i
             transition={{ duration: 0.9, delay: 0.4 }}
           >
             <div className="absolute -inset-3 border border-[#C9A84C]/20" />
-            <div className="absolute -inset-6 border border-[#C9A84C]/08" />
+            <div className="absolute -inset-6 border border-[#C9A84C]/8" />
             <div className="relative overflow-hidden aspect-[3/4]">
               <img
                 src={imagemRetrato || "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=800&q=85"}
