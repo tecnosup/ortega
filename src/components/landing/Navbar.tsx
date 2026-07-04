@@ -33,16 +33,16 @@ export default function Navbar() {
       }`}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 md:h-20 flex items-center justify-between">
-        {/* logo */}
+        {/* logo (desktop) / texto Ortega (mobile) */}
         <Link href="/" className="flex items-center gap-2.5 group">
           <Image
             src="/logo-ortega.png"
             alt="Ortega"
             width={40}
             height={40}
-            className="object-contain drop-shadow-[0_0_8px_rgba(201,168,76,0.4)] group-hover:drop-shadow-[0_0_14px_rgba(201,168,76,0.7)] transition-all duration-300"
+            className="object-contain drop-shadow-[0_0_8px_rgba(201,168,76,0.4)] group-hover:drop-shadow-[0_0_14px_rgba(201,168,76,0.7)] transition-all duration-300 hidden sm:block"
           />
-          <span className="text-[#C9A84C] font-bold text-base sm:text-lg tracking-[0.2em] uppercase hidden sm:block">
+          <span className="text-[#C9A84C] font-bold text-base sm:text-lg tracking-[0.2em] uppercase">
             Ortega
           </span>
         </Link>
