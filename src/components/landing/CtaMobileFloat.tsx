@@ -13,7 +13,7 @@ export default function CtaMobileFloat({ whatsappNumber }: { whatsappNumber?: st
   }, []);
 
   const whatsappHref = whatsappNumber
-    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent("Olá! Gostaria de agendar um horário na Ortega Barber.")}`
+    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent("Olá! Gostaria de agendar um horário na Ortega.")}`
     : "#";
 
   return (

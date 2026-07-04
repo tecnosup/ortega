@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { ChevronLeft, ChevronRight, Check, Tag } from "lucide-react";
 import { HORARIO_FUNCIONAMENTO } from "@/lib/demo-data";
 import type { Item } from "@/lib/admin-items";
@@ -113,6 +113,11 @@ export default function AgendamentoPage() {
   // slots ocupados por data (cache local)
   const [slotsOcupados, setSlotsOcupados] = useState<Record<string, string[]>>({});
   const [carregandoSlots, setCarregandoSlots] = useState(false);
+
+  // ref da seção de horários — usado para rolar até ela ao escolher o dia
+  const horariosRef = useRef<HTMLDivElement>(null);
+  // ref do botão "Continuar" — rola até ele ao escolher o horário
+  const continuarRef = useRef<HTMLButtonElement>(null);
 
   // cupom
   const [codigoCupom, setCodigoCupom] = useState("");
@@ -233,6 +238,13 @@ export default function AgendamentoPage() {
     const d = new Date(ano, mes, dia);
     if (d < hoje || d.getDay() === 0) return;
     setSelecao((s) => ({ ...s, data: d, horario: "" }));
+    // rola até os horários para o cliente perceber que precisa escolher o horário
+    // (o timeout garante que a seção já renderizou com a data selecionada)
+    // block: "start" deixa o título da data no topo da área visível (com scroll-mt
+    // dando o respiro da navbar), em vez de centralizar a lista e cortar o cabeçalho
+    setTimeout(() => {
+      horariosRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   }
 
   async function aplicarCupom() {
@@ -542,7 +554,7 @@ export default function AgendamentoPage() {
             </div>
 
             {/* horários */}
-            <div className="flex flex-col gap-3">
+            <div ref={horariosRef} className="flex flex-col gap-3 scroll-mt-24">
               {selecao.data ? (
                 <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
                   <p className="text-xs text-gray-600 uppercase tracking-wider mb-3">
@@ -557,7 +569,13 @@ export default function AgendamentoPage() {
                       {slotsDisponiveis.map((slot) => (
                         <button
                           key={slot}
-                          onClick={() => setSelecao((s) => ({ ...s, horario: slot }))}
+                          onClick={() => {
+                            setSelecao((s) => ({ ...s, horario: slot }));
+                            // rola até o botão "Continuar" (que só aparece agora)
+                            setTimeout(() => {
+                              continuarRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                            }, 100);
+                          }}
                           className={`py-2.5 text-sm rounded-lg transition-all border font-medium active:scale-95 ${
                             selecao.horario === slot
                               ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]"
@@ -578,8 +596,9 @@ export default function AgendamentoPage() {
 
               {selecao.data && selecao.horario && (
                 <button
+                  ref={continuarRef}
                   onClick={() => setStep("dados")}
-                  className="w-full py-4 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-xl hover:bg-[#c9a84c] transition active:scale-[0.98]"
+                  className="w-full py-4 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-xl hover:bg-[#c9a84c] transition active:scale-[0.98] scroll-mt-24"
                 >
                   Continuar →
                 </button>

@@ -37,7 +37,7 @@ export default function Navbar() {
         <Link href="/" className="flex items-center gap-2.5 group">
           <Image
             src="/logo-ortega.png"
-            alt="Ortega Barber"
+            alt="Ortega"
             width={40}
             height={40}
             className="object-contain drop-shadow-[0_0_8px_rgba(201,168,76,0.4)] group-hover:drop-shadow-[0_0_14px_rgba(201,168,76,0.7)] transition-all duration-300"
