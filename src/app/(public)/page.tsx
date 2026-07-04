@@ -20,7 +20,7 @@ export const revalidate = 60;
 export default async function HomePage() {
   const [settings, items, produtos, descontosList, categorias, categoriasServicos] = await Promise.all([
     getLandingSettings().catch(() => ({
-      heroTitulo: "Ortega Barber",
+      heroTitulo: "Ortega",
       heroSubtitulo: "Tradição e estilo em cada corte",
       heroImagemFundo: "",
       heroImagemRetrato: "",

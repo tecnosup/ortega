@@ -73,7 +73,7 @@ export default function Sobre({ texto, imagem }: SobreProps) {
             style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
           >
             Sobre o<br />
-            <span className="text-[#C9A84C]">Ortega Barber</span>
+            <span className="text-[#C9A84C]">Ortega</span>
           </h2>
           <p className="text-sm sm:text-base text-[#F5E6C8]/60 leading-relaxed">{texto}</p>
 

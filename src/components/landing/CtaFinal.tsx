@@ -47,7 +47,7 @@ export default function CtaFinal() {
           </a>
           {whatsapp && (
             <a
-              href={`https://wa.me/${whatsapp}?text=${encodeURIComponent("Olá! Gostaria de agendar um horário na Ortega Barber.")}`}
+              href={`https://wa.me/${whatsapp}?text=${encodeURIComponent("Olá! Gostaria de agendar um horário na Ortega.")}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center px-10 py-4 border-2 border-[#C9A84C] text-[#C9A84C] text-sm font-bold tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] active:scale-[0.97] transition-all duration-300"

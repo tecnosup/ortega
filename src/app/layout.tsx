@@ -11,7 +11,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_SITE_NAME ?? "Ortega Barber",
+  title: process.env.NEXT_PUBLIC_SITE_NAME ?? "Ortega",
   description: "Barbearia premium com cortes clássicos e modernos. Agende seu horário.",
   appleWebApp: {
     capable: true,
