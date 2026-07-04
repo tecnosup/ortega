@@ -60,7 +60,7 @@ export default function AdminError({
   const [mostraModal, setMostraModal] = useState(false);
 
   return (
-    <div className="min-h-[100dvh] bg-[#0A0A0A] flex items-center justify-center px-6">
+    <div className="min-h-screen-safe bg-[#0A0A0A] flex items-center justify-center px-6">
       {mostraModal && <ModalSuporte onFechar={() => setMostraModal(false)} />}
 
       <div className="text-center flex flex-col items-center gap-5 max-w-sm w-full">

@@ -22,7 +22,7 @@ export default function AdminAuthGuard({ children }: { children: React.ReactNode
 
   if (status === "loading") {
     return (
-      <div className="min-h-[100dvh] bg-[#0A0A0A] flex items-center justify-center">
+      <div className="min-h-screen-safe bg-[#0A0A0A] flex items-center justify-center">
         <div className="text-[#b8944a] text-sm tracking-widest uppercase animate-pulse">
           Verificando acesso...
         </div>

@@ -17,6 +17,26 @@
 .pt-safe { padding-top: env(safe-area-inset-top); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
+/* Altura de viewport com fallback para Safari antigo (iOS <15.4).
+   As unidades dvh/svh só existem no Safari 15.4+. Em iPhone 7 (iOS 15.0-15.3)
+   elas são inválidas e a seção colapsa. Declaramos 100vh primeiro (universal)
+   e dvh/svh depois: navegadores modernos usam a última que entendem. */
+/* Base: 100vh, entendido por TODO Safari (inclusive iOS <15.4). */
+.min-h-screen-safe {
+  min-height: 100vh;
+}
+.max-h-modal-safe {
+  max-height: 92vh;
+}
+/* Progressive enhancement: só onde svh/dvh existem (Safari 15.4+), sobrescreve.
+   Usar @supports impede o otimizador de fundir/remover o fallback acima. */
+@supports (height: 100svh) {
+  .min-h-screen-safe { min-height: 100svh; }
+}
+@supports (height: 100dvh) {
+  .max-h-modal-safe { max-height: 92dvh; }
+}
+
 /* Evita bounce scroll que revela o fundo do sistema */
 /* html, body {
   overscroll-behavior-y: none;
