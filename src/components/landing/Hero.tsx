@@ -15,7 +15,7 @@ export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, i
   const words = titulo.split(" ");
 
   const whatsappHref = whatsappNumber
-    ? `https://wa.me/${whatsappNumber}?text=Olá! Gostaria de agendar um horário na Ortega Barber.`
+    ? `https://wa.me/${whatsappNumber}?text=Olá! Gostaria de agendar um horário na Ortega.`
     : "#";
 
   return (
@@ -70,7 +70,7 @@ export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, i
             <div className="absolute inset-0 bg-[#C9A84C]/15 rounded-full blur-xl" />
             <Image
               src="/logo-ortega.png"
-              alt="Ortega Barber"
+              alt="Ortega"
               fill
               className="object-contain drop-shadow-[0_0_16px_rgba(201,168,76,0.6)]"
               priority

@@ -40,7 +40,7 @@ export default function Localizacao({
               allowFullScreen
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
-              title="Localização da Ortega Barber"
+              title="Localização da Ortega"
             />
           </div>
         </div>
