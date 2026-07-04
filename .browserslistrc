@@ -1,0 +1,12 @@
+# Alvo de navegadores para transpilação (Next.js/SWC lê este arquivo).
+# Inclui Safari/iOS 15 (iPhone 7, iOS 15.x) para que o SWC transpile
+# sintaxe JS moderna (ex: logical assignment ??=, .at()) que chegou só
+# no Safari 16 — sem isso o bundle quebra o carregamento no iPhone 7.
+#
+# Mantém navegadores modernos com boa cobertura para não inflar demais
+# o bundle dos usuários atuais.
+last 2 versions
+> 0.5%
+iOS >= 15
+Safari >= 15
+not dead
