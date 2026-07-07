@@ -7,7 +7,7 @@ import {
   CheckCircle, XCircle, Clock, RefreshCw, MessageCircle,
   Pencil, Trash2, Check, X, ChevronLeft, ChevronRight, Lock, Undo2,
   CalendarPlus, Ban, Unlock, LayoutGrid, List, Plus, TrendingUp,
-  AlertCircle, AlertTriangle, Bell, ChevronDown, Settings2, Coffee, CalendarX, CalendarCheck, Calendar,
+  AlertCircle, AlertTriangle, Bell, ChevronDown, Settings2, Coffee, CalendarX, CalendarCheck, Calendar, Tag,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -216,111 +216,258 @@ function Modal({ open, titulo, mensagem, confirmLabel, confirmClass, onConfirm, 
 
 interface AssinaturaInfo { id: string; clienteNome: string; cortesRestantes: number; planoCortesTotal: number; status: string; }
 
-function WalkInModal({ open, horario, dataSelecionada, barbeiros, onConfirm, onCancel }: {
-  open: boolean; horario: string; dataSelecionada: string; barbeiros: Barbeiro[];
-  onConfirm: (dados: { nome: string; telefone: string; servico: string; preco: string; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string }) => void;
-  onCancel: () => void;
+interface CupomInfo { codigo: string; tipo: "percentual" | "fixo"; valor: number; desconto: number; }
+type AgStep = "servico" | "barbeiro" | "dataHora" | "dados";
+
+// Modal de agendamento do admin — MESMO fluxo do lado cliente (wizard):
+// serviço → barbeiro → data/horário → dados. Telefone opcional, com cupom e crédito de assinatura.
+// Se vier de um slot da grade (preData+preHorario), pula a etapa de data/horário.
+function AgendarModal({ open, onClose, servicos, barbeiros, grade, preData, preHorario, onCriar }: {
+  open: boolean; onClose: () => void;
+  servicos: Item[]; barbeiros: Barbeiro[]; grade: GradeConfig;
+  preData?: string | null; preHorario?: string | null;
+  onCriar: (dados: { nome: string; telefone: string; servico: string; preco: string; data: string; horario: string; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string; cupom?: string | null }) => Promise<void>;
 }) {
+  const hojeKey = toDateKey(new Date());
+  const preSel = !!(preData && preHorario);
+  const passos: AgStep[] = preSel ? ["servico", "barbeiro", "dados"] : ["servico", "barbeiro", "dataHora", "dados"];
+
+  const [step, setStep] = useState<AgStep>("servico");
+  const [servico, setServico] = useState("");
+  const [preco, setPreco] = useState("");
+  const [barbeiroId, setBarbeiroId] = useState<string | null>(null);
+  const [barbeiroNome, setBarbeiroNome] = useState<string | null>(null);
+  const [dataKey, setDataKey] = useState(preData ?? hojeKey);
+  const [horario, setHorario] = useState(preHorario ?? "");
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
-  const [servico, setServico] = useState(SERVICOS_LISTA[0]);
-  const [preco, setPreco] = useState("");
-  const [barbeiroId, setBarbeiroId] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [codigoCupom, setCodigoCupom] = useState("");
+  const [cupom, setCupom] = useState<CupomInfo | null>(null);
+  const [erroCupom, setErroCupom] = useState("");
+  const [validandoCupom, setValidandoCupom] = useState(false);
   const [assinatura, setAssinatura] = useState<AssinaturaInfo | null>(null);
   const [buscandoAssinatura, setBuscandoAssinatura] = useState(false);
   const [usarCredito, setUsarCredito] = useState(false);
-  const dataLabel = new Date(dataSelecionada + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "long" });
-  const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a]";
+  const [slotsOcupados, setSlotsOcupados] = useState<string[]>([]);
+  const [carregandoSlots, setCarregandoSlots] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
 
-  // Busca assinatura quando telefone tem dígitos suficientes
+  const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2.5 text-sm text-[#F5E6C8] placeholder-gray-600 focus:outline-none focus:border-[#b8944a] transition";
+
+  // reset ao (re)abrir
+  useEffect(() => {
+    if (!open) return;
+    setStep("servico"); setServico(""); setPreco("");
+    setBarbeiroId(null); setBarbeiroNome(null);
+    setDataKey(preData ?? hojeKey); setHorario(preHorario ?? "");
+    setNome(""); setTelefone(""); setCodigoCupom(""); setCupom(null); setErroCupom("");
+    setAssinatura(null); setUsarCredito(false); setSalvando(false); setErro("");
+  }, [open, preData, preHorario, hojeKey]);
+
+  // assinatura pelo telefone
   useEffect(() => {
     const tel = telefone.replace(/\D/g, "");
     if (tel.length < 10) { setAssinatura(null); setUsarCredito(false); return; }
-    const timer = setTimeout(async () => {
+    const t = setTimeout(async () => {
       setBuscandoAssinatura(true);
       try {
         const res = await fetch(`/api/assinatura/status?telefone=${tel}`, { credentials: "include" });
-        const json = await res.json();
-        const a = json.assinatura ?? null;
+        const j = await res.json();
+        const a = j.assinatura ?? null;
         setAssinatura(a);
         setUsarCredito(a?.status === "ativa" && a?.cortesRestantes > 0);
-        if (a && !nome.trim()) setNome(a.clienteNome);
+        setNome((n) => (a && !n.trim() ? a.clienteNome : n));
       } catch { setAssinatura(null); }
       finally { setBuscandoAssinatura(false); }
     }, 600);
-    return () => clearTimeout(timer);
-  }, [telefone, nome]);
+    return () => clearTimeout(t);
+  }, [telefone]);
 
-  function handleConfirm() {
-    if (!nome.trim() || submitting) return;
-    setSubmitting(true);
-    const b = barbeiros.find((x) => x.id === barbeiroId);
-    onConfirm({
-      nome, telefone, servico, preco,
-      barbeiroId: b?.id, barbeiroNome: b ? (b.apelido ?? b.nome) : undefined,
-      usarCredito: usarCredito && !!assinatura,
-      assinaturaId: usarCredito && assinatura ? assinatura.id : undefined,
+  // slots ocupados (só quando escolhe data/barbeiro no fluxo completo)
+  useEffect(() => {
+    if (!open || preSel) return;
+    let cancel = false;
+    setCarregandoSlots(true);
+    (async () => {
+      try {
+        if (barbeiroId) {
+          const res = await fetch(`/api/slots?data=${dataKey}&barbeiroId=${encodeURIComponent(barbeiroId)}`, { credentials: "include" });
+          const { bloqueados } = await res.json();
+          if (!cancel) setSlotsOcupados(bloqueados ?? []);
+        } else {
+          const [sr, ar] = await Promise.all([
+            fetch(`/api/slots?data=${dataKey}`, { credentials: "include" }),
+            fetch(`/api/agendamentos?data=${dataKey}`, { credentials: "include" }),
+          ]);
+          const { bloqueados } = await sr.json();
+          const ags = await ar.json();
+          const ocup = Array.isArray(ags) ? ags.filter((a: Agendamento) => a.status !== "cancelado").map((a: Agendamento) => a.horario) : [];
+          if (!cancel) setSlotsOcupados(Array.from(new Set([...(bloqueados ?? []), ...ocup])));
+        }
+      } finally { if (!cancel) setCarregandoSlots(false); }
+    })();
+    return () => { cancel = true; };
+  }, [open, preSel, dataKey, barbeiroId]);
+
+  const slotsDisponiveis = (() => {
+    const todos = gerarSlotsData(dataKey, grade);
+    const agora = new Date();
+    const min = agora.getHours() * 60 + agora.getMinutes();
+    return todos.filter((s) => {
+      if (slotsOcupados.includes(s)) return false;
+      if (dataKey === hojeKey) { const [h, m] = s.split(":").map(Number); if (h * 60 + m <= min) return false; }
+      return true;
     });
-  }
+  })();
 
+  const precoBase = parseFloat((preco || "").replace(",", ".")) || 0;
+  const precoFinal = cupom ? Math.max(precoBase - cupom.desconto, 0) : precoBase;
   const temCredito = assinatura?.status === "ativa" && (assinatura?.cortesRestantes ?? 0) > 0;
 
+  async function aplicarCupom() {
+    if (!codigoCupom.trim()) return;
+    setValidandoCupom(true); setErroCupom("");
+    const res = await fetch(`/api/cupons?codigo=${encodeURIComponent(codigoCupom.trim())}`);
+    const data = await res.json();
+    setValidandoCupom(false);
+    if (!data.valido) { setCupom(null); setErroCupom(data.mensagem ?? "Cupom inválido"); return; }
+    const desconto = data.cupom.tipo === "percentual" ? parseFloat(((precoBase * data.cupom.valor) / 100).toFixed(2)) : Math.min(data.cupom.valor, precoBase);
+    setCupom({ codigo: data.cupom.codigo, tipo: data.cupom.tipo, valor: data.cupom.valor, desconto });
+  }
+
+  async function confirmar() {
+    if (nome.trim().length < 2) { setErro("Informe o nome do cliente"); return; }
+    setSalvando(true); setErro("");
+    const precoStr = usarCredito ? "0" : (precoFinal > 0 ? precoFinal.toFixed(2).replace(".", ",") : preco);
+    try {
+      await onCriar({
+        nome, telefone, servico, preco: precoStr,
+        data: dataKey, horario,
+        barbeiroId: barbeiroId ?? undefined, barbeiroNome: barbeiroNome ?? undefined,
+        usarCredito: usarCredito && !!assinatura, assinaturaId: usarCredito && assinatura ? assinatura.id : undefined,
+        cupom: cupom?.codigo ?? null,
+      });
+      onClose();
+    } catch { setErro("Erro ao criar. Tente de novo."); }
+    finally { setSalvando(false); }
+  }
+
+  const dataLabel = new Date(dataKey + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  const idx = passos.indexOf(step);
+  const irAposBarbeiro = () => setStep(preSel ? "dados" : "dataHora");
+
   return (
-    <AnimatedModal open={open} onClose={onCancel} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
-        <div>
-          <h3 className="font-bold text-[#F5E6C8]">Novo agendamento presencial</h3>
-          <p className="text-xs text-gray-500 mt-0.5">{dataLabel} às {horario}</p>
+    <AnimatedModal open={open} onClose={onClose} className="nice-scroll bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl max-w-md w-full mx-4 flex flex-col">
+      <div className="px-5 pt-5 pb-3 border-b border-[#1e1e1e] shrink-0">
+        <div className="flex items-center gap-1.5 mb-3">
+          {passos.map((p, i) => (
+            <div key={p} className={`flex items-center gap-1.5 ${i < passos.length - 1 ? "flex-1" : ""}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${i < idx ? "bg-[#b8944a] text-[#0A0A0A]" : i === idx ? "bg-[#b8944a]/20 border border-[#b8944a] text-[#b8944a]" : "bg-[#1a1a1a] border border-[#2d2d2d] text-gray-600"}`}>{i < idx ? <Check size={12} /> : i + 1}</div>
+              {i < passos.length - 1 && <div className={`h-px flex-1 ${i < idx ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`} />}
+            </div>
+          ))}
         </div>
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Nome do cliente</label><input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: João Silva" className={inp} /></div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-400">WhatsApp (opcional)</label>
-            <input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="11999999999" className={inp} />
-            {buscandoAssinatura && <p className="text-[10px] text-gray-600">Verificando assinatura...</p>}
-            {assinatura && !buscandoAssinatura && (
-              <div className={`rounded-lg px-3 py-2.5 flex flex-col gap-2 border ${temCredito ? "bg-[#b8944a]/8 border-[#b8944a]/30" : "bg-[#1a1a1a] border-[#2d2d2d]"}`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className={`text-xs font-semibold ${temCredito ? "text-[#b8944a]" : "text-gray-500"}`}>
-                      {temCredito ? "Assinante ativo" : "Assinante sem créditos"}
-                    </p>
-                    <p className="text-[10px] text-gray-500 mt-0.5">
-                      {assinatura.cortesRestantes}/{assinatura.planoCortesTotal} cortes restantes
-                    </p>
+        <h3 className="font-bold text-[#F5E6C8]">
+          {step === "servico" ? "Escolha o serviço" : step === "barbeiro" ? "Escolha o barbeiro" : step === "dataHora" ? "Data e horário" : "Dados do cliente"}
+        </h3>
+        {preSel && <p className="text-xs text-[#b8944a] mt-0.5 capitalize">{dataLabel} às {horario}</p>}
+      </div>
+
+      <div className="px-5 py-4 flex flex-col gap-3 max-h-[58vh] overflow-y-auto">
+        {step === "servico" && (
+          servicos.length === 0 ? <p className="text-sm text-gray-500 text-center py-6">Nenhum serviço cadastrado.</p> :
+          servicos.map((s) => (
+            <button key={s.id} onClick={() => { setServico(s.titulo); setPreco(s.preco); setCupom(null); setStep("barbeiro"); }}
+              className="text-left border border-[#2d2d2d] bg-[#111] p-3.5 rounded-xl hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition group">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0"><p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition truncate">{s.titulo}</p>{s.descricao && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{s.descricao}</p>}</div>
+                {s.preco && <p className="text-[#b8944a] font-bold text-sm shrink-0">R$ {s.preco}</p>}
+              </div>
+            </button>
+          ))
+        )}
+
+        {step === "barbeiro" && (
+          <>
+            <button onClick={() => { setBarbeiroId(null); setBarbeiroNome(null); irAposBarbeiro(); }}
+              className="text-left border border-[#2d2d2d] bg-[#111] p-3.5 rounded-xl hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#2d2d2d] flex items-center justify-center shrink-0">✂️</div>
+              <div><p className="font-semibold text-[#F5E6C8]">Qualquer disponível</p><p className="text-[11px] text-gray-500">O próximo barbeiro livre</p></div>
+            </button>
+            {barbeiros.map((b) => (
+              <button key={b.id} onClick={() => { setBarbeiroId(b.id); setBarbeiroNome(b.apelido ?? b.nome); irAposBarbeiro(); }}
+                className="text-left border border-[#2d2d2d] bg-[#111] p-3.5 rounded-xl hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition flex items-center gap-3">
+                {b.foto ? <img src={b.foto} alt={b.nome} className="w-10 h-10 rounded-full object-cover shrink-0" /> : <div className="w-10 h-10 rounded-full bg-[#2d2d2d] flex items-center justify-center text-[#b8944a] font-bold shrink-0">{b.nome.charAt(0).toUpperCase()}</div>}
+                <div className="min-w-0"><p className="font-semibold text-[#F5E6C8] truncate">{b.nome}</p>{b.apelido && <p className="text-[11px] text-gray-500">{b.apelido}</p>}</div>
+              </button>
+            ))}
+          </>
+        )}
+
+        {step === "dataHora" && (
+          <>
+            <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Data</label>
+              <DateFieldBR value={dataKey} min={hojeKey} onChange={(v) => { setDataKey(v); setHorario(""); }} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-gray-400 capitalize">{dataLabel}</label>
+              {carregandoSlots ? <p className="text-sm text-gray-600 py-3 text-center">Carregando horários...</p> :
+               slotsDisponiveis.length === 0 ? <p className="text-sm text-gray-500 py-3 text-center">Sem horários disponíveis neste dia.</p> :
+               <div className="grid grid-cols-4 gap-2">
+                 {slotsDisponiveis.map((s) => (
+                   <button key={s} onClick={() => setHorario(s)} className={`py-2 text-sm rounded-lg border font-medium transition ${horario === s ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "border-[#2d2d2d] text-[#F5E6C8] hover:border-[#b8944a]"}`}>{s}</button>
+                 ))}
+               </div>}
+            </div>
+          </>
+        )}
+
+        {step === "dados" && (
+          <>
+            <div className="bg-[#0d0d0d] border border-[#2d2d2d] rounded-lg p-3 flex flex-col gap-1 text-xs">
+              <div className="flex justify-between"><span className="text-gray-500">Serviço</span><span className="text-[#F5E6C8] font-medium">{servico}</span></div>
+              {barbeiroNome && <div className="flex justify-between"><span className="text-gray-500">Barbeiro</span><span className="text-[#F5E6C8]">{barbeiroNome}</span></div>}
+              <div className="flex justify-between"><span className="text-gray-500">Data</span><span className="text-[#F5E6C8] capitalize">{dataLabel}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Horário</span><span className="text-[#F5E6C8]">{horario}</span></div>
+            </div>
+            <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Nome do cliente</label><input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: João Silva" className={inp} /></div>
+            <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">WhatsApp (opcional)</label>
+              <input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="11999999999" inputMode="tel" className={inp} />
+              {buscandoAssinatura && <p className="text-[10px] text-gray-600">Verificando assinatura...</p>}
+              {assinatura && !buscandoAssinatura && (
+                <div className={`rounded-lg px-3 py-2.5 flex flex-col gap-2 border ${temCredito ? "bg-[#b8944a]/8 border-[#b8944a]/30" : "bg-[#1a1a1a] border-[#2d2d2d]"}`}>
+                  <div className="flex items-center justify-between">
+                    <div><p className={`text-xs font-semibold ${temCredito ? "text-[#b8944a]" : "text-gray-500"}`}>{temCredito ? "Assinante ativo" : "Assinante sem créditos"}</p><p className="text-[10px] text-gray-500 mt-0.5">{assinatura.cortesRestantes}/{assinatura.planoCortesTotal} cortes restantes</p></div>
+                    {temCredito && <button type="button" onClick={() => setUsarCredito((v) => !v)} className={`relative w-10 h-5 rounded-full transition-colors ${usarCredito ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`}><span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${usarCredito ? "left-5" : "left-0.5"}`} /></button>}
                   </div>
-                  {temCredito && (
-                    <button
-                      type="button"
-                      onClick={() => setUsarCredito((v) => !v)}
-                      className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${usarCredito ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`}
-                    >
-                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${usarCredito ? "left-5" : "left-0.5"}`} />
-                    </button>
-                  )}
+                  {usarCredito && <p className="text-[10px] text-[#b8944a]/80">1 crédito será consumido da assinatura</p>}
                 </div>
-                {usarCredito && (
-                  <p className="text-[10px] text-[#b8944a]/80">1 crédito será consumido da assinatura</p>
-                )}
+              )}
+            </div>
+            <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Preço (R$)</label><input value={preco} onChange={(e) => { setPreco(e.target.value); setCupom(null); }} placeholder="55" className={`${inp} disabled:opacity-50`} disabled={usarCredito} /></div>
+            {!usarCredito && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-gray-400 flex items-center gap-1.5"><Tag size={12} /> Cupom (opcional)</label>
+                <div className="flex gap-2">
+                  <input value={codigoCupom} onChange={(e) => { setCodigoCupom(e.target.value.toUpperCase()); setErroCupom(""); setCupom(null); }} placeholder="ORTEGA10" disabled={!!cupom} className={`${inp} flex-1 font-mono disabled:opacity-50`} />
+                  {cupom ? <button onClick={() => { setCupom(null); setCodigoCupom(""); }} className="px-3 py-2 text-xs text-red-400 border border-red-800/50 rounded-lg hover:bg-red-900/20 transition">Remover</button>
+                         : <button onClick={aplicarCupom} disabled={!codigoCupom.trim() || validandoCupom} className="px-3 py-2 text-xs bg-[#b8944a]/10 border border-[#b8944a]/40 text-[#b8944a] rounded-lg hover:bg-[#b8944a]/20 transition disabled:opacity-40">{validandoCupom ? "..." : "Aplicar"}</button>}
+                </div>
+                {erroCupom && <p className="text-[10px] text-red-400">{erroCupom}</p>}
+                {cupom && <p className="text-[10px] text-green-400">✓ -R$ {cupom.desconto.toFixed(2).replace(".", ",")} · total R$ {precoFinal.toFixed(2).replace(".", ",")}</p>}
               </div>
             )}
-          </div>
-          <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Serviço</label><select value={servico} onChange={(e) => setServico(e.target.value)} className={inp}>{SERVICOS_LISTA.map((s) => <option key={s}>{s}</option>)}</select></div>
-          <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Preço (R$)</label><input value={preco} onChange={(e) => setPreco(e.target.value)} placeholder="55" className={inp} /></div>
-          {barbeiros.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-400">Barbeiro</label>
-              <select value={barbeiroId} onChange={(e) => setBarbeiroId(e.target.value)} className={inp}>
-                <option value="">— Qualquer disponível —</option>
-                {barbeiros.map((b) => <option key={b.id} value={b.id}>{b.nome}{b.apelido ? ` (${b.apelido})` : ""}</option>)}
-              </select>
-            </div>
-          )}
-        </div>
-        <div className="flex gap-2 justify-end">
-          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
-          <button onClick={handleConfirm} disabled={!nome.trim() || submitting} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">{submitting ? "Salvando..." : "Confirmar"}</button>
-        </div>
+            {erro && <p className="text-xs text-red-400 text-center">{erro}</p>}
+          </>
+        )}
+      </div>
+
+      <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2 justify-between shrink-0">
+        <button onClick={() => { if (idx === 0) onClose(); else setStep(passos[idx - 1]); }} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">{idx === 0 ? "Cancelar" : "← Voltar"}</button>
+        {step === "dataHora" && <button onClick={() => setStep("dados")} disabled={!horario} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">Continuar →</button>}
+        {step === "dados" && <button onClick={confirmar} disabled={salvando || nome.trim().length < 2} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">{salvando ? "Salvando..." : "Confirmar"}</button>}
+      </div>
     </AnimatedModal>
   );
 }
@@ -464,7 +611,7 @@ function ReagendarModal({ open, ag, dataSelecionada, slotsLivres, grade, onConfi
   );
 }
 
-type ModalState = { tipo: "concluir" | "excluir" | "fechar_caixa" | "bloquear" | "fechar_dia" | "fechar_dia_2" | "liberar_dia"; id?: string; horario?: string } | null;
+type ModalState = { tipo: "concluir" | "excluir" | "fechar_caixa" | "bloquear" | "fechar_dia" | "fechar_dia_2" | "liberar_dia" | "caixa_fechado_retro"; id?: string; horario?: string } | null;
 
 // Modal de configuração da grade — horários padrão por dia da semana + almoço.
 function ConfigGradeModal({ open, grade, salvando, onSave, onClose }: {
@@ -573,6 +720,25 @@ function ConfigGradeModal({ open, grade, salvando, onSave, onClose }: {
   );
 }
 
+// Feedback positivo do app: check animado + mensagem, dentro de um modal centralizado.
+function SucessoModal({ open, mensagem, onClose }: { open: boolean; mensagem: string; onClose: () => void }) {
+  return (
+    <AnimatedModal open={open} onClose={onClose} className="bg-[#141414] border border-green-700/40 rounded-2xl shadow-2xl px-8 py-9 max-w-[17rem] w-full mx-4 flex flex-col items-center gap-4">
+      <motion.div
+        initial={{ scale: 0, rotate: -25 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ type: "spring", stiffness: 260, damping: 14 }}
+        className="w-20 h-20 rounded-full bg-green-500/15 border-2 border-green-500/50 flex items-center justify-center"
+      >
+        <motion.span initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.18, type: "spring", stiffness: 500, damping: 16 }}>
+          <Check size={40} strokeWidth={3} className="text-green-400" />
+        </motion.span>
+      </motion.div>
+      <p className="text-base font-bold text-[#F5E6C8] text-center leading-snug">{mensagem}</p>
+    </AnimatedModal>
+  );
+}
+
 export default function AgendamentosAdminPage() {
   const hoje = new Date();
   const hojeKey = toDateKey(hoje);
@@ -587,7 +753,8 @@ export default function AgendamentosAdminPage() {
   const [caixaFechado, setCaixaFechado] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
   const [slotsBloqueados, setSlotsBloqueados] = useState<string[]>([]);
-  const [walkInHorario, setWalkInHorario] = useState<string | null>(null);
+  const [agendarOpen, setAgendarOpen] = useState(false);
+  const [agendarPre, setAgendarPre] = useState<{ data: string; horario: string } | null>(null);
   const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
   const [servicos, setServicos] = useState<Item[]>([]);
   const [reagendarAg, setReagendarAg] = useState<Agendamento | null>(null);
@@ -599,15 +766,23 @@ export default function AgendamentosAdminPage() {
   const [configGradeOpen, setConfigGradeOpen] = useState(false);
   const [salvandoGrade, setSalvandoGrade] = useState(false);
   const [pendencias, setPendencias] = useState<Agendamento[] | null>(null);
+  const [sucesso, setSucesso] = useState<string | null>(null);
   const router = useRouter();
+
+  function mostrarSucesso(msg: string) {
+    setSucesso(msg);
+    setTimeout(() => setSucesso(null), 1500);
+  }
+
+  // Abre o modal de agendar. Sem args = do zero (FAB); com data/horário = pré-selecionado (grade).
+  function abrirAgendar(pre?: { data: string; horario: string }) {
+    setAgendarPre(pre ?? null);
+    setAgendarOpen(true);
+  }
 
   // Mantém o conteúdo do modal montado durante a animação de saída.
   // Ao abrir, atualiza com o valor atual + uma key nova (reseta o form).
-  const [walkInRender, setWalkInRender] = useState<{ horario: string; key: number } | null>(null);
   const [reagendarRender, setReagendarRender] = useState<{ ag: Agendamento; key: number } | null>(null);
-  useEffect(() => {
-    if (walkInHorario) setWalkInRender({ horario: walkInHorario, key: Date.now() });
-  }, [walkInHorario]);
   useEffect(() => {
     if (reagendarAg) setReagendarRender({ ag: reagendarAg, key: Date.now() });
   }, [reagendarAg]);
@@ -643,9 +818,8 @@ export default function AgendamentosAdminPage() {
   // "Agendar horário" e "Grade de hoje" são disparadas via ?acao= (ver efeito abaixo),
   // para que o mesmo AdminFab funcione a partir de qualquer tela do admin.
   function fabAgendarHorario() {
-    // abre o modal de novo agendamento no próximo horário livre do dia selecionado
-    const proximoLivre = slotsLivresDia[0] ?? todosSlotsDia[0];
-    if (proximoLivre) setWalkInHorario(proximoLivre);
+    // FAB: abre o wizard do zero (cliente escolhe serviço/barbeiro/data/horário/dados)
+    abrirAgendar();
   }
 
   function fabGradeHoje() {
@@ -679,19 +853,25 @@ export default function AgendamentosAdminPage() {
 
   const carregar = useCallback(async () => {
     setCarregando(true);
+    // parse resiliente: se a API falhar (ex.: 500 / cota Firestore), usa fallback
+    // em vez de quebrar a página inteira com "Unexpected end of JSON input".
+    const parse = async <T,>(res: Response, fallback: T): Promise<T> => {
+      if (!res.ok) return fallback;
+      try { return (await res.json()) as T; } catch { return fallback; }
+    };
     const [resAgs, resFech, resBloq] = await Promise.all([
-      fetch("/api/agendamentos", { credentials: "include" }),
-      fetch("/api/fechamento", { credentials: "include" }),
-      fetch(`/api/slots?data=${dataSelecionada}`, { credentials: "include" }),
+      fetch("/api/agendamentos", { credentials: "include" }).catch(() => null),
+      fetch("/api/fechamento", { credentials: "include" }).catch(() => null),
+      fetch(`/api/slots?data=${dataSelecionada}`, { credentials: "include" }).catch(() => null),
     ]);
-    const agsData = await resAgs.json();
-    const fechsData = await resFech.json();
-    const { bloqueados } = await resBloq.json();
+    const agsData = resAgs ? await parse<unknown>(resAgs, []) : [];
+    const fechsData = resFech ? await parse<unknown>(resFech, []) : [];
+    const bloqData = resBloq ? await parse<{ bloqueados?: string[] }>(resBloq, { bloqueados: [] }) : { bloqueados: [] };
     const ags: Agendamento[] = Array.isArray(agsData) ? agsData : [];
     const fechs: FechamentoDia[] = Array.isArray(fechsData) ? fechsData : [];
     setAgendamentos(ags);
     setFechamentos(fechs);
-    setSlotsBloqueados(bloqueados);
+    setSlotsBloqueados(bloqData.bloqueados ?? []);
     setCaixaFechado(fechs.some((f) => f.data === dataSelecionada));
     setCarregando(false);
 
@@ -729,6 +909,13 @@ export default function AgendamentosAdminPage() {
   const ehHoje = dataSelecionada === hojeKey;
   const ehFuturo = dataSelecionada > hojeKey;
   const diaFechado = todosSlotsDia.length === 0;
+  // minutos do momento atual — usado pra marcar horários já passados como retroativos
+  const agoraMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const slotPassou = (slot: string) => {
+    if (dataSelecionada < hojeKey) return true;   // dia inteiro no passado → tudo retroativo
+    if (!ehHoje) return false;                    // dia futuro → nada passou
+    return (Number(slot.slice(0, 2)) * 60 + Number(slot.slice(3, 5))) < agoraMin; // hoje → só horários já passados
+  };
 
   const dataLabel = new Date(dataSelecionada + "T12:00:00").toLocaleDateString("pt-BR", {
     day: "numeric", month: "long", year: "numeric",
@@ -741,6 +928,8 @@ export default function AgendamentosAdminPage() {
     const data = await res.json();
     setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, status } : a));
     setProcessando(null);
+    const msgStatus: Partial<Record<AgendamentoStatus, string>> = { concluido: "Atendimento concluído!", nao_compareceu: "Marcado como não compareceu", confirmado: "Agendamento confirmado!", cancelado: "Agendamento cancelado" };
+    if (msgStatus[status]) mostrarSucesso(msgStatus[status]!);
     if (data.whatsappLink) window.open(data.whatsappLink, "_blank");
   }
 
@@ -764,18 +953,32 @@ export default function AgendamentosAdminPage() {
     setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, servico: servicoFinal, preco: precoFinal } : a));
     setEditandoId(null);
     setProcessando(null);
+    mostrarSucesso("Comanda atualizada");
   }
 
   async function excluir(id: string) {
     await fetch(`/api/agendamentos/${id}`, { credentials: "include", method: "DELETE" });
     setAgendamentos((prev) => prev.filter((a) => a.id !== id));
+    mostrarSucesso("Agendamento removido");
+  }
+
+  // Regra de rastreabilidade: só dá pra registrar retroativo com o caixa do dia ABERTO.
+  // Se estiver fechado, reabre (DELETE do fechamento) e já abre o walk-in do horário.
+  async function reabrirCaixaERegistrar(horario: string) {
+    const fech = fechamentos.find((f) => f.data === dataSelecionada);
+    if (fech) {
+      await fetch(`/api/fechamento/${fech.id}`, { method: "DELETE", credentials: "include" });
+      setFechamentos((prev) => prev.filter((f) => f.id !== fech.id));
+    }
+    setCaixaFechado(false);
+    abrirAgendar({ data: dataSelecionada, horario });
   }
 
   async function fecharCaixa() {
     if (caixaFechado) return;
     setFechandoCaixa(true);
     const res = await fetch("/api/fechamento", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: dataSelecionada }) });
-    if (res.ok || res.status === 409) setCaixaFechado(true);
+    if (res.ok || res.status === 409) { setCaixaFechado(true); mostrarSucesso("Caixa fechado!"); }
     setFechandoCaixa(false);
   }
 
@@ -783,14 +986,13 @@ export default function AgendamentosAdminPage() {
     const jaBloqueado = slotsBloqueados.includes(horario);
     await fetch("/api/slots", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: dataSelecionada, horario, acao: jaBloqueado ? "desbloquear" : "bloquear" }) });
     setSlotsBloqueados((prev) => jaBloqueado ? prev.filter((s) => s !== horario) : [...prev, horario]);
+    mostrarSucesso(jaBloqueado ? `Horário ${horario} liberado` : `Horário ${horario} bloqueado`);
   }
 
-  async function criarWalkIn(dados: { nome: string; telefone: string; servico: string; preco: string; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string }) {
+  async function criarAgendamento(dados: { nome: string; telefone: string; servico: string; preco: string; data: string; horario: string; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string; cupom?: string | null }) {
     const body: Record<string, unknown> = {
       ...dados,
       telefone: dados.telefone || "00000000000",
-      data: dataSelecionada,
-      horario: walkInHorario,
     };
     if (dados.usarCredito && dados.assinaturaId) {
       body.assinaturaId = dados.assinaturaId;
@@ -799,8 +1001,8 @@ export default function AgendamentosAdminPage() {
     const res = await fetch("/api/agendamentos", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const { id } = await res.json();
     await fetch(`/api/agendamentos/${id}`, { credentials: "include", method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "confirmado" }) });
-    setWalkInHorario(null);
     carregar();
+    mostrarSucesso("Agendamento criado!");
   }
 
   async function reagendar(novaData: string, novoHorario: string) {
@@ -812,7 +1014,9 @@ export default function AgendamentosAdminPage() {
     // se veio do painel de pendências (fechar o dia), remove o que já foi resolvido
     setPendencias((prev) => { if (!prev) return prev; const rest = prev.filter((p) => p.id !== agId); return rest.length ? rest : null; });
     carregar();
-    if (data.whatsappLink) setNotificacaoLink(data.whatsappLink);
+    mostrarSucesso("Reagendamento efetuado!");
+    // o popup de notificar o cliente aparece depois do modal de sucesso
+    if (data.whatsappLink) setTimeout(() => setNotificacaoLink(data.whatsappLink), 1600);
   }
 
   // Fecha o dia: bloqueia todos os horários livres. Agendamentos existentes ficam
@@ -825,13 +1029,16 @@ export default function AgendamentosAdminPage() {
     }
     const ativos = agsDia.filter((a) => a.status === "pendente" || a.status === "confirmado");
     if (ativos.length > 0) setPendencias(ativos);
+    else mostrarSucesso(livres.length > 0 ? `Dia fechado — ${livres.length} horário(s) removido(s)` : "Dia fechado");
   }
 
   // Libera o dia: desbloqueia todos os horários bloqueados da data.
   async function liberarDia() {
     if (slotsBloqueados.length === 0) return;
+    const qtd = slotsBloqueados.length;
     await fetch("/api/slots/dia", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: dataSelecionada, horarios: slotsBloqueados, acao: "desbloquear" }) });
     setSlotsBloqueados([]);
+    mostrarSucesso(`Dia liberado — ${qtd} horário(s) disponível(is) de novo`);
   }
 
   async function salvarGrade(nova: GradeConfig) {
@@ -840,6 +1047,7 @@ export default function AgendamentosAdminPage() {
       await fetch("/api/grade", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grade: nova }) });
       setGrade(nova);
       setConfigGradeOpen(false);
+      mostrarSucesso("Grade salva!");
     } finally {
       setSalvandoGrade(false);
     }
@@ -854,6 +1062,7 @@ export default function AgendamentosAdminPage() {
     if (modal.tipo === "fechar_dia") { setModal({ tipo: "fechar_dia_2" }); return; } // dupla confirmação
     if (modal.tipo === "fechar_dia_2") { fecharDia(); setModal(null); return; }
     if (modal.tipo === "liberar_dia") liberarDia();
+    if (modal.tipo === "caixa_fechado_retro" && modal.horario) { const h = modal.horario; setModal(null); reabrirCaixaERegistrar(h); return; }
     setModal(null);
   }
 
@@ -889,6 +1098,12 @@ export default function AgendamentosAdminPage() {
       confirmLabel: "Liberar dia",
       confirmClass: "bg-green-700 hover:bg-green-600",
     },
+    caixa_fechado_retro: {
+      titulo: "Caixa deste dia está fechado",
+      mensagem: `Para manter a rastreabilidade, não dá pra registrar um agendamento retroativo em ${dataLabel} com o caixa já fechado. Reabra o caixa do dia para registrar (você poderá fechá-lo de novo depois).`,
+      confirmLabel: "Reabrir caixa e registrar",
+      confirmClass: "bg-[#b8944a] hover:bg-[#c9a84c] text-[#0A0A0A]",
+    },
   };
 
   // Config exibida durante a animação de saída, quando `modal` já é null
@@ -900,6 +1115,9 @@ export default function AgendamentosAdminPage() {
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-5">
       <AdminFab />
+
+      {/* Feedback de sucesso (reagendar, bloquear/liberar horário, fechar/liberar dia) */}
+      <SucessoModal open={!!sucesso} mensagem={sucesso ?? ""} onClose={() => setSucesso(null)} />
 
       <Modal open={!!modal} {...(modal ? modalConfig[modal.tipo] : modalConfigVazio)} onConfirm={confirmarModal} onCancel={() => setModal(null)} />
       <ConfigGradeModal open={configGradeOpen} grade={grade} salvando={salvandoGrade} onSave={salvarGrade} onClose={() => setConfigGradeOpen(false)} />
@@ -933,9 +1151,7 @@ export default function AgendamentosAdminPage() {
       </AnimatedModal>
       {/* Sempre montados (key força reset do form ao reabrir) — assim o AnimatePresence
           interno do Modal roda a animação de SAÍDA ao fechar. */}
-      {walkInRender && (
-        <WalkInModal key={walkInRender.key} open={!!walkInHorario} horario={walkInRender.horario} dataSelecionada={dataSelecionada} barbeiros={barbeiros} onConfirm={criarWalkIn} onCancel={() => setWalkInHorario(null)} />
-      )}
+      <AgendarModal open={agendarOpen} onClose={() => setAgendarOpen(false)} servicos={servicos} barbeiros={barbeiros} grade={grade} preData={agendarPre?.data ?? null} preHorario={agendarPre?.horario ?? null} onCriar={criarAgendamento} />
       {reagendarRender && (
         <ReagendarModal key={reagendarRender.key} open={!!reagendarAg} ag={reagendarRender.ag} dataSelecionada={dataSelecionada} slotsLivres={slotsLivresDia} grade={grade} onConfirm={reagendar} onCancel={() => setReagendarAg(null)} />
       )}
@@ -1348,13 +1564,26 @@ export default function AgendamentosAdminPage() {
                       </div>
                     ) : livre ? (
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-green-500/80 font-medium">Disponível</span>
-                        {!caixaFechado && (
-                          <div className="flex gap-1">
-                            <button onClick={() => setWalkInHorario(slot)} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><CalendarPlus size={12} /> Agendar</button>
-                            <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition" title="Bloquear"><Ban size={13} /></button>
-                          </div>
+                        {slotPassou(slot) ? (
+                          <span className="text-sm text-gray-500 font-medium flex items-center gap-1.5"><Clock size={13} className="text-gray-600" /> Horário passado</span>
+                        ) : (
+                          <span className="text-sm text-green-500/80 font-medium">Disponível</span>
                         )}
+                        <div className="flex gap-1">
+                          {slotPassou(slot) ? (
+                            // Retroativo: sempre visível. Com caixa fechado, avisa (regra de rastreabilidade).
+                            <button onClick={() => caixaFechado ? setModal({ tipo: "caixa_fechado_retro", horario: slot }) : abrirAgendar({ data: dataSelecionada, horario: slot })}
+                              title="Registrar atendimento retroativo (cliente que veio e não foi lançado)"
+                              className="flex items-center gap-1 px-2 py-1 text-xs rounded transition border text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]">
+                              <CalendarPlus size={12} /> Registrar retroativo
+                            </button>
+                          ) : !caixaFechado ? (
+                            <>
+                              <button onClick={() => abrirAgendar({ data: dataSelecionada, horario: slot })} className="flex items-center gap-1 px-2 py-1 text-xs rounded transition border text-[#b8944a] border-[#b8944a]/30 hover:bg-[#b8944a]/10"><CalendarPlus size={12} /> Agendar</button>
+                              <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition" title="Bloquear"><Ban size={13} /></button>
+                            </>
+                          ) : null}
+                        </div>
                       </div>
                     ) : (
                       <>
@@ -1415,7 +1644,7 @@ export default function AgendamentosAdminPage() {
                           );
                         })}
                         {!cheio && !caixaFechado && (
-                          <button onClick={() => setWalkInHorario(slot)} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition self-start"><CalendarPlus size={12} /> Adicionar</button>
+                          <button onClick={() => abrirAgendar({ data: dataSelecionada, horario: slot })} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition self-start"><CalendarPlus size={12} /> Adicionar</button>
                         )}
                       </>
                     )}

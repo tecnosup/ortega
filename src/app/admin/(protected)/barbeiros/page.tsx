@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { jsonOr } from "@/lib/safe-json";
 import {
   Users, Plus, Edit2, Trash2, X, Check, Loader2, KeyRound, Unlink,
   Camera, Phone, MapPin, ChevronDown, ChevronUp, Filter,
@@ -88,7 +89,7 @@ export default function FuncionariosPage() {
       fetch("/api/admin/itens", { credentials: "include" }),
       fetch("/api/admin/categorias-funcionarios", { credentials: "include" }),
     ]);
-    const bJson = await resBarb.json();
+    const bJson = await jsonOr<{ barbeiros?: Barbeiro[] }>(resBarb, {});
     setBarbeiros(bJson.barbeiros ?? []);
     if (resItens.ok) {
       const iJson = await resItens.json();

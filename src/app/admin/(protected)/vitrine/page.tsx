@@ -61,10 +61,13 @@ export default function VitrinePage() {
       fetch("/api/admin/itens", { credentials: "include" }),
       fetch("/api/admin/produtos", { credentials: "include" }),
     ]);
-    const { settings: s } = await resSettings.json();
-    setSettings(s);
-    setDestaqueId(s.destaqueId ?? "");
-    setDestaqueTipo(s.destaqueTipo ?? "");
+    const jSettings = resSettings.ok ? await resSettings.json().catch(() => ({})) : {};
+    const s = jSettings.settings;
+    if (s) {
+      setSettings(s);
+      setDestaqueId(s.destaqueId ?? "");
+      setDestaqueTipo(s.destaqueTipo ?? "");
+    }
     if (resItens.ok) { const d = await resItens.json(); setItens(d.items ?? []); }
     if (resProdutos.ok) { const d = await resProdutos.json(); setProdutos(d.produtos ?? []); }
   }, []);

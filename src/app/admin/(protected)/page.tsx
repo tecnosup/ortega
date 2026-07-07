@@ -139,16 +139,19 @@ export default function AdminDashboard() {
   const jaVisualizou = useRef(false);
 
   const carregar = useCallback(async () => {
+    // parse resiliente: se a API falhar (ex.: 500 / cota Firestore) não quebra a página
+    const parseArr = async (res: Response | null) => {
+      if (!res || !res.ok) return [];
+      try { const d = await res.json(); return Array.isArray(d) ? d : []; } catch { return []; }
+    };
     const [resAgs, resFech, resGastos] = await Promise.all([
-      fetch("/api/agendamentos", { credentials: "include" }),
-      fetch("/api/fechamento", { credentials: "include" }),
-      fetch("/api/gastos", { credentials: "include" }),
+      fetch("/api/agendamentos", { credentials: "include" }).catch(() => null),
+      fetch("/api/fechamento", { credentials: "include" }).catch(() => null),
+      fetch("/api/gastos", { credentials: "include" }).catch(() => null),
     ]);
-    const agsData = await resAgs.json();
-    const fechData = await resFech.json();
-    setAgendamentos(Array.isArray(agsData) ? agsData : []);
-    setFechamentos(Array.isArray(fechData) ? fechData : []);
-    if (resGastos.ok) { const g = await resGastos.json(); setGastos(Array.isArray(g) ? g : []); }
+    setAgendamentos(await parseArr(resAgs));
+    setFechamentos(await parseArr(resFech));
+    setGastos(await parseArr(resGastos));
     setCarregando(false);
   }, []);
 
