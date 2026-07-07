@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ShoppingBag, ChevronUp, ChevronDown, Plus, X, ShoppingCart, TrendingUp, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { ShoppingBag, ChevronUp, ChevronDown, Plus, ShoppingCart, TrendingUp, RotateCcw, SlidersHorizontal } from "lucide-react";
 import type { MovimentacaoEstoque, TipoMovimentacao } from "@/lib/estoque-movimentacoes-tipos";
 import { TIPO_LABEL } from "@/lib/estoque-movimentacoes-tipos";
+import Modal from "@/components/ui/Modal";
+import { useModalMount } from "@/components/ui/useModalMount";
 import type { Produto } from "@/lib/admin-produtos";
 
 const TIPOS: { key: TipoMovimentacao | "todos"; label: string }[] = [
@@ -33,10 +35,12 @@ function formatData(ts: number) {
 }
 
 function NovaMovimentacaoModal({
+  open,
   produtos,
   onSalvar,
   onFechar,
 }: {
+  open: boolean;
   produtos: Produto[];
   onSalvar: () => void;
   onFechar: () => void;
@@ -80,11 +84,9 @@ function NovaMovimentacaoModal({
   const inp = "w-full bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg px-3 py-2.5 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] transition";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onFechar}>
-      <div className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-md flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e1e]">
+    <Modal open={open} onClose={onFechar} className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-md mx-4 flex flex-col shadow-2xl">
+        <div className="flex items-center px-5 py-4 border-b border-[#1e1e1e]">
           <h3 className="font-bold text-[#F5E6C8] text-sm tracking-wide">Nova movimentação</h3>
-          <button onClick={onFechar} className="text-gray-600 hover:text-gray-300 transition"><X size={16} /></button>
         </div>
 
         <div className="px-5 py-4 flex flex-col gap-4">
@@ -156,8 +158,7 @@ function NovaMovimentacaoModal({
             Cancelar
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -170,6 +171,7 @@ export default function EstoqueMovimentacoes({ produtos }: { produtos: Produto[]
   const [filtro, setFiltro] = useState<TipoMovimentacao | "todos">("todos");
   const [visiveis, setVisiveis] = useState(PAGE_SIZE);
   const [modalAberto, setModalAberto] = useState(false);
+  const movMount = useModalMount(modalAberto ? true : null);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -186,8 +188,10 @@ export default function EstoqueMovimentacoes({ produtos }: { produtos: Produto[]
 
   return (
     <>
-      {modalAberto && (
+      {movMount.mounted && (
         <NovaMovimentacaoModal
+          key={movMount.key}
+          open={movMount.open}
           produtos={produtos}
           onSalvar={() => { setModalAberto(false); carregar(); }}
           onFechar={() => setModalAberto(false)}

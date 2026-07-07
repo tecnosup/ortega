@@ -7,15 +7,19 @@ import {
   CheckCircle, XCircle, Clock, RefreshCw, MessageCircle,
   Pencil, Trash2, Check, X, ChevronLeft, ChevronRight, Lock, Undo2,
   CalendarPlus, Ban, Unlock, LayoutGrid, List, Plus, TrendingUp,
-  AlertCircle, AlertTriangle, Bell, ChevronDown,
+  AlertCircle, AlertTriangle, Bell, ChevronDown, Link2, FileText, CalendarClock,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
+import Fab from "@/components/ui/Fab";
 import type { Agendamento, AgendamentoStatus, FechamentoDia } from "@/lib/agendamentos-types";
 import { parsePriceNum } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import type { Item } from "@/lib/admin-items";
 import { toDateKey } from "@/lib/date-utils";
 import { HORARIO_FUNCIONAMENTO } from "@/lib/demo-data";
+import AnimatedModal from "@/components/ui/Modal";
 
 function parseDuracaoMin(duracao: string): number {
   const h = duracao.match(/(\d+)\s*h/i);
@@ -209,28 +213,26 @@ function CalendarioMensal({
 
 // ─── modais ───────────────────────────────────────────────────────────────────
 
-function Modal({ titulo, mensagem, confirmLabel, confirmClass, onConfirm, onCancel }: {
-  titulo: string; mensagem: React.ReactNode; confirmLabel: string;
+function Modal({ open, titulo, mensagem, confirmLabel, confirmClass, onConfirm, onCancel }: {
+  open: boolean; titulo: string; mensagem: React.ReactNode; confirmLabel: string;
   confirmClass: string; onConfirm: () => void; onCancel: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-      <div className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
-        <h3 className="font-bold text-[#F5E6C8]">{titulo}</h3>
-        <div className="text-sm text-gray-400 leading-relaxed">{mensagem}</div>
-        <div className="flex gap-2 justify-end">
-          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
-          <button onClick={onConfirm} className={`px-4 py-2 text-sm text-white rounded transition ${confirmClass}`}>{confirmLabel}</button>
-        </div>
+    <AnimatedModal open={open} onClose={onCancel} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
+      <h3 className="font-bold text-[#F5E6C8]">{titulo}</h3>
+      <div className="text-sm text-gray-400 leading-relaxed">{mensagem}</div>
+      <div className="flex gap-2 justify-end">
+        <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
+        <button onClick={onConfirm} className={`px-4 py-2 text-sm text-white rounded transition ${confirmClass}`}>{confirmLabel}</button>
       </div>
-    </div>
+    </AnimatedModal>
   );
 }
 
 interface AssinaturaInfo { id: string; clienteNome: string; cortesRestantes: number; planoCortesTotal: number; status: string; }
 
-function WalkInModal({ horario, dataSelecionada, barbeiros, onConfirm, onCancel }: {
-  horario: string; dataSelecionada: string; barbeiros: Barbeiro[];
+function WalkInModal({ open, horario, dataSelecionada, barbeiros, onConfirm, onCancel }: {
+  open: boolean; horario: string; dataSelecionada: string; barbeiros: Barbeiro[];
   onConfirm: (dados: { nome: string; telefone: string; servico: string; preco: string; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string }) => void;
   onCancel: () => void;
 }) {
@@ -280,8 +282,7 @@ function WalkInModal({ horario, dataSelecionada, barbeiros, onConfirm, onCancel 
   const temCredito = assinatura?.status === "ativa" && (assinatura?.cortesRestantes ?? 0) > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-      <div className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
+    <AnimatedModal open={open} onClose={onCancel} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
         <div>
           <h3 className="font-bold text-[#F5E6C8]">Novo agendamento presencial</h3>
           <p className="text-xs text-gray-500 mt-0.5">{dataLabel} às {horario}</p>
@@ -335,13 +336,12 @@ function WalkInModal({ horario, dataSelecionada, barbeiros, onConfirm, onCancel 
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
           <button onClick={handleConfirm} disabled={!nome.trim() || submitting} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">{submitting ? "Salvando..." : "Confirmar"}</button>
         </div>
-      </div>
-    </div>
+    </AnimatedModal>
   );
 }
 
-function ReagendarModal({ ag, dataSelecionada, slotsLivres, onConfirm, onCancel }: {
-  ag: Agendamento; dataSelecionada: string; slotsLivres: string[];
+function ReagendarModal({ open, ag, dataSelecionada, slotsLivres, onConfirm, onCancel }: {
+  open: boolean; ag: Agendamento; dataSelecionada: string; slotsLivres: string[];
   onConfirm: (novaData: string, novoHorario: string) => void; onCancel: () => void;
 }) {
   const [novaData, setNovaData] = useState(dataSelecionada);
@@ -390,8 +390,7 @@ function ReagendarModal({ ag, dataSelecionada, slotsLivres, onConfirm, onCancel 
   const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] w-full";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-      <div className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
+    <AnimatedModal open={open} onClose={onCancel} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
         <div><h3 className="font-bold text-[#F5E6C8]">Reagendar</h3><p className="text-xs text-gray-500 mt-0.5">{ag.nome} · {ag.servico}</p></div>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Nova data</label><input type="date" value={novaData} onChange={(e) => { setNovaData(e.target.value); setNovoHorario(""); }} min={toDateKey(new Date())} className={inp} /></div>
@@ -413,8 +412,7 @@ function ReagendarModal({ ag, dataSelecionada, slotsLivres, onConfirm, onCancel 
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
           <button onClick={() => { if (novoHorario) onConfirm(novaData, novoHorario); }} disabled={!novoHorario || buscandoSlots} className="px-4 py-2 text-sm text-white bg-[#1a1a1a] hover:bg-[#2d2d2d] border border-[#3d3d3d] rounded transition disabled:opacity-40">Reagendar e notificar</button>
         </div>
-      </div>
-    </div>
+    </AnimatedModal>
   );
 }
 
@@ -442,6 +440,19 @@ export default function AgendamentosAdminPage() {
   const [aba, setAba] = useState<"lista" | "grade">("lista");
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
   const [alertasExpandidos, setAlertasExpandidos] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState<string | null>(null);
+  const router = useRouter();
+
+  // Mantém o conteúdo do modal montado durante a animação de saída.
+  // Ao abrir, atualiza com o valor atual + uma key nova (reseta o form).
+  const [walkInRender, setWalkInRender] = useState<{ horario: string; key: number } | null>(null);
+  const [reagendarRender, setReagendarRender] = useState<{ ag: Agendamento; key: number } | null>(null);
+  useEffect(() => {
+    if (walkInHorario) setWalkInRender({ horario: walkInHorario, key: Date.now() });
+  }, [walkInHorario]);
+  useEffect(() => {
+    if (reagendarAg) setReagendarRender({ ag: reagendarAg, key: Date.now() });
+  }, [reagendarAg]);
 
   function toggleAlerta(key: string) {
     setAlertasExpandidos((prev) => {
@@ -467,6 +478,41 @@ export default function AgendamentosAdminPage() {
     setAba("lista");
     setEditandoId(null);
     setScrollTarget(ag.id);
+  }
+
+  function mostrarToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  }
+
+  // ── Ações do botão flutuante (+) ──
+  function fabAgendarHorario() {
+    // abre o modal de novo agendamento no próximo horário livre do dia selecionado
+    const proximoLivre = slotsLivresDia[0] ?? todosSlotsDia[0];
+    if (proximoLivre) setWalkInHorario(proximoLivre);
+  }
+
+  async function fabLinkAgendamento() {
+    const url = `${window.location.origin}/agendamento`;
+    try {
+      await navigator.clipboard.writeText(url);
+      mostrarToast("Link de agendamento copiado!");
+    } catch {
+      mostrarToast(url);
+    }
+  }
+
+  function fabAbrirComanda() {
+    // comanda (atendimento avulso) vive no Caixa/Financeiro — leva pro dia de hoje
+    router.push(`/admin/financeiro?dia=${hojeKey}#caixa`);
+  }
+
+  function fabGradeHoje() {
+    setDataSelecionada(hojeKey);
+    setEditandoId(null);
+    setTimeout(() => {
+      document.getElementById("grade-horarios")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
   }
 
   function tempoAtras(ts: number): string {
@@ -536,6 +582,15 @@ export default function AgendamentosAdminPage() {
     const res = await fetch(`/api/agendamentos/${id}`, { credentials: "include", method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
     const data = await res.json();
     setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, status } : a));
+    setProcessando(null);
+    if (data.whatsappLink) window.open(data.whatsappLink, "_blank");
+  }
+
+  async function avisarCliente(id: string) {
+    setProcessando(id);
+    const res = await fetch(`/api/agendamentos/${id}/avisar`, { credentials: "include", method: "POST" });
+    const data = await res.json();
+    setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, avisoPendente: false } : a));
     setProcessando(null);
     if (data.whatsappLink) window.open(data.whatsappLink, "_blank");
   }
@@ -620,27 +675,64 @@ export default function AgendamentosAdminPage() {
     },
   };
 
+  // Config exibida durante a animação de saída, quando `modal` já é null
+  const modalConfigVazio = { titulo: "", mensagem: "", confirmLabel: "", confirmClass: "" };
+
   const cardDark = "bg-[#111] border border-[#2d2d2d] rounded-xl";
   const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2 py-1 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a]";
 
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-5">
-      {modal && <Modal {...modalConfig[modal.tipo]} onConfirm={confirmarModal} onCancel={() => setModal(null)} />}
-      {walkInHorario && <WalkInModal horario={walkInHorario} dataSelecionada={dataSelecionada} barbeiros={barbeiros} onConfirm={criarWalkIn} onCancel={() => setWalkInHorario(null)} />}
-      {reagendarAg && <ReagendarModal ag={reagendarAg} dataSelecionada={dataSelecionada} slotsLivres={slotsLivresDia} onConfirm={reagendar} onCancel={() => setReagendarAg(null)} />}
-      {notificacaoLink && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-[#1a2a1a] border border-green-700/60 text-green-300 rounded-xl px-4 py-3 shadow-xl max-w-xs">
-          <MessageCircle size={18} className="shrink-0 text-green-400" />
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium">Reagendamento salvo</span>
-            <span className="text-xs text-green-400/70">Notifique o cliente pelo WhatsApp</span>
-          </div>
-          <div className="flex gap-2 ml-auto">
-            <a href={notificacaoLink} target="_blank" rel="noreferrer" onClick={() => setNotificacaoLink(null)} className="text-xs bg-green-700 hover:bg-green-600 text-white rounded px-2 py-1 transition">Enviar</a>
-            <button onClick={() => setNotificacaoLink(null)} className="text-xs text-gray-500 hover:text-gray-300 transition"><X size={14} /></button>
-          </div>
-        </div>
+      <Fab actions={[
+        { label: "Agendar horário", icon: CalendarPlus, onClick: fabAgendarHorario },
+        { label: "Link de agendamento", icon: Link2, onClick: fabLinkAgendamento },
+        { label: "Abrir comanda", icon: FileText, onClick: fabAbrirComanda },
+        { label: "Grade de hoje", icon: CalendarClock, onClick: fabGradeHoje },
+      ]} />
+
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-2 bg-[#1a2a1a] border border-green-700/60 text-green-300 rounded-full px-4 py-2 shadow-xl text-sm font-medium"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+          >
+            <Check size={15} className="text-green-400" /> {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <Modal open={!!modal} {...(modal ? modalConfig[modal.tipo] : modalConfigVazio)} onConfirm={confirmarModal} onCancel={() => setModal(null)} />
+      {/* Sempre montados (key força reset do form ao reabrir) — assim o AnimatePresence
+          interno do Modal roda a animação de SAÍDA ao fechar. */}
+      {walkInRender && (
+        <WalkInModal key={walkInRender.key} open={!!walkInHorario} horario={walkInRender.horario} dataSelecionada={dataSelecionada} barbeiros={barbeiros} onConfirm={criarWalkIn} onCancel={() => setWalkInHorario(null)} />
       )}
+      {reagendarRender && (
+        <ReagendarModal key={reagendarRender.key} open={!!reagendarAg} ag={reagendarRender.ag} dataSelecionada={dataSelecionada} slotsLivres={slotsLivresDia} onConfirm={reagendar} onCancel={() => setReagendarAg(null)} />
+      )}
+      <AnimatePresence>
+        {notificacaoLink && (
+          <motion.div
+            className="fixed top-20 md:top-6 right-4 md:right-6 z-[60] flex items-center gap-3 bg-[#1a2a1a] border border-green-700/60 text-green-300 rounded-xl px-4 py-3 shadow-xl max-w-xs"
+            initial={{ opacity: 0, y: -16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -16, scale: 0.96 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <MessageCircle size={18} className="shrink-0 text-green-400" />
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium">Reagendamento salvo</span>
+              <span className="text-xs text-green-400/70">Notifique o cliente pelo WhatsApp</span>
+            </div>
+            <div className="flex gap-2 ml-auto">
+              <a href={notificacaoLink} target="_blank" rel="noreferrer" onClick={() => setNotificacaoLink(null)} className="text-xs bg-green-700 hover:bg-green-600 text-white rounded px-2 py-1 transition">Enviar</a>
+              <button onClick={() => setNotificacaoLink(null)} className="text-xs text-gray-500 hover:text-gray-300 transition"><X size={14} /></button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* cabeçalho */}
       <div className="flex items-center justify-between">
@@ -907,6 +999,13 @@ export default function AgendamentosAdminPage() {
                                       </div>
                                     </details>
                                   )}
+                                  {ag.avisoPendente && (
+                                    <div className="mt-2 flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-amber-950/40 border border-amber-700/40">
+                                      <AlertTriangle size={12} className="text-amber-400 shrink-0" />
+                                      <span className="text-xs text-amber-300 flex-1">Confirmado automaticamente — avise o cliente.</span>
+                                      <button onClick={() => avisarCliente(ag.id)} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 text-xs text-green-300 bg-green-900/30 border border-green-700/50 rounded-lg hover:bg-green-900/50 transition shrink-0"><MessageCircle size={11} /> Avisar no WhatsApp</button>
+                                    </div>
+                                  )}
                                   {!caixaFechado && (
                                     <div className="flex items-center gap-1 flex-wrap mt-3">
                                       {ag.status === "pendente" && (
@@ -938,6 +1037,9 @@ export default function AgendamentosAdminPage() {
                               <div className="flex flex-col items-end gap-1 shrink-0 pt-0.5">
                                 {ag.preco && <span className="text-xs font-bold text-[#b8944a]">R$ {ag.preco}</span>}
                                 <span className={`text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap ${STATUS_STYLE[ag.status]}`}>{STATUS_LABEL[ag.status]}</span>
+                                {ag.confirmadoAuto && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#1a1a1a] text-gray-500 border border-[#2d2d2d] whitespace-nowrap">auto</span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -969,7 +1071,7 @@ export default function AgendamentosAdminPage() {
 
       {/* ── Grade de horários ─────────────────────────────────────────────────── */}
       {!diaFechado && (
-        <div className={`${cardDark} overflow-hidden`}>
+        <div id="grade-horarios" className={`${cardDark} overflow-hidden scroll-mt-20`}>
           <div className="px-5 py-4 border-b border-[#1a1a1a]">
             <p className="text-sm font-bold text-[#F5E6C8] flex items-center gap-2"><LayoutGrid size={14} /> Grade de horários</p>
             <p className="text-xs text-gray-500 mt-0.5 capitalize">{diaSemana}, {dataLabel} · clique para agendar ou bloquear</p>

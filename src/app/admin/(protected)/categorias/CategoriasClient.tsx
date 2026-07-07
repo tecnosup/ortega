@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { createCategoriaAction, updateCategoriaAction, deleteCategoriaAction } from "./actions";
 import type { Categoria } from "@/lib/admin-categorias";
+import Modal from "@/components/ui/Modal";
 
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] placeholder-gray-600 focus:outline-none focus:border-[#b8944a] transition w-full";
 
@@ -68,24 +69,20 @@ export default function CategoriasClient({ categorias: initial }: { categorias: 
 
   return (
     <>
-      {deleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setDeleteModal(null)}>
-          <div className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-sm p-6 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-[#F5E6C8] font-semibold">Remover categoria?</h2>
-            <p className="text-sm text-gray-400">
-              A categoria <span className="text-[#F5E6C8] font-medium">"{deleteModal.nome}"</span> será removida.
-              Os produtos vinculados a ela <span className="text-[#F5E6C8]">não serão deletados</span>, apenas perderão a categoria.
-            </p>
-            {error && <p className="text-xs text-red-400">{error}</p>}
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setDeleteModal(null)} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-gray-500 transition">Cancelar</button>
-              <button onClick={() => handleDelete(deleteModal.id)} disabled={loading} className="px-4 py-2 text-sm font-semibold text-white bg-red-700 rounded-lg hover:bg-red-600 transition disabled:opacity-50">
-                {loading ? "Removendo..." : "Remover"}
-              </button>
-            </div>
-          </div>
+      <Modal open={!!deleteModal} onClose={() => setDeleteModal(null)} className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-sm mx-4 p-6 flex flex-col gap-4">
+        <h2 className="text-[#F5E6C8] font-semibold">Remover categoria?</h2>
+        <p className="text-sm text-gray-400">
+          A categoria <span className="text-[#F5E6C8] font-medium">"{deleteModal?.nome}"</span> será removida.
+          Os produtos vinculados a ela <span className="text-[#F5E6C8]">não serão deletados</span>, apenas perderão a categoria.
+        </p>
+        {error && <p className="text-xs text-red-400">{error}</p>}
+        <div className="flex gap-3 justify-end">
+          <button onClick={() => setDeleteModal(null)} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-gray-500 transition">Cancelar</button>
+          <button onClick={() => deleteModal && handleDelete(deleteModal.id)} disabled={loading} className="px-4 py-2 text-sm font-semibold text-white bg-red-700 rounded-lg hover:bg-red-600 transition disabled:opacity-50">
+            {loading ? "Removendo..." : "Remover"}
+          </button>
         </div>
-      )}
+      </Modal>
 
       <div className="flex flex-col gap-4">
         {categorias.length === 0 && !criando && (

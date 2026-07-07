@@ -11,6 +11,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from 
 import type { DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import Modal from "@/components/ui/Modal";
 import { reorderItensAction } from "./actions";
 
 type Form = {
@@ -424,12 +425,10 @@ export default function ServicosPage() {
         })()
       }
 
-      {modal.open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4">
-          <div className="bg-[#111] border border-[#2d2d2d] rounded-t-2xl sm:rounded-xl w-full max-w-lg flex flex-col max-h-modal-safe overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#2d2d2d] shrink-0">
+      <Modal open={modal.open} onClose={() => setModal({ open: false, editing: null })}
+        overlayClassName="backdrop-blur-sm" className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-lg flex flex-col sm:mx-4">
+            <div className="flex items-center px-6 py-4 border-b border-[#2d2d2d] shrink-0">
               <h2 className="font-bold text-[#F5E6C8]">{modal.editing ? "Editar serviço" : "Novo serviço"}</h2>
-              <button onClick={() => setModal({ open: false, editing: null })} className="text-gray-500 hover:text-white transition"><X size={18} /></button>
             </div>
 
             <div className="flex flex-col gap-4 px-6 py-5 overflow-y-auto">
@@ -496,9 +495,7 @@ export default function ServicosPage() {
                 {modal.editing ? "Salvar" : "Criar"}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

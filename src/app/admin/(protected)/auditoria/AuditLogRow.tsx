@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, RotateCcw, X } from "lucide-react";
+import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import { revertAuditAction } from "../produtos/actions";
+import Modal from "@/components/ui/Modal";
+import { useModalMount } from "@/components/ui/useModalMount";
 
 interface AuditLog {
   id: string;
@@ -44,10 +46,12 @@ function Badge({ action }: { action: string }) {
 }
 
 function RevertModal({
+  open,
   log,
   onClose,
   onSuccess,
 }: {
+  open: boolean;
   log: AuditLog;
   onClose: () => void;
   onSuccess: () => void;
@@ -70,16 +74,9 @@ function RevertModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div
-        className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-lg p-6 flex flex-col gap-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
+    <Modal open={open} onClose={onClose} className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-lg mx-4 p-6 flex flex-col gap-4">
+        <div className="flex items-center">
           <h2 className="text-[#F5E6C8] font-semibold">Confirmar reversão</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-[#F5E6C8] transition">
-            <X size={16} />
-          </button>
         </div>
 
         <p className="text-sm text-gray-400">
@@ -107,8 +104,7 @@ function RevertModal({
             {loading ? "Revertendo..." : "Confirmar reversão"}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -118,11 +114,13 @@ export default function AuditLogRow({ log }: { log: AuditLog }) {
   const [reverted, setReverted] = useState(false);
 
   const canRevert = REVERTABLE.has(log.action) && !!log.snapshotAntes && !reverted;
+  const revertMount = useModalMount(showModal && canRevert ? log : null);
 
   return (
     <>
-      {showModal && canRevert && (
+      {revertMount.mounted && (
         <RevertModal
+          open={revertMount.open}
           log={log}
           onClose={() => setShowModal(false)}
           onSuccess={() => { setShowModal(false); setReverted(true); }}
