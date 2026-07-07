@@ -7,7 +7,7 @@ import {
   CheckCircle, XCircle, Clock, RefreshCw, MessageCircle,
   Pencil, Trash2, Check, X, ChevronLeft, ChevronRight, Lock, Undo2,
   CalendarPlus, Ban, Unlock, LayoutGrid, List, Plus, TrendingUp,
-  AlertCircle, AlertTriangle, Bell, ChevronDown,
+  AlertCircle, AlertTriangle, Bell, ChevronDown, Settings2, Coffee, CalendarX, CalendarCheck, Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -18,7 +18,7 @@ import { parsePriceNum } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import type { Item } from "@/lib/admin-items";
 import { toDateKey } from "@/lib/date-utils";
-import { HORARIO_FUNCIONAMENTO } from "@/lib/demo-data";
+import { gerarSlotsData, mesclarGrade, GRADE_DEFAULT, DIAS_SEMANA, type GradeConfig, type DiaGrade } from "@/lib/grade";
 import AnimatedModal from "@/components/ui/Modal";
 
 function parseDuracaoMin(duracao: string): number {
@@ -33,21 +33,6 @@ function formatarData(dateKey: string) {
   });
 }
 
-function gerarSlots(dateKey: string): string[] {
-  const dow = new Date(dateKey + "T12:00:00").getDay();
-  const turno = HORARIO_FUNCIONAMENTO[dow];
-  if (!turno) return [];
-  const slots: string[] = [];
-  const [ih, im] = turno.inicio.split(":").map(Number);
-  const [fh, fm] = turno.fim.split(":").map(Number);
-  let cur = ih * 60 + im;
-  const end = fh * 60 + fm;
-  while (cur < end) {
-    slots.push(`${String(Math.floor(cur / 60)).padStart(2, "0")}:${String(cur % 60).padStart(2, "0")}`);
-    cur += 30;
-  }
-  return slots;
-}
 
 const STATUS_STYLE: Record<AgendamentoStatus, string> = {
   pendente: "bg-yellow-900/30 text-yellow-400 border-yellow-700/50",
@@ -340,8 +325,73 @@ function WalkInModal({ open, horario, dataSelecionada, barbeiros, onConfirm, onC
   );
 }
 
-function ReagendarModal({ open, ag, dataSelecionada, slotsLivres, onConfirm, onCancel }: {
-  open: boolean; ag: Agendamento; dataSelecionada: string; slotsLivres: string[];
+// Seletor de data no tema do Ortega — sempre DD/MM/AAAA (o <input type=date> nativo
+// segue o locale do navegador e não dá pra forçar pt-BR de forma confiável).
+const DP_MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+const DP_DIAS = ["D", "S", "T", "Q", "Q", "S", "S"];
+function DateFieldBR({ value, min, onChange }: { value: string; min: string; onChange: (v: string) => void }) {
+  const [aberto, setAberto] = useState(false);
+  const [mesVis, setMesVis] = useState(() => { const d = new Date(value + "T12:00:00"); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  useEffect(() => { const d = new Date(value + "T12:00:00"); setMesVis(new Date(d.getFullYear(), d.getMonth(), 1)); }, [value]);
+
+  const minDate = new Date(min + "T00:00:00");
+  const ano = mesVis.getFullYear(); const mes = mesVis.getMonth();
+  const primeiroDia = new Date(ano, mes, 1).getDay();
+  const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+  const celulas: (number | null)[] = [];
+  for (let i = 0; i < primeiroDia; i++) celulas.push(null);
+  for (let d = 1; d <= ultimoDia; d++) celulas.push(d);
+  const labelBR = new Date(value + "T12:00:00").toLocaleDateString("pt-BR");
+
+  return (
+    <div>
+      <button type="button" onClick={() => setAberto((v) => !v)}
+        className="bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] w-full flex items-center justify-between hover:border-[#b8944a]/60 transition">
+        <span>{labelBR}</span>
+        <Calendar size={15} className="text-gray-500" />
+      </button>
+      <AnimatePresence initial={false}>
+        {aberto && (
+          <motion.div
+            key="cal"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="mt-1.5 bg-[#0d0d0d] border border-[#2d2d2d] rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <button type="button" onClick={() => setMesVis(new Date(ano, mes - 1, 1))} className="p-1 text-gray-400 hover:text-[#b8944a] transition"><ChevronLeft size={16} /></button>
+                <span className="text-xs font-medium text-[#F5E6C8]">{DP_MESES[mes]} {ano}</span>
+                <button type="button" onClick={() => setMesVis(new Date(ano, mes + 1, 1))} className="p-1 text-gray-400 hover:text-[#b8944a] transition"><ChevronRight size={16} /></button>
+              </div>
+              <div className="grid grid-cols-7 gap-0.5 mb-1">
+                {DP_DIAS.map((d, i) => <div key={i} className={`text-center text-[10px] py-0.5 ${i === 0 ? "text-red-500/70" : "text-gray-600"}`}>{d}</div>)}
+              </div>
+              <div className="grid grid-cols-7 gap-0.5">
+                {celulas.map((d, i) => {
+                  if (!d) return <div key={i} className="h-8" />;
+                  const key = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                  const cellDate = new Date(ano, mes, d); cellDate.setHours(0, 0, 0, 0);
+                  const desab = cellDate < minDate;
+                  const sel = key === value;
+                  return (
+                    <button key={i} type="button" disabled={desab} onClick={() => { onChange(key); setAberto(false); }}
+                      className={`h-8 rounded text-xs transition ${sel ? "bg-[#b8944a] text-[#0A0A0A] font-bold" : desab ? "text-gray-700 cursor-not-allowed" : "text-gray-300 hover:bg-[#b8944a]/10"}`}>{d}</button>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function ReagendarModal({ open, ag, dataSelecionada, slotsLivres, grade, onConfirm, onCancel }: {
+  open: boolean; ag: Agendamento; dataSelecionada: string; slotsLivres: string[]; grade: GradeConfig;
   onConfirm: (novaData: string, novoHorario: string) => void; onCancel: () => void;
 }) {
   const [novaData, setNovaData] = useState(dataSelecionada);
@@ -364,7 +414,7 @@ function ReagendarModal({ open, ag, dataSelecionada, slotsLivres, onConfirm, onC
         ...ags.filter((a) => a.id !== ag.id && a.status !== "cancelado").map((a) => a.horario),
         ...bloqueados,
       ]);
-      const todos = gerarSlots(novaData);
+      const todos = gerarSlotsData(novaData, grade);
       const minutosAgora = new Date().getHours() * 60 + new Date().getMinutes();
       setSlotsLivresFetch(todos.filter((s) => {
         if (ocupados.has(s)) return false;
@@ -376,7 +426,7 @@ function ReagendarModal({ open, ag, dataSelecionada, slotsLivres, onConfirm, onC
       }));
       setBuscandoSlots(false);
     }).catch(() => setBuscandoSlots(false));
-  }, [novaData, dataSelecionada, ag.id, hojeKey]);
+  }, [novaData, dataSelecionada, ag.id, hojeKey, grade]);
 
   const minutosAgora = new Date().getHours() * 60 + new Date().getMinutes();
   const slotsParaData = novaData === dataSelecionada
@@ -387,13 +437,11 @@ function ReagendarModal({ open, ag, dataSelecionada, slotsLivres, onConfirm, onC
       })
     : (slotsLivresFetch ?? []);
 
-  const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] w-full";
-
   return (
-    <AnimatedModal open={open} onClose={onCancel} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
+    <AnimatedModal open={open} onClose={onCancel} className="nice-scroll bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
         <div><h3 className="font-bold text-[#F5E6C8]">Reagendar</h3><p className="text-xs text-gray-500 mt-0.5">{ag.nome} · {ag.servico}</p></div>
         <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Nova data</label><input type="date" value={novaData} onChange={(e) => { setNovaData(e.target.value); setNovoHorario(""); }} min={toDateKey(new Date())} className={inp} /></div>
+          <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Nova data</label><DateFieldBR value={novaData} min={toDateKey(new Date())} onChange={(v) => { setNovaData(v); setNovoHorario(""); }} /></div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-400">Novo horário</label>
             {buscandoSlots ? (
@@ -416,7 +464,114 @@ function ReagendarModal({ open, ag, dataSelecionada, slotsLivres, onConfirm, onC
   );
 }
 
-type ModalState = { tipo: "concluir" | "excluir" | "fechar_caixa" | "bloquear"; id?: string; horario?: string } | null;
+type ModalState = { tipo: "concluir" | "excluir" | "fechar_caixa" | "bloquear" | "fechar_dia" | "fechar_dia_2" | "liberar_dia"; id?: string; horario?: string } | null;
+
+// Modal de configuração da grade — horários padrão por dia da semana + almoço.
+function ConfigGradeModal({ open, grade, salvando, onSave, onClose }: {
+  open: boolean; grade: GradeConfig; salvando: boolean; onSave: (g: GradeConfig) => void; onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<GradeConfig>(grade);
+  // Horário padrão: aplica abre/fecha/almoço a um conjunto de dias de uma vez.
+  const [padrao, setPadrao] = useState({ inicio: "09:00", fim: "18:00", almocoInicio: "12:00", almocoFim: "13:00" });
+  const [diasSel, setDiasSel] = useState<Set<number>>(new Set([1, 2, 3, 4, 5]));
+  useEffect(() => { if (open) setDraft(grade); }, [open, grade]);
+
+  function upd(dow: number, patch: Partial<DiaGrade>) {
+    setDraft((prev) => ({ ...prev, [dow]: { ...prev[dow], ...patch } }));
+  }
+  function toggleDiaSel(dow: number) {
+    setDiasSel((prev) => { const n = new Set(prev); n.has(dow) ? n.delete(dow) : n.add(dow); return n; });
+  }
+  function aplicarPadrao() {
+    setDraft((prev) => {
+      const out = { ...prev };
+      diasSel.forEach((dow) => {
+        out[dow] = {
+          ativo: true,
+          inicio: padrao.inicio,
+          fim: padrao.fim,
+          almocoInicio: padrao.almocoInicio || null,
+          almocoFim: padrao.almocoFim || null,
+        };
+      });
+      return out;
+    });
+  }
+  const time = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2 py-1 text-xs text-[#F5E6C8] focus:outline-none focus:border-[#b8944a]";
+
+  return (
+    <AnimatedModal open={open} onClose={onClose} className="nice-scroll bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl max-w-lg w-full mx-4 flex flex-col">
+      <div className="px-5 py-4 border-b border-[#1e1e1e] shrink-0">
+        <h3 className="font-bold text-[#F5E6C8] flex items-center gap-2"><Settings2 size={15} className="text-[#b8944a]" /> Configurar grade</h3>
+        <p className="text-xs text-gray-500 mt-0.5">Reflete na grade e no site do cliente.</p>
+      </div>
+
+      {/* Horário padrão: define abre/fecha/almoço e aplica a vários dias de uma vez */}
+      <div className="px-5 py-4 border-b border-[#1e1e1e] flex flex-col gap-2.5">
+        <div className="rounded-lg border border-[#b8944a]/30 bg-[#b8944a]/5 p-3.5 flex flex-col gap-3">
+          <p className="text-[11px] font-bold text-[#b8944a] uppercase tracking-wide flex items-center gap-1.5"><Clock size={13} /> Horário padrão</p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-gray-400">
+            <label className="flex items-center gap-1.5">Abre <input type="time" value={padrao.inicio} onChange={(e) => setPadrao((p) => ({ ...p, inicio: e.target.value }))} className={time} /></label>
+            <label className="flex items-center gap-1.5">Fecha <input type="time" value={padrao.fim} onChange={(e) => setPadrao((p) => ({ ...p, fim: e.target.value }))} className={time} /></label>
+            <span className="flex items-center gap-1 text-gray-500"><Coffee size={12} /> Almoço</span>
+            <input type="time" value={padrao.almocoInicio} onChange={(e) => setPadrao((p) => ({ ...p, almocoInicio: e.target.value }))} className={time} />
+            <span>—</span>
+            <input type="time" value={padrao.almocoFim} onChange={(e) => setPadrao((p) => ({ ...p, almocoFim: e.target.value }))} className={time} />
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {DIAS_SEMANA.map(({ dow, curto }) => {
+              const sel = diasSel.has(dow);
+              return (
+                <button key={dow} type="button" onClick={() => toggleDiaSel(dow)}
+                  className={`px-2.5 py-1 text-xs rounded-md border transition ${sel ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-medium" : "bg-[#0A0A0A] text-gray-400 border-[#2d2d2d] hover:border-[#b8944a]"}`}>{curto}</button>
+              );
+            })}
+            <button type="button" onClick={() => setDiasSel(new Set([1, 2, 3, 4, 5]))} className="text-[10px] text-[#b8944a] hover:underline ml-1">Seg–Sex</button>
+            <button type="button" onClick={() => setDiasSel(new Set([0, 1, 2, 3, 4, 5, 6]))} className="text-[10px] text-[#b8944a] hover:underline">Todos</button>
+          </div>
+          <button type="button" onClick={aplicarPadrao} disabled={diasSel.size === 0}
+            className="self-start px-3 py-1.5 text-xs bg-[#b8944a] text-[#0A0A0A] rounded font-medium hover:bg-[#c9a84c] transition disabled:opacity-40">
+            Aplicar aos {diasSel.size} dia(s)
+          </button>
+        </div>
+        <p className="text-[10px] text-gray-600">Marque os dias, ajuste os horários e clique em aplicar. Depois dá pra refinar cada dia abaixo.</p>
+      </div>
+
+      <div className="flex flex-col divide-y divide-[#1a1a1a]">
+        {DIAS_SEMANA.map(({ dow, nome }) => {
+          const d = draft[dow];
+          return (
+            <div key={dow} className="px-5 py-3 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className={`text-sm font-medium ${d.ativo ? "text-[#F5E6C8]" : "text-gray-600"}`}>{nome}</span>
+                <button type="button" onClick={() => upd(dow, { ativo: !d.ativo })}
+                  className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${d.ativo ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`}>
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${d.ativo ? "left-5" : "left-0.5"}`} />
+                </button>
+              </div>
+              {d.ativo ? (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-gray-400">
+                  <label className="flex items-center gap-1.5">Abre <input type="time" value={d.inicio} onChange={(e) => upd(dow, { inicio: e.target.value })} className={time} /></label>
+                  <label className="flex items-center gap-1.5">Fecha <input type="time" value={d.fim} onChange={(e) => upd(dow, { fim: e.target.value })} className={time} /></label>
+                  <span className="flex items-center gap-1 text-gray-500"><Coffee size={12} /> Almoço</span>
+                  <input type="time" value={d.almocoInicio ?? ""} onChange={(e) => upd(dow, { almocoInicio: e.target.value || null })} className={time} />
+                  <span>—</span>
+                  <input type="time" value={d.almocoFim ?? ""} onChange={(e) => upd(dow, { almocoFim: e.target.value || null })} className={time} />
+                </div>
+              ) : (
+                <span className="text-xs text-gray-600">Fechado</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2 justify-end shrink-0">
+        <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
+        <button onClick={() => onSave(draft)} disabled={salvando} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">{salvando ? "Salvando..." : "Salvar grade"}</button>
+      </div>
+    </AnimatedModal>
+  );
+}
 
 export default function AgendamentosAdminPage() {
   const hoje = new Date();
@@ -440,6 +595,10 @@ export default function AgendamentosAdminPage() {
   const [aba, setAba] = useState<"lista" | "grade">("lista");
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
   const [alertasExpandidos, setAlertasExpandidos] = useState<Set<string>>(new Set());
+  const [grade, setGrade] = useState<GradeConfig>(GRADE_DEFAULT);
+  const [configGradeOpen, setConfigGradeOpen] = useState(false);
+  const [salvandoGrade, setSalvandoGrade] = useState(false);
+  const [pendencias, setPendencias] = useState<Agendamento[] | null>(null);
   const router = useRouter();
 
   // Mantém o conteúdo do modal montado durante a animação de saída.
@@ -554,12 +713,16 @@ export default function AgendamentosAdminPage() {
     fetch("/api/publico/servicos")
       .then((r) => r.json())
       .then((d) => setServicos(d.items ?? []));
+    fetch("/api/grade")
+      .then((r) => r.json())
+      .then((d) => { if (d.grade) setGrade(mesclarGrade(d.grade)); })
+      .catch(() => {});
   }, []);
 
   const agsDia = agendamentos.filter((a) => a.data === dataSelecionada).sort((a, b) => a.horario.localeCompare(b.horario));
   const concluidos = agsDia.filter((a) => a.status === "concluido");
   const totalDia = concluidos.reduce((s, a) => s + parsePriceNum(a.preco), 0);
-  const todosSlotsDia = gerarSlots(dataSelecionada);
+  const todosSlotsDia = gerarSlotsData(dataSelecionada, grade);
   const horariosOcupados = new Set(agsDia.map((a) => a.horario));
   const slotsLivresDia = todosSlotsDia.filter((s) => !horariosOcupados.has(s) && !slotsBloqueados.includes(s));
 
@@ -642,11 +805,44 @@ export default function AgendamentosAdminPage() {
 
   async function reagendar(novaData: string, novoHorario: string) {
     if (!reagendarAg) return;
+    const agId = reagendarAg.id;
     const res = await fetch(`/api/agendamentos/${reagendarAg.id}`, { credentials: "include", method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: novaData, horario: novoHorario }) });
     const data = await res.json();
     setReagendarAg(null);
+    // se veio do painel de pendências (fechar o dia), remove o que já foi resolvido
+    setPendencias((prev) => { if (!prev) return prev; const rest = prev.filter((p) => p.id !== agId); return rest.length ? rest : null; });
     carregar();
     if (data.whatsappLink) setNotificacaoLink(data.whatsappLink);
+  }
+
+  // Fecha o dia: bloqueia todos os horários livres. Agendamentos existentes ficam
+  // intactos; se houver, abre o painel de pendências pra reagendar um a um.
+  async function fecharDia() {
+    const livres = slotsLivresDia;
+    if (livres.length > 0) {
+      await fetch("/api/slots/dia", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: dataSelecionada, horarios: livres, acao: "bloquear" }) });
+      setSlotsBloqueados((prev) => Array.from(new Set([...prev, ...livres])));
+    }
+    const ativos = agsDia.filter((a) => a.status === "pendente" || a.status === "confirmado");
+    if (ativos.length > 0) setPendencias(ativos);
+  }
+
+  // Libera o dia: desbloqueia todos os horários bloqueados da data.
+  async function liberarDia() {
+    if (slotsBloqueados.length === 0) return;
+    await fetch("/api/slots/dia", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: dataSelecionada, horarios: slotsBloqueados, acao: "desbloquear" }) });
+    setSlotsBloqueados([]);
+  }
+
+  async function salvarGrade(nova: GradeConfig) {
+    setSalvandoGrade(true);
+    try {
+      await fetch("/api/grade", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grade: nova }) });
+      setGrade(nova);
+      setConfigGradeOpen(false);
+    } finally {
+      setSalvandoGrade(false);
+    }
   }
 
   function confirmarModal() {
@@ -655,8 +851,13 @@ export default function AgendamentosAdminPage() {
     if (modal.tipo === "excluir" && modal.id) excluir(modal.id);
     if (modal.tipo === "fechar_caixa") fecharCaixa();
     if (modal.tipo === "bloquear" && modal.horario) toggleBloquearSlot(modal.horario);
+    if (modal.tipo === "fechar_dia") { setModal({ tipo: "fechar_dia_2" }); return; } // dupla confirmação
+    if (modal.tipo === "fechar_dia_2") { fecharDia(); setModal(null); return; }
+    if (modal.tipo === "liberar_dia") liberarDia();
     setModal(null);
   }
+
+  const agsAtivosDia = agsDia.filter((a) => a.status === "pendente" || a.status === "confirmado");
 
   const modalConfig = {
     concluir: { titulo: "Marcar como concluído?", mensagem: "Será incluído no caixa do dia.", confirmLabel: "Concluir", confirmClass: "bg-green-700 hover:bg-green-600" },
@@ -667,6 +868,26 @@ export default function AgendamentosAdminPage() {
       mensagem: modal?.horario && slotsBloqueados.includes(modal.horario) ? `Horário ${modal.horario} voltará a estar disponível.` : `Horário ${modal?.horario} ficará indisponível para clientes.`,
       confirmLabel: modal?.horario && slotsBloqueados.includes(modal.horario) ? "Desbloquear" : "Bloquear",
       confirmClass: "bg-[#2d2d2d] hover:bg-[#3d3d3d]",
+    },
+    fechar_dia: {
+      titulo: "Fechar este dia?",
+      mensagem: `Bloqueia os ${slotsLivresDia.length} horário(s) livre(s) de ${dataLabel} — ninguém mais conseguirá agendar. Os agendamentos já existentes serão mantidos.`,
+      confirmLabel: "Continuar",
+      confirmClass: "bg-red-700 hover:bg-red-600",
+    },
+    fechar_dia_2: {
+      titulo: "Tem certeza?",
+      mensagem: agsAtivosDia.length > 0
+        ? `Ação definitiva. Em seguida você poderá reagendar os ${agsAtivosDia.length} agendamento(s) deste dia, um a um.`
+        : "Esta ação bloqueia o dia inteiro. Deseja continuar?",
+      confirmLabel: "Fechar o dia",
+      confirmClass: "bg-red-600 hover:bg-red-500",
+    },
+    liberar_dia: {
+      titulo: "Liberar este dia?",
+      mensagem: `Desbloqueia os ${slotsBloqueados.length} horário(s) bloqueado(s) de ${dataLabel} — o dia volta a aceitar agendamentos.`,
+      confirmLabel: "Liberar dia",
+      confirmClass: "bg-green-700 hover:bg-green-600",
     },
   };
 
@@ -681,13 +902,42 @@ export default function AgendamentosAdminPage() {
       <AdminFab />
 
       <Modal open={!!modal} {...(modal ? modalConfig[modal.tipo] : modalConfigVazio)} onConfirm={confirmarModal} onCancel={() => setModal(null)} />
+      <ConfigGradeModal open={configGradeOpen} grade={grade} salvando={salvandoGrade} onSave={salvarGrade} onClose={() => setConfigGradeOpen(false)} />
+
+      {/* Modal de pendências: aparece ao fechar o dia que tinha agendamentos.
+          Renderizado ANTES do ReagendarModal pra que este fique por cima ao reagendar. */}
+      <AnimatedModal open={!!pendencias && pendencias.length > 0} onClose={() => setPendencias(null)} className="nice-scroll bg-[#141414] border border-amber-700/40 rounded-xl shadow-xl max-w-md w-full mx-4 flex flex-col">
+        <div className="px-5 py-4 border-b border-[#1e1e1e] shrink-0">
+          <h3 className="font-bold text-amber-300 flex items-center gap-2"><AlertTriangle size={15} /> Dia fechado</h3>
+          <p className="text-xs text-gray-500 mt-0.5">{pendencias?.length ?? 0} agendamento(s) neste dia — mantenha no horário ou reagende, um a um.</p>
+        </div>
+        <div className="flex flex-col divide-y divide-[#1a1a1a] max-h-[55vh] overflow-y-auto">
+          {(pendencias ?? []).map((ag) => (
+            <div key={ag.id} className="flex items-center justify-between gap-3 px-5 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-[#F5E6C8] truncate">{ag.horario} · {ag.nome}</p>
+                <p className="text-xs text-gray-500 truncate">{ag.servico}</p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button onClick={() => setPendencias((prev) => { const rest = (prev ?? []).filter((p) => p.id !== ag.id); return rest.length ? rest : null; })}
+                  className="px-2.5 py-1 text-xs text-gray-300 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition">Manter</button>
+                <button onClick={() => setReagendarAg(ag)}
+                  className="flex items-center gap-1 px-2.5 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><CalendarPlus size={12} /> Reagendar</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="px-5 py-4 border-t border-[#1e1e1e] flex justify-end shrink-0">
+          <button onClick={() => setPendencias(null)} className="flex items-center gap-1.5 px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition"><Check size={14} /> Concluir</button>
+        </div>
+      </AnimatedModal>
       {/* Sempre montados (key força reset do form ao reabrir) — assim o AnimatePresence
           interno do Modal roda a animação de SAÍDA ao fechar. */}
       {walkInRender && (
         <WalkInModal key={walkInRender.key} open={!!walkInHorario} horario={walkInRender.horario} dataSelecionada={dataSelecionada} barbeiros={barbeiros} onConfirm={criarWalkIn} onCancel={() => setWalkInHorario(null)} />
       )}
       {reagendarRender && (
-        <ReagendarModal key={reagendarRender.key} open={!!reagendarAg} ag={reagendarRender.ag} dataSelecionada={dataSelecionada} slotsLivres={slotsLivresDia} onConfirm={reagendar} onCancel={() => setReagendarAg(null)} />
+        <ReagendarModal key={reagendarRender.key} open={!!reagendarAg} ag={reagendarRender.ag} dataSelecionada={dataSelecionada} slotsLivres={slotsLivresDia} grade={grade} onConfirm={reagendar} onCancel={() => setReagendarAg(null)} />
       )}
       <AnimatePresence>
         {notificacaoLink && (
@@ -1049,9 +1299,28 @@ export default function AgendamentosAdminPage() {
       {/* ── Grade de horários ─────────────────────────────────────────────────── */}
       {!diaFechado && (
         <div id="grade-horarios" className={`${cardDark} overflow-hidden scroll-mt-20`}>
-          <div className="px-5 py-4 border-b border-[#1a1a1a]">
-            <p className="text-sm font-bold text-[#F5E6C8] flex items-center gap-2"><LayoutGrid size={14} /> Grade de horários</p>
-            <p className="text-xs text-gray-500 mt-0.5 capitalize">{diaSemana}, {dataLabel} · clique para agendar ou bloquear</p>
+          <div className="px-5 py-4 border-b border-[#1a1a1a] flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-[#F5E6C8] flex items-center gap-2"><LayoutGrid size={14} /> Grade de horários</p>
+              <p className="text-xs text-gray-500 mt-0.5 capitalize">{diaSemana}, {dataLabel} · clique para agendar ou bloquear</p>
+            </div>
+            {!caixaFechado && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={() => setConfigGradeOpen(true)} title="Configurar grade" className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-300 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition">
+                  <Settings2 size={13} /> <span className="hidden sm:inline">Configurar</span>
+                </button>
+                {slotsLivresDia.length > 0 && (
+                  <button onClick={() => setModal({ tipo: "fechar_dia" })} title="Fechar o dia (bloquear horários livres)" className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-red-400/80 border border-red-900/40 rounded-lg hover:border-red-500/60 hover:text-red-400 transition">
+                    <CalendarX size={13} /> <span className="hidden sm:inline">Fechar dia</span>
+                  </button>
+                )}
+                {slotsBloqueados.length > 0 && (
+                  <button onClick={() => setModal({ tipo: "liberar_dia" })} title="Liberar o dia (desbloquear horários)" className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-green-400/80 border border-green-900/40 rounded-lg hover:border-green-500/60 hover:text-green-400 transition">
+                    <CalendarCheck size={13} /> <span className="hidden sm:inline">Liberar dia</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           <div className="overflow-y-auto max-h-[480px] divide-y divide-[#1a1a1a]">
             {todosSlotsDia.map((slot) => {

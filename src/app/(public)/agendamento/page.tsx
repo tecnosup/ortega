@@ -2,26 +2,13 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { ChevronLeft, ChevronRight, Check, Tag } from "lucide-react";
-import { HORARIO_FUNCIONAMENTO } from "@/lib/demo-data";
 import type { Item } from "@/lib/admin-items";
 import type { Agendamento } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import { toDateKey } from "@/lib/date-utils";
+import { gerarSlotsDia, mesclarGrade, GRADE_DEFAULT, type GradeConfig } from "@/lib/grade";
 
-function gerarSlots(inicio: string, fim: string): string[] {
-  const slots: string[] = [];
-  const [ih, im] = inicio.split(":").map(Number);
-  const [fh, fm] = fim.split(":").map(Number);
-  let mins = ih * 60 + im;
-  const fimMins = fh * 60 + fm;
-  while (mins + 30 <= fimMins) {
-    slots.push(`${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`);
-    mins += 30;
-  }
-  return slots;
-}
-
-const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const MESES =["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["D","S","T","Q","Q","S","S"];
 
 const STATUS_CONFIG = {
@@ -113,6 +100,7 @@ export default function AgendamentoPage() {
   // slots ocupados por data (cache local)
   const [slotsOcupados, setSlotsOcupados] = useState<Record<string, string[]>>({});
   const [carregandoSlots, setCarregandoSlots] = useState(false);
+  const [grade, setGrade] = useState<GradeConfig>(GRADE_DEFAULT);
 
   // ref da seção de horários — usado para rolar até ela ao escolher o dia
   const horariosRef = useRef<HTMLDivElement>(null);
@@ -125,16 +113,18 @@ export default function AgendamentoPage() {
   const [erroCupom, setErroCupom] = useState("");
   const [validandoCupom, setValidandoCupom] = useState(false);
 
-  // busca serviços, barbeiros e settings ao montar
+  // busca serviços, barbeiros, settings e grade ao montar
   useEffect(() => {
     Promise.all([
       fetch("/api/publico/servicos").then((r) => r.json()).catch(() => ({ items: [] })),
       fetch("/api/publico/barbeiros").then((r) => r.json()).catch(() => ({ barbeiros: [] })),
-      fetch("/api/publico/settings").then((r) => r.json()).catch(() => ({}))
-    ]).then(([dServicos, dBarbeiros, dSettings]) => {
+      fetch("/api/publico/settings").then((r) => r.json()).catch(() => ({})),
+      fetch("/api/grade").then((r) => r.json()).catch(() => ({})),
+    ]).then(([dServicos, dBarbeiros, dSettings, dGrade]) => {
       setServicos(dServicos.items ?? []);
       setBarbeiros(dBarbeiros.barbeiros ?? []);
       if (dSettings.whatsappNumber) setWhatsappNumber(dSettings.whatsappNumber);
+      if (dGrade.grade) setGrade(mesclarGrade(dGrade.grade));
       setCarregandoDados(false);
     });
   }, []);
@@ -206,9 +196,8 @@ export default function AgendamentoPage() {
   }, [mesAtual]);
 
   function getSlotsDisponiveis(dateKey: string, diaSemana: number): string[] {
-    const horario = HORARIO_FUNCIONAMENTO[diaSemana];
-    if (!horario) return [];
-    const todos = gerarSlots(horario.inicio, horario.fim);
+    const todos = gerarSlotsDia(grade[diaSemana]);
+    if (todos.length === 0) return [];
     const cacheKey = selecao.barbeiroId ? `${dateKey}__${selecao.barbeiroId}` : dateKey;
     const ocupados = slotsOcupados[cacheKey] ?? [];
     const agora = new Date();
@@ -225,9 +214,8 @@ export default function AgendamentoPage() {
   }
 
   function getDisponibilidade(dateKey: string, diaSemana: number): "livre" | "parcial" | "lotado" | "fechado" {
-    const horario = HORARIO_FUNCIONAMENTO[diaSemana];
-    if (!horario) return "fechado";
-    const todos = gerarSlots(horario.inicio, horario.fim);
+    const todos = gerarSlotsDia(grade[diaSemana]);
+    if (todos.length === 0) return "fechado";
     const disponiveis = getSlotsDisponiveis(dateKey, diaSemana);
     if (disponiveis.length === 0) return "lotado";
     if (disponiveis.length < todos.length * 0.4) return "parcial";
@@ -236,7 +224,7 @@ export default function AgendamentoPage() {
 
   function selecionarData(dia: number, mes: number, ano: number) {
     const d = new Date(ano, mes, dia);
-    if (d < hoje || d.getDay() === 0) return;
+    if (d < hoje || !grade[d.getDay()]?.ativo) return;
     setSelecao((s) => ({ ...s, data: d, horario: "" }));
     // rola até os horários para o cliente perceber que precisa escolher o horário
     // (o timeout garante que a seção já renderizou com a data selecionada)
@@ -516,8 +504,8 @@ export default function AgendamentoPage() {
                   const cellDate = new Date(cell.ano, cell.mes, cell.dia);
                   cellDate.setHours(0, 0, 0, 0);
                   const passado = cellDate < hoje;
-                  const domingo = cellDate.getDay() === 0;
-                  const desabilitado = passado || domingo || !cell.atual;
+                  const fechado = !grade[cellDate.getDay()]?.ativo;
+                  const desabilitado = passado || fechado || !cell.atual;
                   const key = toDateKey(cell.ano, cell.mes, cell.dia);
                   const disp = cell.atual && !desabilitado ? getDisponibilidade(key, cellDate.getDay()) : null;
                   const selecionado = selecao.data ? cellDate.getTime() === selecao.data.getTime() : false;

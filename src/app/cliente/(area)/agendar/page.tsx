@@ -2,26 +2,13 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Check } from "lucide-react";
-import { HORARIO_FUNCIONAMENTO } from "@/lib/demo-data";
 import type { Item } from "@/lib/admin-items";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import { toDateKey } from "@/lib/date-utils";
 import type { Agendamento } from "@/lib/agendamentos-types";
+import { gerarSlotsDia, mesclarGrade, GRADE_DEFAULT, type GradeConfig } from "@/lib/grade";
 
-function gerarSlots(inicio: string, fim: string): string[] {
-  const slots: string[] = [];
-  const [ih, im] = inicio.split(":").map(Number);
-  const [fh, fm] = fim.split(":").map(Number);
-  let mins = ih * 60 + im;
-  const fimMins = fh * 60 + fm;
-  while (mins + 30 <= fimMins) {
-    slots.push(`${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`);
-    mins += 30;
-  }
-  return slots;
-}
-
-const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const MESES =["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["D","S","T","Q","Q","S","S"];
 
 type Step = "servico" | "barbeiro" | "calendario" | "confirmado";
@@ -69,10 +56,12 @@ export default function ClienteAgendarPage() {
   const [salvando, setSalvando] = useState(false);
   const [agendamentoId, setAgendamentoId] = useState<string | null>(null);
   const [erro, setErro] = useState("");
+  const [grade, setGrade] = useState<GradeConfig>(GRADE_DEFAULT);
 
   useEffect(() => {
     fetch("/api/publico/servicos").then((r) => r.json()).then((d) => setServicos(d.items ?? []));
     fetch("/api/publico/barbeiros").then((r) => r.json()).then((d) => setBarbeiros(d.barbeiros ?? []));
+    fetch("/api/grade").then((r) => r.json()).then((d) => { if (d.grade) setGrade(mesclarGrade(d.grade)); }).catch(() => {});
     fetch("/api/cliente/perfil").then((r) => r.json()).then((d) => {
       if (d.assinatura) {
         setPerfil({ nome: d.assinatura.clienteNome, telefone: d.assinatura.clienteTelefone ?? "" });
@@ -129,9 +118,8 @@ export default function ClienteAgendarPage() {
   }, [mesAtual]);
 
   function getSlotsDisponiveis(dateKey: string, diaSemana: number): string[] {
-    const horario = HORARIO_FUNCIONAMENTO[diaSemana];
-    if (!horario) return [];
-    const todos = gerarSlots(horario.inicio, horario.fim);
+    const todos = gerarSlotsDia(grade[diaSemana]);
+    if (todos.length === 0) return [];
     const cacheKey = selecao.barbeiroId ? `${dateKey}__${selecao.barbeiroId}` : dateKey;
     const ocupados = slotsOcupados[cacheKey] ?? [];
     const agora = new Date();
@@ -148,9 +136,8 @@ export default function ClienteAgendarPage() {
   }
 
   function getDisponibilidade(dateKey: string, diaSemana: number): "livre" | "parcial" | "lotado" | "fechado" {
-    const horario = HORARIO_FUNCIONAMENTO[diaSemana];
-    if (!horario) return "fechado";
-    const todos = gerarSlots(horario.inicio, horario.fim);
+    const todos = gerarSlotsDia(grade[diaSemana]);
+    if (todos.length === 0) return "fechado";
     const disponiveis = getSlotsDisponiveis(dateKey, diaSemana);
     if (disponiveis.length === 0) return "lotado";
     if (disponiveis.length < todos.length * 0.4) return "parcial";
@@ -315,7 +302,7 @@ export default function ClienteAgendarPage() {
             {diasCalendario.map((cell, i) => {
               const cellDate = new Date(cell.ano, cell.mes, cell.dia);
               cellDate.setHours(0, 0, 0, 0);
-              const desabilitado = cellDate < hoje || cellDate.getDay() === 0 || !cell.atual;
+              const desabilitado = cellDate < hoje || !grade[cellDate.getDay()]?.ativo || !cell.atual;
               const key = toDateKey(cell.ano, cell.mes, cell.dia);
               const disp = cell.atual && !desabilitado ? getDisponibilidade(key, cellDate.getDay()) : null;
               const selecionado = selecao.data ? cellDate.getTime() === selecao.data.getTime() : false;
