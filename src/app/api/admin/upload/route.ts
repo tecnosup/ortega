@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/firebase-admin";
-import { uploadToCloudinary, isCloudinaryConfigured } from "@/lib/cloudinary";
+import { uploadToR2, isR2Configured } from "@/lib/r2";
 
+// Receives the file directly and uploads to Cloudflare R2.
 export async function POST(req: NextRequest) {
   const user = await getSessionUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!isCloudinaryConfigured) {
+  if (!isR2Configured) {
     return NextResponse.json({ error: "Storage não configurado." }, { status: 503 });
   }
 
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   if (!file) return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 });
 
-  const maxBytes = 10 * 1024 * 1024;
+  const maxBytes = 10 * 1024 * 1024; // 10 MB
   if (file.size > maxBytes) {
     return NextResponse.json({ error: "Arquivo muito grande (máx. 10 MB)" }, { status: 413 });
   }
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const result = await uploadToCloudinary(buffer, file.type, folder);
+  const result = await uploadToR2(buffer, file.type, folder);
 
   return NextResponse.json({ url: result.publicUrl });
 }
