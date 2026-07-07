@@ -27,6 +27,8 @@ export interface Agendamento {
   barbeiroId?: string;
   barbeiroNome?: string;
   visualizadoAdmin?: boolean;
+  confirmadoAuto?: boolean;    // confirmado automaticamente (por tempo ou modo automático)
+  avisoPendente?: boolean;     // auto-confirmado mas cliente ainda não foi avisado (mandar WhatsApp)
   assinaturaId?: string;       // ID Firestore da assinatura usada
   cobertoPorAssinatura?: boolean;
   historico?: LogEntry[];

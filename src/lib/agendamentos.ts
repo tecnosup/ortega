@@ -7,11 +7,13 @@ export { parsePriceNum } from "./agendamentos-types";
 
 export async function criarAgendamento(
   data: Omit<Agendamento, "id" | "status" | "criadoEm" | "atualizadoEm">
+    & Partial<Pick<Agendamento, "status" | "confirmadoAuto" | "avisoPendente">>
 ): Promise<string> {
   const now = Date.now();
   const db = getAdminDb();
-  // Remove campos undefined — Firestore rejeita undefined
+  // status default = pendente, mas pode ser sobrescrito (ex: modo automático)
   const doc: Record<string, unknown> = { status: "pendente", visualizadoAdmin: false, criadoEm: now, atualizadoEm: now };
+  // Remove campos undefined — Firestore rejeita undefined
   for (const [k, v] of Object.entries(data)) {
     if (v !== undefined) doc[k] = v;
   }

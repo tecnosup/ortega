@@ -5,6 +5,7 @@ import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { sendPushToAll, sendPushToBarbeiro } from "@/lib/web-push";
 import { pushNovoAgendamento } from "@/lib/push-messages";
 import { getAssinaturaPorTelefone, getAssinaturaPorEmail, consumirCredito } from "@/lib/assinaturas";
+import { getLandingSettings } from "@/lib/admin-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,14 @@ export async function POST(req: NextRequest) {
         payload.cobertoPorAssinatura = true;
       }
     }
+  }
+
+  // Modo de confirmação: "automatico" já cria confirmado e sinaliza pra avisar cliente
+  const settings = await getLandingSettings().catch(() => null);
+  if (settings?.autoConfirmMode === "automatico") {
+    payload.status = "confirmado";
+    payload.confirmadoAuto = true;
+    payload.avisoPendente = true;
   }
 
   const id = await criarAgendamento(payload);
