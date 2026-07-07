@@ -9,6 +9,7 @@ import {
 import type { Barbeiro, ComissaoServico } from "@/lib/barbeiros-types";
 import type { Item } from "@/lib/admin-items";
 import type { CategoriaFuncionario } from "@/lib/categorias-funcionarios";
+import Modal from "@/components/ui/Modal";
 
 type Form = {
   nome: string;
@@ -541,20 +542,14 @@ export default function FuncionariosPage() {
         </div>
       )}
 
-      {contaModal.open && contaModal.barbeiro && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-md flex flex-col gap-5 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="font-bold text-[#F5E6C8]">Acesso ao portal</h2>
-                <p className="text-xs text-gray-500 mt-0.5">{contaModal.barbeiro.nome}</p>
-              </div>
-              <button onClick={() => setContaModal({ open: false, barbeiro: null })} className="text-gray-500 hover:text-white transition">
-                <X size={18} />
-              </button>
+      <Modal open={contaModal.open && !!contaModal.barbeiro} onClose={() => setContaModal({ open: false, barbeiro: null })}
+        overlayClassName="backdrop-blur-sm" className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-md flex flex-col gap-5 p-6 sm:mx-4">
+            <div>
+              <h2 className="font-bold text-[#F5E6C8]">Acesso ao portal</h2>
+              <p className="text-xs text-gray-500 mt-0.5">{contaModal.barbeiro?.nome}</p>
             </div>
             <p className="text-xs text-gray-500">
-              {contaModal.barbeiro.uid ? "Atualize o e-mail ou senha de acesso." : "Crie um login para que o funcionário acesse o portal em /barbeiro."}
+              {contaModal.barbeiro?.uid ? "Atualize o e-mail ou senha de acesso." : "Crie um login para que o funcionário acesse o portal em /barbeiro."}
             </p>
             <div className="flex flex-col gap-4">
               <label className="flex flex-col gap-1.5">
@@ -585,16 +580,12 @@ export default function FuncionariosPage() {
                 Salvar acesso
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
-      {modal.open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4">
-          <div className="bg-[#111] border border-[#2d2d2d] rounded-t-2xl sm:rounded-xl w-full max-w-lg flex flex-col gap-0 max-h-modal-safe overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#2d2d2d] shrink-0">
+      <Modal open={modal.open} onClose={closeModal}
+        overlayClassName="backdrop-blur-sm" className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-lg flex flex-col gap-0 sm:mx-4">
+            <div className="flex items-center px-6 py-4 border-b border-[#2d2d2d] shrink-0">
               <h2 className="font-bold text-[#F5E6C8]">{modal.editing ? "Editar funcionário" : "Novo funcionário"}</h2>
-              <button onClick={closeModal} className="text-gray-500 hover:text-white transition"><X size={18} /></button>
             </div>
 
             <div className="flex flex-col gap-5 px-6 py-5 overflow-y-auto">
@@ -707,9 +698,7 @@ export default function FuncionariosPage() {
                 {modal.editing ? "Salvar" : "Criar"}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

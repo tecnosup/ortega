@@ -9,6 +9,8 @@ import {
 import type { FechamentoDia, Agendamento, AtendimentoAvulso, ItemAtendimento } from "@/lib/agendamentos-types";
 import type { GastoDia } from "@/lib/gastos-dia-tipos";
 import { parsePriceNum } from "@/lib/agendamentos-types";
+import Modal from "@/components/ui/Modal";
+import { useModalMount } from "@/components/ui/useModalMount";
 
 function brl(v: number) { return `R$ ${v.toFixed(2).replace(".", ",")}` }
 function toDataStr(y: number, m: number, d: number) {
@@ -20,25 +22,19 @@ const MESES = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULH
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-1.5 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] w-full";
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
-function ModalConfirm({ titulo, mensagem, confirmLabel, confirmClass, onConfirm, onCancel }: {
-  titulo: string; mensagem: string; confirmLabel: string;
+function ModalConfirm({ open = true, titulo, mensagem, confirmLabel, confirmClass, onConfirm, onCancel }: {
+  open?: boolean; titulo: string; mensagem: string; confirmLabel: string;
   confirmClass: string; onConfirm: () => void; onCancel: () => void;
 }) {
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6" onClick={onCancel}>
-      <div className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl p-6 max-w-sm w-full flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
+    <Modal open={open} onClose={onCancel} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl p-6 max-w-sm w-full mx-6 flex flex-col gap-4">
         <h3 className="font-bold text-[#F5E6C8]">{titulo}</h3>
         <p className="text-sm text-gray-400 leading-relaxed">{mensagem}</p>
         <div className="flex gap-2 justify-end">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
           <button onClick={onConfirm} className={`px-4 py-2 text-sm rounded transition ${confirmClass}`}>{confirmLabel}</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -117,7 +113,8 @@ function FormGastoDia({ data, onSalvo, onCancelar }: {
 // ── Form atendimento (modal) ──────────────────────────────────────────────────
 const FORMAS_PAG = ["Pix", "Cartão de débito", "Cartão de crédito", "Dinheiro"] as const;
 
-function FormAtendimento({ data, inicial, agendamento, onSalvo, onCancelar }: {
+function FormAtendimento({ open = true, data, inicial, agendamento, onSalvo, onCancelar }: {
+  open?: boolean;
   data: string;
   inicial?: AtendimentoAvulso;
   agendamento?: Agendamento;
@@ -219,19 +216,13 @@ function FormAtendimento({ data, inicial, agendamento, onSalvo, onCancelar }: {
   const titulo = inicial ? "Editar atendimento" : agendamento ? "Itens adicionais" : "Novo atendimento";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onCancelar}>
-      <div
-        className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-lg flex flex-col"
-        style={{ maxHeight: "calc(100vh - 2rem)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal open={open} onClose={onCancelar} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-lg mx-4 flex flex-col max-h-[calc(100vh-2rem)]">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e1e]">
+        <div className="flex items-center px-5 py-4 border-b border-[#1e1e1e]">
           <div>
             <h3 className="font-bold text-[#F5E6C8] text-sm">{titulo}</h3>
             <p className="text-[10px] text-gray-500 mt-0.5">{new Date(data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}</p>
           </div>
-          <button onClick={onCancelar} className="text-gray-600 hover:text-gray-300 transition p-1"><X size={16} /></button>
         </div>
 
         <div className="px-5 py-4 flex flex-col gap-4 overflow-y-auto flex-1 min-h-0">
@@ -365,8 +356,7 @@ function FormAtendimento({ data, inicial, agendamento, onSalvo, onCancelar }: {
             Cancelar
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -390,9 +380,13 @@ export default function CaixaCalendario({ fechamentos, gastosDia, avulsos, onAtu
   const [reabrindo, setReabrindo] = useState(false);
   const [mostraFormGasto, setMostraFormGasto] = useState(false);
   const [mostraFormAtendimento, setMostraFormAtendimento] = useState(false);
+  const novoAtendMount = useModalMount(mostraFormAtendimento ? true : null);
   const [modalReabrir, setModalReabrir] = useState(false);
   const [modalFechar, setModalFechar] = useState(false);
   const [modalExcluirAvulso, setModalExcluirAvulso] = useState<string | null>(null);
+  const reabrirMount = useModalMount(modalReabrir ? true : null);
+  const fecharMount = useModalMount(modalFechar ? true : null);
+  const excluirAvulsoMount = useModalMount(modalExcluirAvulso);
   // agendamento cujo form de "itens adicionais" está aberto (abre modal direto)
   const [agAtivo, setAgAtivo] = useState<string | null>(null);
   // avulso standalone sendo editado
@@ -518,8 +512,9 @@ export default function CaixaCalendario({ fechamentos, gastosDia, avulsos, onAtu
 
   return (
     <>
-      {modalReabrir && (
+      {reabrirMount.mounted && (
         <ModalConfirm
+          open={reabrirMount.open}
           titulo="Reabrir caixa?"
           mensagem="O fechamento será excluído. Os agendamentos e atendimentos voltarão ao estado editável."
           confirmLabel={reabrindo ? "Reabrindo..." : "Reabrir"}
@@ -528,8 +523,9 @@ export default function CaixaCalendario({ fechamentos, gastosDia, avulsos, onAtu
           onCancel={() => setModalReabrir(false)}
         />
       )}
-      {modalFechar && diaSel && (
+      {fecharMount.mounted && diaSel && (
         <ModalConfirm
+          open={fecharMount.open}
           titulo="Fechar o caixa?"
           mensagem={`Os atendimentos de ${new Date(diaSel + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })} serão consolidados. Você ainda poderá reabrir caso precise corrigir algo.`}
           confirmLabel={fechando ? "Fechando..." : "Fechar caixa"}
@@ -538,13 +534,14 @@ export default function CaixaCalendario({ fechamentos, gastosDia, avulsos, onAtu
           onCancel={() => setModalFechar(false)}
         />
       )}
-      {modalExcluirAvulso && (
+      {excluirAvulsoMount.mounted && (
         <ModalConfirm
+          open={excluirAvulsoMount.open}
           titulo="Remover atendimento?"
           mensagem="Este atendimento será removido permanentemente e o valor não entrará no fechamento."
           confirmLabel="Remover"
           confirmClass="bg-red-900/60 text-red-300 border border-red-800/60 hover:bg-red-900/80"
-          onConfirm={() => excluirAvulso(modalExcluirAvulso)}
+          onConfirm={() => excluirAvulsoMount.value && excluirAvulso(excluirAvulsoMount.value)}
           onCancel={() => setModalExcluirAvulso(null)}
         />
       )}
@@ -697,8 +694,10 @@ export default function CaixaCalendario({ fechamentos, gastosDia, avulsos, onAtu
                 )}
 
                 {/* Form novo atendimento */}
-                {mostraFormAtendimento && (
+                {novoAtendMount.mounted && (
                   <FormAtendimento
+                    key={novoAtendMount.key}
+                    open={novoAtendMount.open}
                     data={diaSel}
                     onSalvo={() => { setMostraFormAtendimento(false); onAtualizar(); }}
                     onCancelar={() => setMostraFormAtendimento(false)}

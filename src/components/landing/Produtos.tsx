@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import type { Produto } from "@/lib/admin-produtos";
 import type { Desconto } from "@/lib/admin-descontos";
 import type { Categoria } from "@/lib/admin-categorias";
+import Modal from "@/components/ui/Modal";
+import { useModalMount } from "@/components/ui/useModalMount";
 
 interface ProdutosProps {
   produtos: Produto[];
@@ -21,12 +23,14 @@ function precoComDesconto(preco: string, pct: number) {
 }
 
 function ProdutoModal({
+  open,
   produto,
   precoFinal,
   precoOriginal,
   whatsappNumber,
   onClose,
 }: {
+  open: boolean;
   produto: Produto;
   precoFinal: string | null;
   precoOriginal: string;
@@ -50,17 +54,10 @@ function ProdutoModal({
   );
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="relative bg-[#111] border border-[#C9A84C]/20 rounded-xl w-full max-w-md overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal open={open} onClose={onClose} hideClose overlayClassName="!bg-black/80" className="bg-[#111] border border-[#C9A84C]/20 rounded-xl w-full max-w-md mx-4 overflow-hidden">
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-[#1a1a1a] border border-[#2d2d2d] text-gray-400 hover:text-[#F5E6C8] transition"
+          className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-[#1a1a1a] border border-[#2d2d2d] text-gray-400 hover:text-[#F5E6C8] transition"
         >
           <X size={14} />
         </button>
@@ -110,8 +107,7 @@ function ProdutoModal({
             </a>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -119,6 +115,7 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [activeCategoria, setActiveCategoria] = useState<string>("todos");
   const [modalProduto, setModalProduto] = useState<Produto | null>(null);
+  const produtoMount = useModalMount(modalProduto);
 
   if (produtos.length === 0) return null;
 
@@ -145,11 +142,13 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
     <section id="produtos" className="py-20 md:py-28 bg-[#0A0A0A] relative">
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#C9A84C]/20 to-transparent" />
 
-      {modalProduto && (() => {
-        const { precoFinal, precoOriginal } = getPrecos(modalProduto);
+      {produtoMount.mounted && (() => {
+        const { precoFinal, precoOriginal } = getPrecos(produtoMount.value);
         return (
           <ProdutoModal
-            produto={modalProduto}
+            key={produtoMount.key}
+            open={produtoMount.open}
+            produto={produtoMount.value}
             precoFinal={precoFinal}
             precoOriginal={precoOriginal}
             whatsappNumber={whatsappNumber}
