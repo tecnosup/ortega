@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Ortega Barber — Admin",
+    name: "Ortega — Admin",
     short_name: "Ortega Admin",
-    description: "Painel administrativo da Ortega Barber",
+    description: "Painel administrativo da Ortega",
     start_url: "/admin",
     scope: "/admin",
     display: "standalone",

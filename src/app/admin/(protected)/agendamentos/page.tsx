@@ -7,15 +7,19 @@ import {
   CheckCircle, XCircle, Clock, RefreshCw, MessageCircle,
   Pencil, Trash2, Check, X, ChevronLeft, ChevronRight, Lock, Undo2,
   CalendarPlus, Ban, Unlock, LayoutGrid, List, Plus, TrendingUp,
-  AlertCircle, AlertTriangle, Bell, ChevronDown,
+  AlertCircle, AlertTriangle, Bell, ChevronDown, Settings2, Coffee, CalendarX, CalendarCheck, Calendar, Tag,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
+import AdminFab from "@/components/admin/AdminFab";
 import type { Agendamento, AgendamentoStatus, FechamentoDia } from "@/lib/agendamentos-types";
 import { parsePriceNum } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import type { Item } from "@/lib/admin-items";
 import { toDateKey } from "@/lib/date-utils";
-import { HORARIO_FUNCIONAMENTO } from "@/lib/demo-data";
+import { gerarSlotsData, mesclarGrade, GRADE_DEFAULT, DIAS_SEMANA, type GradeConfig, type DiaGrade } from "@/lib/grade";
+import AnimatedModal from "@/components/ui/Modal";
 
 function parseDuracaoMin(duracao: string): number {
   const h = duracao.match(/(\d+)\s*h/i);
@@ -29,21 +33,6 @@ function formatarData(dateKey: string) {
   });
 }
 
-function gerarSlots(dateKey: string): string[] {
-  const dow = new Date(dateKey + "T12:00:00").getDay();
-  const turno = HORARIO_FUNCIONAMENTO[dow];
-  if (!turno) return [];
-  const slots: string[] = [];
-  const [ih, im] = turno.inicio.split(":").map(Number);
-  const [fh, fm] = turno.fim.split(":").map(Number);
-  let cur = ih * 60 + im;
-  const end = fh * 60 + fm;
-  while (cur < end) {
-    slots.push(`${String(Math.floor(cur / 60)).padStart(2, "0")}:${String(cur % 60).padStart(2, "0")}`);
-    cur += 30;
-  }
-  return slots;
-}
 
 const STATUS_STYLE: Record<AgendamentoStatus, string> = {
   pendente: "bg-yellow-900/30 text-yellow-400 border-yellow-700/50",
@@ -209,139 +198,347 @@ function CalendarioMensal({
 
 // ─── modais ───────────────────────────────────────────────────────────────────
 
-function Modal({ titulo, mensagem, confirmLabel, confirmClass, onConfirm, onCancel }: {
-  titulo: string; mensagem: React.ReactNode; confirmLabel: string;
+function Modal({ open, titulo, mensagem, confirmLabel, confirmClass, onConfirm, onCancel }: {
+  open: boolean; titulo: string; mensagem: React.ReactNode; confirmLabel: string;
   confirmClass: string; onConfirm: () => void; onCancel: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-      <div className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
-        <h3 className="font-bold text-[#F5E6C8]">{titulo}</h3>
-        <div className="text-sm text-gray-400 leading-relaxed">{mensagem}</div>
-        <div className="flex gap-2 justify-end">
-          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
-          <button onClick={onConfirm} className={`px-4 py-2 text-sm text-white rounded transition ${confirmClass}`}>{confirmLabel}</button>
-        </div>
+    <AnimatedModal open={open} onClose={onCancel} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
+      <h3 className="font-bold text-[#F5E6C8]">{titulo}</h3>
+      <div className="text-sm text-gray-400 leading-relaxed">{mensagem}</div>
+      <div className="flex gap-2 justify-end">
+        <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
+        <button onClick={onConfirm} className={`px-4 py-2 text-sm text-white rounded transition ${confirmClass}`}>{confirmLabel}</button>
       </div>
-    </div>
+    </AnimatedModal>
   );
 }
 
 interface AssinaturaInfo { id: string; clienteNome: string; cortesRestantes: number; planoCortesTotal: number; status: string; }
 
-function WalkInModal({ horario, dataSelecionada, barbeiros, onConfirm, onCancel }: {
-  horario: string; dataSelecionada: string; barbeiros: Barbeiro[];
-  onConfirm: (dados: { nome: string; telefone: string; servico: string; preco: string; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string }) => void;
-  onCancel: () => void;
+interface CupomInfo { codigo: string; tipo: "percentual" | "fixo"; valor: number; desconto: number; }
+type AgStep = "servico" | "barbeiro" | "dataHora" | "dados";
+
+// Modal de agendamento do admin — MESMO fluxo do lado cliente (wizard):
+// serviço → barbeiro → data/horário → dados. Telefone opcional, com cupom e crédito de assinatura.
+// Se vier de um slot da grade (preData+preHorario), pula a etapa de data/horário.
+function AgendarModal({ open, onClose, servicos, barbeiros, grade, preData, preHorario, onCriar }: {
+  open: boolean; onClose: () => void;
+  servicos: Item[]; barbeiros: Barbeiro[]; grade: GradeConfig;
+  preData?: string | null; preHorario?: string | null;
+  onCriar: (dados: { nome: string; telefone: string; servico: string; preco: string; data: string; horario: string; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string; cupom?: string | null }) => Promise<void>;
 }) {
+  const hojeKey = toDateKey(new Date());
+  const preSel = !!(preData && preHorario);
+  const passos: AgStep[] = preSel ? ["servico", "barbeiro", "dados"] : ["servico", "barbeiro", "dataHora", "dados"];
+
+  const [step, setStep] = useState<AgStep>("servico");
+  const [servico, setServico] = useState("");
+  const [preco, setPreco] = useState("");
+  const [barbeiroId, setBarbeiroId] = useState<string | null>(null);
+  const [barbeiroNome, setBarbeiroNome] = useState<string | null>(null);
+  const [dataKey, setDataKey] = useState(preData ?? hojeKey);
+  const [horario, setHorario] = useState(preHorario ?? "");
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
-  const [servico, setServico] = useState(SERVICOS_LISTA[0]);
-  const [preco, setPreco] = useState("");
-  const [barbeiroId, setBarbeiroId] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [codigoCupom, setCodigoCupom] = useState("");
+  const [cupom, setCupom] = useState<CupomInfo | null>(null);
+  const [erroCupom, setErroCupom] = useState("");
+  const [validandoCupom, setValidandoCupom] = useState(false);
   const [assinatura, setAssinatura] = useState<AssinaturaInfo | null>(null);
   const [buscandoAssinatura, setBuscandoAssinatura] = useState(false);
   const [usarCredito, setUsarCredito] = useState(false);
-  const dataLabel = new Date(dataSelecionada + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "long" });
-  const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a]";
+  const [slotsOcupados, setSlotsOcupados] = useState<string[]>([]);
+  const [carregandoSlots, setCarregandoSlots] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
 
-  // Busca assinatura quando telefone tem dígitos suficientes
+  const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2.5 text-sm text-[#F5E6C8] placeholder-gray-600 focus:outline-none focus:border-[#b8944a] transition";
+
+  // reset ao (re)abrir
+  useEffect(() => {
+    if (!open) return;
+    setStep("servico"); setServico(""); setPreco("");
+    setBarbeiroId(null); setBarbeiroNome(null);
+    setDataKey(preData ?? hojeKey); setHorario(preHorario ?? "");
+    setNome(""); setTelefone(""); setCodigoCupom(""); setCupom(null); setErroCupom("");
+    setAssinatura(null); setUsarCredito(false); setSalvando(false); setErro("");
+  }, [open, preData, preHorario, hojeKey]);
+
+  // assinatura pelo telefone
   useEffect(() => {
     const tel = telefone.replace(/\D/g, "");
     if (tel.length < 10) { setAssinatura(null); setUsarCredito(false); return; }
-    const timer = setTimeout(async () => {
+    const t = setTimeout(async () => {
       setBuscandoAssinatura(true);
       try {
         const res = await fetch(`/api/assinatura/status?telefone=${tel}`, { credentials: "include" });
-        const json = await res.json();
-        const a = json.assinatura ?? null;
+        const j = await res.json();
+        const a = j.assinatura ?? null;
         setAssinatura(a);
         setUsarCredito(a?.status === "ativa" && a?.cortesRestantes > 0);
-        if (a && !nome.trim()) setNome(a.clienteNome);
+        setNome((n) => (a && !n.trim() ? a.clienteNome : n));
       } catch { setAssinatura(null); }
       finally { setBuscandoAssinatura(false); }
     }, 600);
-    return () => clearTimeout(timer);
-  }, [telefone, nome]);
+    return () => clearTimeout(t);
+  }, [telefone]);
 
-  function handleConfirm() {
-    if (!nome.trim() || submitting) return;
-    setSubmitting(true);
-    const b = barbeiros.find((x) => x.id === barbeiroId);
-    onConfirm({
-      nome, telefone, servico, preco,
-      barbeiroId: b?.id, barbeiroNome: b ? (b.apelido ?? b.nome) : undefined,
-      usarCredito: usarCredito && !!assinatura,
-      assinaturaId: usarCredito && assinatura ? assinatura.id : undefined,
+  // slots ocupados (só quando escolhe data/barbeiro no fluxo completo)
+  useEffect(() => {
+    if (!open || preSel) return;
+    let cancel = false;
+    setCarregandoSlots(true);
+    (async () => {
+      try {
+        if (barbeiroId) {
+          const res = await fetch(`/api/slots?data=${dataKey}&barbeiroId=${encodeURIComponent(barbeiroId)}`, { credentials: "include" });
+          const { bloqueados } = await res.json();
+          if (!cancel) setSlotsOcupados(bloqueados ?? []);
+        } else {
+          const [sr, ar] = await Promise.all([
+            fetch(`/api/slots?data=${dataKey}`, { credentials: "include" }),
+            fetch(`/api/agendamentos?data=${dataKey}`, { credentials: "include" }),
+          ]);
+          const { bloqueados } = await sr.json();
+          const ags = await ar.json();
+          const ocup = Array.isArray(ags) ? ags.filter((a: Agendamento) => a.status !== "cancelado").map((a: Agendamento) => a.horario) : [];
+          if (!cancel) setSlotsOcupados(Array.from(new Set([...(bloqueados ?? []), ...ocup])));
+        }
+      } finally { if (!cancel) setCarregandoSlots(false); }
+    })();
+    return () => { cancel = true; };
+  }, [open, preSel, dataKey, barbeiroId]);
+
+  const slotsDisponiveis = (() => {
+    const todos = gerarSlotsData(dataKey, grade);
+    const agora = new Date();
+    const min = agora.getHours() * 60 + agora.getMinutes();
+    return todos.filter((s) => {
+      if (slotsOcupados.includes(s)) return false;
+      if (dataKey === hojeKey) { const [h, m] = s.split(":").map(Number); if (h * 60 + m <= min) return false; }
+      return true;
     });
-  }
+  })();
 
+  const precoBase = parseFloat((preco || "").replace(",", ".")) || 0;
+  const precoFinal = cupom ? Math.max(precoBase - cupom.desconto, 0) : precoBase;
   const temCredito = assinatura?.status === "ativa" && (assinatura?.cortesRestantes ?? 0) > 0;
 
+  async function aplicarCupom() {
+    if (!codigoCupom.trim()) return;
+    setValidandoCupom(true); setErroCupom("");
+    const res = await fetch(`/api/cupons?codigo=${encodeURIComponent(codigoCupom.trim())}`);
+    const data = await res.json();
+    setValidandoCupom(false);
+    if (!data.valido) { setCupom(null); setErroCupom(data.mensagem ?? "Cupom inválido"); return; }
+    const desconto = data.cupom.tipo === "percentual" ? parseFloat(((precoBase * data.cupom.valor) / 100).toFixed(2)) : Math.min(data.cupom.valor, precoBase);
+    setCupom({ codigo: data.cupom.codigo, tipo: data.cupom.tipo, valor: data.cupom.valor, desconto });
+  }
+
+  async function confirmar() {
+    if (nome.trim().length < 2) { setErro("Informe o nome do cliente"); return; }
+    setSalvando(true); setErro("");
+    const precoStr = usarCredito ? "0" : (precoFinal > 0 ? precoFinal.toFixed(2).replace(".", ",") : preco);
+    try {
+      await onCriar({
+        nome, telefone, servico, preco: precoStr,
+        data: dataKey, horario,
+        barbeiroId: barbeiroId ?? undefined, barbeiroNome: barbeiroNome ?? undefined,
+        usarCredito: usarCredito && !!assinatura, assinaturaId: usarCredito && assinatura ? assinatura.id : undefined,
+        cupom: cupom?.codigo ?? null,
+      });
+      onClose();
+    } catch { setErro("Erro ao criar. Tente de novo."); }
+    finally { setSalvando(false); }
+  }
+
+  const dataLabel = new Date(dataKey + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  const idx = passos.indexOf(step);
+  const irAposBarbeiro = () => setStep(preSel ? "dados" : "dataHora");
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-      <div className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
-        <div>
-          <h3 className="font-bold text-[#F5E6C8]">Novo agendamento presencial</h3>
-          <p className="text-xs text-gray-500 mt-0.5">{dataLabel} às {horario}</p>
+    <AnimatedModal open={open} onClose={onClose} className="nice-scroll bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl max-w-md w-full mx-4 flex flex-col">
+      <div className="px-5 pt-5 pb-3 border-b border-[#1e1e1e] shrink-0">
+        <div className="flex items-center gap-1.5 mb-3">
+          {passos.map((p, i) => (
+            <div key={p} className={`flex items-center gap-1.5 ${i < passos.length - 1 ? "flex-1" : ""}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${i < idx ? "bg-[#b8944a] text-[#0A0A0A]" : i === idx ? "bg-[#b8944a]/20 border border-[#b8944a] text-[#b8944a]" : "bg-[#1a1a1a] border border-[#2d2d2d] text-gray-600"}`}>{i < idx ? <Check size={12} /> : i + 1}</div>
+              {i < passos.length - 1 && <div className={`h-px flex-1 ${i < idx ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`} />}
+            </div>
+          ))}
         </div>
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Nome do cliente</label><input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: João Silva" className={inp} /></div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-400">WhatsApp (opcional)</label>
-            <input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="11999999999" className={inp} />
-            {buscandoAssinatura && <p className="text-[10px] text-gray-600">Verificando assinatura...</p>}
-            {assinatura && !buscandoAssinatura && (
-              <div className={`rounded-lg px-3 py-2.5 flex flex-col gap-2 border ${temCredito ? "bg-[#b8944a]/8 border-[#b8944a]/30" : "bg-[#1a1a1a] border-[#2d2d2d]"}`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className={`text-xs font-semibold ${temCredito ? "text-[#b8944a]" : "text-gray-500"}`}>
-                      {temCredito ? "Assinante ativo" : "Assinante sem créditos"}
-                    </p>
-                    <p className="text-[10px] text-gray-500 mt-0.5">
-                      {assinatura.cortesRestantes}/{assinatura.planoCortesTotal} cortes restantes
-                    </p>
+        <h3 className="font-bold text-[#F5E6C8]">
+          {step === "servico" ? "Escolha o serviço" : step === "barbeiro" ? "Escolha o barbeiro" : step === "dataHora" ? "Data e horário" : "Dados do cliente"}
+        </h3>
+        {preSel && <p className="text-xs text-[#b8944a] mt-0.5 capitalize">{dataLabel} às {horario}</p>}
+      </div>
+
+      <div className="px-5 py-4 flex flex-col gap-3 max-h-[58vh] overflow-y-auto">
+        {step === "servico" && (
+          servicos.length === 0 ? <p className="text-sm text-gray-500 text-center py-6">Nenhum serviço cadastrado.</p> :
+          servicos.map((s) => (
+            <button key={s.id} onClick={() => { setServico(s.titulo); setPreco(s.preco); setCupom(null); setStep("barbeiro"); }}
+              className="text-left border border-[#2d2d2d] bg-[#111] p-3.5 rounded-xl hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition group">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0"><p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition truncate">{s.titulo}</p>{s.descricao && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{s.descricao}</p>}</div>
+                {s.preco && <p className="text-[#b8944a] font-bold text-sm shrink-0">R$ {s.preco}</p>}
+              </div>
+            </button>
+          ))
+        )}
+
+        {step === "barbeiro" && (
+          <>
+            <button onClick={() => { setBarbeiroId(null); setBarbeiroNome(null); irAposBarbeiro(); }}
+              className="text-left border border-[#2d2d2d] bg-[#111] p-3.5 rounded-xl hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#2d2d2d] flex items-center justify-center shrink-0">✂️</div>
+              <div><p className="font-semibold text-[#F5E6C8]">Qualquer disponível</p><p className="text-[11px] text-gray-500">O próximo barbeiro livre</p></div>
+            </button>
+            {barbeiros.map((b) => (
+              <button key={b.id} onClick={() => { setBarbeiroId(b.id); setBarbeiroNome(b.apelido ?? b.nome); irAposBarbeiro(); }}
+                className="text-left border border-[#2d2d2d] bg-[#111] p-3.5 rounded-xl hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition flex items-center gap-3">
+                {b.foto ? <img src={b.foto} alt={b.nome} className="w-10 h-10 rounded-full object-cover shrink-0" /> : <div className="w-10 h-10 rounded-full bg-[#2d2d2d] flex items-center justify-center text-[#b8944a] font-bold shrink-0">{b.nome.charAt(0).toUpperCase()}</div>}
+                <div className="min-w-0"><p className="font-semibold text-[#F5E6C8] truncate">{b.nome}</p>{b.apelido && <p className="text-[11px] text-gray-500">{b.apelido}</p>}</div>
+              </button>
+            ))}
+          </>
+        )}
+
+        {step === "dataHora" && (
+          <>
+            <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Data</label>
+              <DateFieldBR value={dataKey} min={hojeKey} onChange={(v) => { setDataKey(v); setHorario(""); }} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-gray-400 capitalize">{dataLabel}</label>
+              {carregandoSlots ? <p className="text-sm text-gray-600 py-3 text-center">Carregando horários...</p> :
+               slotsDisponiveis.length === 0 ? <p className="text-sm text-gray-500 py-3 text-center">Sem horários disponíveis neste dia.</p> :
+               <div className="grid grid-cols-4 gap-2">
+                 {slotsDisponiveis.map((s) => (
+                   <button key={s} onClick={() => setHorario(s)} className={`py-2 text-sm rounded-lg border font-medium transition ${horario === s ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "border-[#2d2d2d] text-[#F5E6C8] hover:border-[#b8944a]"}`}>{s}</button>
+                 ))}
+               </div>}
+            </div>
+          </>
+        )}
+
+        {step === "dados" && (
+          <>
+            <div className="bg-[#0d0d0d] border border-[#2d2d2d] rounded-lg p-3 flex flex-col gap-1 text-xs">
+              <div className="flex justify-between"><span className="text-gray-500">Serviço</span><span className="text-[#F5E6C8] font-medium">{servico}</span></div>
+              {barbeiroNome && <div className="flex justify-between"><span className="text-gray-500">Barbeiro</span><span className="text-[#F5E6C8]">{barbeiroNome}</span></div>}
+              <div className="flex justify-between"><span className="text-gray-500">Data</span><span className="text-[#F5E6C8] capitalize">{dataLabel}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Horário</span><span className="text-[#F5E6C8]">{horario}</span></div>
+            </div>
+            <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Nome do cliente</label><input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: João Silva" className={inp} /></div>
+            <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">WhatsApp (opcional)</label>
+              <input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="11999999999" inputMode="tel" className={inp} />
+              {buscandoAssinatura && <p className="text-[10px] text-gray-600">Verificando assinatura...</p>}
+              {assinatura && !buscandoAssinatura && (
+                <div className={`rounded-lg px-3 py-2.5 flex flex-col gap-2 border ${temCredito ? "bg-[#b8944a]/8 border-[#b8944a]/30" : "bg-[#1a1a1a] border-[#2d2d2d]"}`}>
+                  <div className="flex items-center justify-between">
+                    <div><p className={`text-xs font-semibold ${temCredito ? "text-[#b8944a]" : "text-gray-500"}`}>{temCredito ? "Assinante ativo" : "Assinante sem créditos"}</p><p className="text-[10px] text-gray-500 mt-0.5">{assinatura.cortesRestantes}/{assinatura.planoCortesTotal} cortes restantes</p></div>
+                    {temCredito && <button type="button" onClick={() => setUsarCredito((v) => !v)} className={`relative w-10 h-5 rounded-full transition-colors ${usarCredito ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`}><span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${usarCredito ? "left-5" : "left-0.5"}`} /></button>}
                   </div>
-                  {temCredito && (
-                    <button
-                      type="button"
-                      onClick={() => setUsarCredito((v) => !v)}
-                      className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${usarCredito ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`}
-                    >
-                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${usarCredito ? "left-5" : "left-0.5"}`} />
-                    </button>
-                  )}
+                  {usarCredito && <p className="text-[10px] text-[#b8944a]/80">1 crédito será consumido da assinatura</p>}
                 </div>
-                {usarCredito && (
-                  <p className="text-[10px] text-[#b8944a]/80">1 crédito será consumido da assinatura</p>
-                )}
+              )}
+            </div>
+            <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Preço (R$)</label><input value={preco} onChange={(e) => { setPreco(e.target.value); setCupom(null); }} placeholder="55" className={`${inp} disabled:opacity-50`} disabled={usarCredito} /></div>
+            {!usarCredito && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-gray-400 flex items-center gap-1.5"><Tag size={12} /> Cupom (opcional)</label>
+                <div className="flex gap-2">
+                  <input value={codigoCupom} onChange={(e) => { setCodigoCupom(e.target.value.toUpperCase()); setErroCupom(""); setCupom(null); }} placeholder="ORTEGA10" disabled={!!cupom} className={`${inp} flex-1 font-mono disabled:opacity-50`} />
+                  {cupom ? <button onClick={() => { setCupom(null); setCodigoCupom(""); }} className="px-3 py-2 text-xs text-red-400 border border-red-800/50 rounded-lg hover:bg-red-900/20 transition">Remover</button>
+                         : <button onClick={aplicarCupom} disabled={!codigoCupom.trim() || validandoCupom} className="px-3 py-2 text-xs bg-[#b8944a]/10 border border-[#b8944a]/40 text-[#b8944a] rounded-lg hover:bg-[#b8944a]/20 transition disabled:opacity-40">{validandoCupom ? "..." : "Aplicar"}</button>}
+                </div>
+                {erroCupom && <p className="text-[10px] text-red-400">{erroCupom}</p>}
+                {cupom && <p className="text-[10px] text-green-400">✓ -R$ {cupom.desconto.toFixed(2).replace(".", ",")} · total R$ {precoFinal.toFixed(2).replace(".", ",")}</p>}
               </div>
             )}
-          </div>
-          <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Serviço</label><select value={servico} onChange={(e) => setServico(e.target.value)} className={inp}>{SERVICOS_LISTA.map((s) => <option key={s}>{s}</option>)}</select></div>
-          <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Preço (R$)</label><input value={preco} onChange={(e) => setPreco(e.target.value)} placeholder="55" className={inp} /></div>
-          {barbeiros.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-400">Barbeiro</label>
-              <select value={barbeiroId} onChange={(e) => setBarbeiroId(e.target.value)} className={inp}>
-                <option value="">— Qualquer disponível —</option>
-                {barbeiros.map((b) => <option key={b.id} value={b.id}>{b.nome}{b.apelido ? ` (${b.apelido})` : ""}</option>)}
-              </select>
-            </div>
-          )}
-        </div>
-        <div className="flex gap-2 justify-end">
-          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
-          <button onClick={handleConfirm} disabled={!nome.trim() || submitting} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">{submitting ? "Salvando..." : "Confirmar"}</button>
-        </div>
+            {erro && <p className="text-xs text-red-400 text-center">{erro}</p>}
+          </>
+        )}
       </div>
+
+      <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2 justify-between shrink-0">
+        <button onClick={() => { if (idx === 0) onClose(); else setStep(passos[idx - 1]); }} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">{idx === 0 ? "Cancelar" : "← Voltar"}</button>
+        {step === "dataHora" && <button onClick={() => setStep("dados")} disabled={!horario} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">Continuar →</button>}
+        {step === "dados" && <button onClick={confirmar} disabled={salvando || nome.trim().length < 2} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">{salvando ? "Salvando..." : "Confirmar"}</button>}
+      </div>
+    </AnimatedModal>
+  );
+}
+
+// Seletor de data no tema do Ortega — sempre DD/MM/AAAA (o <input type=date> nativo
+// segue o locale do navegador e não dá pra forçar pt-BR de forma confiável).
+const DP_MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+const DP_DIAS = ["D", "S", "T", "Q", "Q", "S", "S"];
+function DateFieldBR({ value, min, onChange }: { value: string; min: string; onChange: (v: string) => void }) {
+  const [aberto, setAberto] = useState(false);
+  const [mesVis, setMesVis] = useState(() => { const d = new Date(value + "T12:00:00"); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  useEffect(() => { const d = new Date(value + "T12:00:00"); setMesVis(new Date(d.getFullYear(), d.getMonth(), 1)); }, [value]);
+
+  const minDate = new Date(min + "T00:00:00");
+  const ano = mesVis.getFullYear(); const mes = mesVis.getMonth();
+  const primeiroDia = new Date(ano, mes, 1).getDay();
+  const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+  const celulas: (number | null)[] = [];
+  for (let i = 0; i < primeiroDia; i++) celulas.push(null);
+  for (let d = 1; d <= ultimoDia; d++) celulas.push(d);
+  const labelBR = new Date(value + "T12:00:00").toLocaleDateString("pt-BR");
+
+  return (
+    <div>
+      <button type="button" onClick={() => setAberto((v) => !v)}
+        className="bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] w-full flex items-center justify-between hover:border-[#b8944a]/60 transition">
+        <span>{labelBR}</span>
+        <Calendar size={15} className="text-gray-500" />
+      </button>
+      <AnimatePresence initial={false}>
+        {aberto && (
+          <motion.div
+            key="cal"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="mt-1.5 bg-[#0d0d0d] border border-[#2d2d2d] rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <button type="button" onClick={() => setMesVis(new Date(ano, mes - 1, 1))} className="p-1 text-gray-400 hover:text-[#b8944a] transition"><ChevronLeft size={16} /></button>
+                <span className="text-xs font-medium text-[#F5E6C8]">{DP_MESES[mes]} {ano}</span>
+                <button type="button" onClick={() => setMesVis(new Date(ano, mes + 1, 1))} className="p-1 text-gray-400 hover:text-[#b8944a] transition"><ChevronRight size={16} /></button>
+              </div>
+              <div className="grid grid-cols-7 gap-0.5 mb-1">
+                {DP_DIAS.map((d, i) => <div key={i} className={`text-center text-[10px] py-0.5 ${i === 0 ? "text-red-500/70" : "text-gray-600"}`}>{d}</div>)}
+              </div>
+              <div className="grid grid-cols-7 gap-0.5">
+                {celulas.map((d, i) => {
+                  if (!d) return <div key={i} className="h-8" />;
+                  const key = `${ano}-${String(mes + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                  const cellDate = new Date(ano, mes, d); cellDate.setHours(0, 0, 0, 0);
+                  const desab = cellDate < minDate;
+                  const sel = key === value;
+                  return (
+                    <button key={i} type="button" disabled={desab} onClick={() => { onChange(key); setAberto(false); }}
+                      className={`h-8 rounded text-xs transition ${sel ? "bg-[#b8944a] text-[#0A0A0A] font-bold" : desab ? "text-gray-700 cursor-not-allowed" : "text-gray-300 hover:bg-[#b8944a]/10"}`}>{d}</button>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function ReagendarModal({ ag, dataSelecionada, slotsLivres, onConfirm, onCancel }: {
-  ag: Agendamento; dataSelecionada: string; slotsLivres: string[];
+function ReagendarModal({ open, ag, dataSelecionada, slotsLivres, grade, onConfirm, onCancel }: {
+  open: boolean; ag: Agendamento; dataSelecionada: string; slotsLivres: string[]; grade: GradeConfig;
   onConfirm: (novaData: string, novoHorario: string) => void; onCancel: () => void;
 }) {
   const [novaData, setNovaData] = useState(dataSelecionada);
@@ -364,7 +561,7 @@ function ReagendarModal({ ag, dataSelecionada, slotsLivres, onConfirm, onCancel 
         ...ags.filter((a) => a.id !== ag.id && a.status !== "cancelado").map((a) => a.horario),
         ...bloqueados,
       ]);
-      const todos = gerarSlots(novaData);
+      const todos = gerarSlotsData(novaData, grade);
       const minutosAgora = new Date().getHours() * 60 + new Date().getMinutes();
       setSlotsLivresFetch(todos.filter((s) => {
         if (ocupados.has(s)) return false;
@@ -376,7 +573,7 @@ function ReagendarModal({ ag, dataSelecionada, slotsLivres, onConfirm, onCancel 
       }));
       setBuscandoSlots(false);
     }).catch(() => setBuscandoSlots(false));
-  }, [novaData, dataSelecionada, ag.id, hojeKey]);
+  }, [novaData, dataSelecionada, ag.id, hojeKey, grade]);
 
   const minutosAgora = new Date().getHours() * 60 + new Date().getMinutes();
   const slotsParaData = novaData === dataSelecionada
@@ -387,14 +584,11 @@ function ReagendarModal({ ag, dataSelecionada, slotsLivres, onConfirm, onCancel 
       })
     : (slotsLivresFetch ?? []);
 
-  const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] w-full";
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-      <div className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
+    <AnimatedModal open={open} onClose={onCancel} className="nice-scroll bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-4">
         <div><h3 className="font-bold text-[#F5E6C8]">Reagendar</h3><p className="text-xs text-gray-500 mt-0.5">{ag.nome} · {ag.servico}</p></div>
         <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Nova data</label><input type="date" value={novaData} onChange={(e) => { setNovaData(e.target.value); setNovoHorario(""); }} min={toDateKey(new Date())} className={inp} /></div>
+          <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Nova data</label><DateFieldBR value={novaData} min={toDateKey(new Date())} onChange={(v) => { setNovaData(v); setNovoHorario(""); }} /></div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-400">Novo horário</label>
             {buscandoSlots ? (
@@ -413,12 +607,137 @@ function ReagendarModal({ ag, dataSelecionada, slotsLivres, onConfirm, onCancel 
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
           <button onClick={() => { if (novoHorario) onConfirm(novaData, novoHorario); }} disabled={!novoHorario || buscandoSlots} className="px-4 py-2 text-sm text-white bg-[#1a1a1a] hover:bg-[#2d2d2d] border border-[#3d3d3d] rounded transition disabled:opacity-40">Reagendar e notificar</button>
         </div>
-      </div>
-    </div>
+    </AnimatedModal>
   );
 }
 
-type ModalState = { tipo: "concluir" | "excluir" | "fechar_caixa" | "bloquear"; id?: string; horario?: string } | null;
+type ModalState = { tipo: "concluir" | "excluir" | "fechar_caixa" | "bloquear" | "fechar_dia" | "fechar_dia_2" | "liberar_dia" | "caixa_fechado_retro"; id?: string; horario?: string } | null;
+
+// Modal de configuração da grade — horários padrão por dia da semana + almoço.
+function ConfigGradeModal({ open, grade, salvando, onSave, onClose }: {
+  open: boolean; grade: GradeConfig; salvando: boolean; onSave: (g: GradeConfig) => void; onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<GradeConfig>(grade);
+  // Horário padrão: aplica abre/fecha/almoço a um conjunto de dias de uma vez.
+  const [padrao, setPadrao] = useState({ inicio: "09:00", fim: "18:00", almocoInicio: "12:00", almocoFim: "13:00" });
+  const [diasSel, setDiasSel] = useState<Set<number>>(new Set([1, 2, 3, 4, 5]));
+  useEffect(() => { if (open) setDraft(grade); }, [open, grade]);
+
+  function upd(dow: number, patch: Partial<DiaGrade>) {
+    setDraft((prev) => ({ ...prev, [dow]: { ...prev[dow], ...patch } }));
+  }
+  function toggleDiaSel(dow: number) {
+    setDiasSel((prev) => { const n = new Set(prev); n.has(dow) ? n.delete(dow) : n.add(dow); return n; });
+  }
+  function aplicarPadrao() {
+    setDraft((prev) => {
+      const out = { ...prev };
+      diasSel.forEach((dow) => {
+        out[dow] = {
+          ativo: true,
+          inicio: padrao.inicio,
+          fim: padrao.fim,
+          almocoInicio: padrao.almocoInicio || null,
+          almocoFim: padrao.almocoFim || null,
+        };
+      });
+      return out;
+    });
+  }
+  const time = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2 py-1 text-xs text-[#F5E6C8] focus:outline-none focus:border-[#b8944a]";
+
+  return (
+    <AnimatedModal open={open} onClose={onClose} className="nice-scroll bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl max-w-lg w-full mx-4 flex flex-col">
+      <div className="px-5 py-4 border-b border-[#1e1e1e] shrink-0">
+        <h3 className="font-bold text-[#F5E6C8] flex items-center gap-2"><Settings2 size={15} className="text-[#b8944a]" /> Configurar grade</h3>
+        <p className="text-xs text-gray-500 mt-0.5">Reflete na grade e no site do cliente.</p>
+      </div>
+
+      {/* Horário padrão: define abre/fecha/almoço e aplica a vários dias de uma vez */}
+      <div className="px-5 py-4 border-b border-[#1e1e1e] flex flex-col gap-2.5">
+        <div className="rounded-lg border border-[#b8944a]/30 bg-[#b8944a]/5 p-3.5 flex flex-col gap-3">
+          <p className="text-[11px] font-bold text-[#b8944a] uppercase tracking-wide flex items-center gap-1.5"><Clock size={13} /> Horário padrão</p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-gray-400">
+            <label className="flex items-center gap-1.5">Abre <input type="time" value={padrao.inicio} onChange={(e) => setPadrao((p) => ({ ...p, inicio: e.target.value }))} className={time} /></label>
+            <label className="flex items-center gap-1.5">Fecha <input type="time" value={padrao.fim} onChange={(e) => setPadrao((p) => ({ ...p, fim: e.target.value }))} className={time} /></label>
+            <span className="flex items-center gap-1 text-gray-500"><Coffee size={12} /> Almoço</span>
+            <input type="time" value={padrao.almocoInicio} onChange={(e) => setPadrao((p) => ({ ...p, almocoInicio: e.target.value }))} className={time} />
+            <span>—</span>
+            <input type="time" value={padrao.almocoFim} onChange={(e) => setPadrao((p) => ({ ...p, almocoFim: e.target.value }))} className={time} />
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {DIAS_SEMANA.map(({ dow, curto }) => {
+              const sel = diasSel.has(dow);
+              return (
+                <button key={dow} type="button" onClick={() => toggleDiaSel(dow)}
+                  className={`px-2.5 py-1 text-xs rounded-md border transition ${sel ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-medium" : "bg-[#0A0A0A] text-gray-400 border-[#2d2d2d] hover:border-[#b8944a]"}`}>{curto}</button>
+              );
+            })}
+            <button type="button" onClick={() => setDiasSel(new Set([1, 2, 3, 4, 5]))} className="text-[10px] text-[#b8944a] hover:underline ml-1">Seg–Sex</button>
+            <button type="button" onClick={() => setDiasSel(new Set([0, 1, 2, 3, 4, 5, 6]))} className="text-[10px] text-[#b8944a] hover:underline">Todos</button>
+          </div>
+          <button type="button" onClick={aplicarPadrao} disabled={diasSel.size === 0}
+            className="self-start px-3 py-1.5 text-xs bg-[#b8944a] text-[#0A0A0A] rounded font-medium hover:bg-[#c9a84c] transition disabled:opacity-40">
+            Aplicar aos {diasSel.size} dia(s)
+          </button>
+        </div>
+        <p className="text-[10px] text-gray-600">Marque os dias, ajuste os horários e clique em aplicar. Depois dá pra refinar cada dia abaixo.</p>
+      </div>
+
+      <div className="flex flex-col divide-y divide-[#1a1a1a]">
+        {DIAS_SEMANA.map(({ dow, nome }) => {
+          const d = draft[dow];
+          return (
+            <div key={dow} className="px-5 py-3 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className={`text-sm font-medium ${d.ativo ? "text-[#F5E6C8]" : "text-gray-600"}`}>{nome}</span>
+                <button type="button" onClick={() => upd(dow, { ativo: !d.ativo })}
+                  className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${d.ativo ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`}>
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${d.ativo ? "left-5" : "left-0.5"}`} />
+                </button>
+              </div>
+              {d.ativo ? (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-gray-400">
+                  <label className="flex items-center gap-1.5">Abre <input type="time" value={d.inicio} onChange={(e) => upd(dow, { inicio: e.target.value })} className={time} /></label>
+                  <label className="flex items-center gap-1.5">Fecha <input type="time" value={d.fim} onChange={(e) => upd(dow, { fim: e.target.value })} className={time} /></label>
+                  <span className="flex items-center gap-1 text-gray-500"><Coffee size={12} /> Almoço</span>
+                  <input type="time" value={d.almocoInicio ?? ""} onChange={(e) => upd(dow, { almocoInicio: e.target.value || null })} className={time} />
+                  <span>—</span>
+                  <input type="time" value={d.almocoFim ?? ""} onChange={(e) => upd(dow, { almocoFim: e.target.value || null })} className={time} />
+                </div>
+              ) : (
+                <span className="text-xs text-gray-600">Fechado</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2 justify-end shrink-0">
+        <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
+        <button onClick={() => onSave(draft)} disabled={salvando} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">{salvando ? "Salvando..." : "Salvar grade"}</button>
+      </div>
+    </AnimatedModal>
+  );
+}
+
+// Feedback positivo do app: check animado + mensagem, dentro de um modal centralizado.
+function SucessoModal({ open, mensagem, onClose }: { open: boolean; mensagem: string; onClose: () => void }) {
+  return (
+    <AnimatedModal open={open} onClose={onClose} className="bg-[#141414] border border-green-700/40 rounded-2xl shadow-2xl px-8 py-9 max-w-[17rem] w-full mx-4 flex flex-col items-center gap-4">
+      <motion.div
+        initial={{ scale: 0, rotate: -25 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ type: "spring", stiffness: 260, damping: 14 }}
+        className="w-20 h-20 rounded-full bg-green-500/15 border-2 border-green-500/50 flex items-center justify-center"
+      >
+        <motion.span initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.18, type: "spring", stiffness: 500, damping: 16 }}>
+          <Check size={40} strokeWidth={3} className="text-green-400" />
+        </motion.span>
+      </motion.div>
+      <p className="text-base font-bold text-[#F5E6C8] text-center leading-snug">{mensagem}</p>
+    </AnimatedModal>
+  );
+}
 
 export default function AgendamentosAdminPage() {
   const hoje = new Date();
@@ -434,7 +753,8 @@ export default function AgendamentosAdminPage() {
   const [caixaFechado, setCaixaFechado] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
   const [slotsBloqueados, setSlotsBloqueados] = useState<string[]>([]);
-  const [walkInHorario, setWalkInHorario] = useState<string | null>(null);
+  const [agendarOpen, setAgendarOpen] = useState(false);
+  const [agendarPre, setAgendarPre] = useState<{ data: string; horario: string } | null>(null);
   const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
   const [servicos, setServicos] = useState<Item[]>([]);
   const [reagendarAg, setReagendarAg] = useState<Agendamento | null>(null);
@@ -442,6 +762,30 @@ export default function AgendamentosAdminPage() {
   const [aba, setAba] = useState<"lista" | "grade">("lista");
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
   const [alertasExpandidos, setAlertasExpandidos] = useState<Set<string>>(new Set());
+  const [grade, setGrade] = useState<GradeConfig>(GRADE_DEFAULT);
+  const [configGradeOpen, setConfigGradeOpen] = useState(false);
+  const [salvandoGrade, setSalvandoGrade] = useState(false);
+  const [pendencias, setPendencias] = useState<Agendamento[] | null>(null);
+  const [sucesso, setSucesso] = useState<string | null>(null);
+  const router = useRouter();
+
+  function mostrarSucesso(msg: string) {
+    setSucesso(msg);
+    setTimeout(() => setSucesso(null), 1500);
+  }
+
+  // Abre o modal de agendar. Sem args = do zero (FAB); com data/horário = pré-selecionado (grade).
+  function abrirAgendar(pre?: { data: string; horario: string }) {
+    setAgendarPre(pre ?? null);
+    setAgendarOpen(true);
+  }
+
+  // Mantém o conteúdo do modal montado durante a animação de saída.
+  // Ao abrir, atualiza com o valor atual + uma key nova (reseta o form).
+  const [reagendarRender, setReagendarRender] = useState<{ ag: Agendamento; key: number } | null>(null);
+  useEffect(() => {
+    if (reagendarAg) setReagendarRender({ ag: reagendarAg, key: Date.now() });
+  }, [reagendarAg]);
 
   function toggleAlerta(key: string) {
     setAlertasExpandidos((prev) => {
@@ -469,6 +813,36 @@ export default function AgendamentosAdminPage() {
     setScrollTarget(ag.id);
   }
 
+
+  // ── Ações do botão flutuante (+) ──
+  // "Agendar horário" e "Grade de hoje" são disparadas via ?acao= (ver efeito abaixo),
+  // para que o mesmo AdminFab funcione a partir de qualquer tela do admin.
+  function fabAgendarHorario() {
+    // FAB: abre o wizard do zero (cliente escolhe serviço/barbeiro/data/horário/dados)
+    abrirAgendar();
+  }
+
+  function fabGradeHoje() {
+    setDataSelecionada(hojeKey);
+    setEditandoId(null);
+    setTimeout(() => {
+      document.getElementById("grade-horarios")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+  }
+
+  // Dispara a ação do FAB quando chega de outra tela via ?acao=agendar|grade
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (carregando) return;
+    const acao = searchParams.get("acao");
+    if (acao !== "agendar" && acao !== "grade") return;
+    if (acao === "agendar") fabAgendarHorario();
+    if (acao === "grade") fabGradeHoje();
+    // limpa o param pra não repetir ao dar refresh
+    router.replace("/admin/agendamentos");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carregando, searchParams]);
+
   function tempoAtras(ts: number): string {
     const diff = Date.now() - ts;
     const h = Math.floor(diff / 3600000);
@@ -479,19 +853,25 @@ export default function AgendamentosAdminPage() {
 
   const carregar = useCallback(async () => {
     setCarregando(true);
+    // parse resiliente: se a API falhar (ex.: 500 / cota Firestore), usa fallback
+    // em vez de quebrar a página inteira com "Unexpected end of JSON input".
+    const parse = async <T,>(res: Response, fallback: T): Promise<T> => {
+      if (!res.ok) return fallback;
+      try { return (await res.json()) as T; } catch { return fallback; }
+    };
     const [resAgs, resFech, resBloq] = await Promise.all([
-      fetch("/api/agendamentos", { credentials: "include" }),
-      fetch("/api/fechamento", { credentials: "include" }),
-      fetch(`/api/slots?data=${dataSelecionada}`, { credentials: "include" }),
+      fetch("/api/agendamentos", { credentials: "include" }).catch(() => null),
+      fetch("/api/fechamento", { credentials: "include" }).catch(() => null),
+      fetch(`/api/slots?data=${dataSelecionada}`, { credentials: "include" }).catch(() => null),
     ]);
-    const agsData = await resAgs.json();
-    const fechsData = await resFech.json();
-    const { bloqueados } = await resBloq.json();
+    const agsData = resAgs ? await parse<unknown>(resAgs, []) : [];
+    const fechsData = resFech ? await parse<unknown>(resFech, []) : [];
+    const bloqData = resBloq ? await parse<{ bloqueados?: string[] }>(resBloq, { bloqueados: [] }) : { bloqueados: [] };
     const ags: Agendamento[] = Array.isArray(agsData) ? agsData : [];
     const fechs: FechamentoDia[] = Array.isArray(fechsData) ? fechsData : [];
     setAgendamentos(ags);
     setFechamentos(fechs);
-    setSlotsBloqueados(bloqueados);
+    setSlotsBloqueados(bloqData.bloqueados ?? []);
     setCaixaFechado(fechs.some((f) => f.data === dataSelecionada));
     setCarregando(false);
 
@@ -513,18 +893,29 @@ export default function AgendamentosAdminPage() {
     fetch("/api/publico/servicos")
       .then((r) => r.json())
       .then((d) => setServicos(d.items ?? []));
+    fetch("/api/grade")
+      .then((r) => r.json())
+      .then((d) => { if (d.grade) setGrade(mesclarGrade(d.grade)); })
+      .catch(() => {});
   }, []);
 
   const agsDia = agendamentos.filter((a) => a.data === dataSelecionada).sort((a, b) => a.horario.localeCompare(b.horario));
   const concluidos = agsDia.filter((a) => a.status === "concluido");
   const totalDia = concluidos.reduce((s, a) => s + parsePriceNum(a.preco), 0);
-  const todosSlotsDia = gerarSlots(dataSelecionada);
+  const todosSlotsDia = gerarSlotsData(dataSelecionada, grade);
   const horariosOcupados = new Set(agsDia.map((a) => a.horario));
   const slotsLivresDia = todosSlotsDia.filter((s) => !horariosOcupados.has(s) && !slotsBloqueados.includes(s));
 
   const ehHoje = dataSelecionada === hojeKey;
   const ehFuturo = dataSelecionada > hojeKey;
   const diaFechado = todosSlotsDia.length === 0;
+  // minutos do momento atual — usado pra marcar horários já passados como retroativos
+  const agoraMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const slotPassou = (slot: string) => {
+    if (dataSelecionada < hojeKey) return true;   // dia inteiro no passado → tudo retroativo
+    if (!ehHoje) return false;                    // dia futuro → nada passou
+    return (Number(slot.slice(0, 2)) * 60 + Number(slot.slice(3, 5))) < agoraMin; // hoje → só horários já passados
+  };
 
   const dataLabel = new Date(dataSelecionada + "T12:00:00").toLocaleDateString("pt-BR", {
     day: "numeric", month: "long", year: "numeric",
@@ -536,6 +927,17 @@ export default function AgendamentosAdminPage() {
     const res = await fetch(`/api/agendamentos/${id}`, { credentials: "include", method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
     const data = await res.json();
     setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, status } : a));
+    setProcessando(null);
+    const msgStatus: Partial<Record<AgendamentoStatus, string>> = { concluido: "Atendimento concluído!", nao_compareceu: "Marcado como não compareceu", confirmado: "Agendamento confirmado!", cancelado: "Agendamento cancelado" };
+    if (msgStatus[status]) mostrarSucesso(msgStatus[status]!);
+    if (data.whatsappLink) window.open(data.whatsappLink, "_blank");
+  }
+
+  async function avisarCliente(id: string) {
+    setProcessando(id);
+    const res = await fetch(`/api/agendamentos/${id}/avisar`, { credentials: "include", method: "POST" });
+    const data = await res.json();
+    setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, avisoPendente: false } : a));
     setProcessando(null);
     if (data.whatsappLink) window.open(data.whatsappLink, "_blank");
   }
@@ -551,18 +953,32 @@ export default function AgendamentosAdminPage() {
     setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, servico: servicoFinal, preco: precoFinal } : a));
     setEditandoId(null);
     setProcessando(null);
+    mostrarSucesso("Comanda atualizada");
   }
 
   async function excluir(id: string) {
     await fetch(`/api/agendamentos/${id}`, { credentials: "include", method: "DELETE" });
     setAgendamentos((prev) => prev.filter((a) => a.id !== id));
+    mostrarSucesso("Agendamento removido");
+  }
+
+  // Regra de rastreabilidade: só dá pra registrar retroativo com o caixa do dia ABERTO.
+  // Se estiver fechado, reabre (DELETE do fechamento) e já abre o walk-in do horário.
+  async function reabrirCaixaERegistrar(horario: string) {
+    const fech = fechamentos.find((f) => f.data === dataSelecionada);
+    if (fech) {
+      await fetch(`/api/fechamento/${fech.id}`, { method: "DELETE", credentials: "include" });
+      setFechamentos((prev) => prev.filter((f) => f.id !== fech.id));
+    }
+    setCaixaFechado(false);
+    abrirAgendar({ data: dataSelecionada, horario });
   }
 
   async function fecharCaixa() {
     if (caixaFechado) return;
     setFechandoCaixa(true);
     const res = await fetch("/api/fechamento", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: dataSelecionada }) });
-    if (res.ok || res.status === 409) setCaixaFechado(true);
+    if (res.ok || res.status === 409) { setCaixaFechado(true); mostrarSucesso("Caixa fechado!"); }
     setFechandoCaixa(false);
   }
 
@@ -570,14 +986,13 @@ export default function AgendamentosAdminPage() {
     const jaBloqueado = slotsBloqueados.includes(horario);
     await fetch("/api/slots", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: dataSelecionada, horario, acao: jaBloqueado ? "desbloquear" : "bloquear" }) });
     setSlotsBloqueados((prev) => jaBloqueado ? prev.filter((s) => s !== horario) : [...prev, horario]);
+    mostrarSucesso(jaBloqueado ? `Horário ${horario} liberado` : `Horário ${horario} bloqueado`);
   }
 
-  async function criarWalkIn(dados: { nome: string; telefone: string; servico: string; preco: string; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string }) {
+  async function criarAgendamento(dados: { nome: string; telefone: string; servico: string; preco: string; data: string; horario: string; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string; cupom?: string | null }) {
     const body: Record<string, unknown> = {
       ...dados,
       telefone: dados.telefone || "00000000000",
-      data: dataSelecionada,
-      horario: walkInHorario,
     };
     if (dados.usarCredito && dados.assinaturaId) {
       body.assinaturaId = dados.assinaturaId;
@@ -586,17 +1001,56 @@ export default function AgendamentosAdminPage() {
     const res = await fetch("/api/agendamentos", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const { id } = await res.json();
     await fetch(`/api/agendamentos/${id}`, { credentials: "include", method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "confirmado" }) });
-    setWalkInHorario(null);
     carregar();
+    mostrarSucesso("Agendamento criado!");
   }
 
   async function reagendar(novaData: string, novoHorario: string) {
     if (!reagendarAg) return;
+    const agId = reagendarAg.id;
     const res = await fetch(`/api/agendamentos/${reagendarAg.id}`, { credentials: "include", method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: novaData, horario: novoHorario }) });
     const data = await res.json();
     setReagendarAg(null);
+    // se veio do painel de pendências (fechar o dia), remove o que já foi resolvido
+    setPendencias((prev) => { if (!prev) return prev; const rest = prev.filter((p) => p.id !== agId); return rest.length ? rest : null; });
     carregar();
-    if (data.whatsappLink) setNotificacaoLink(data.whatsappLink);
+    mostrarSucesso("Reagendamento efetuado!");
+    // o popup de notificar o cliente aparece depois do modal de sucesso
+    if (data.whatsappLink) setTimeout(() => setNotificacaoLink(data.whatsappLink), 1600);
+  }
+
+  // Fecha o dia: bloqueia todos os horários livres. Agendamentos existentes ficam
+  // intactos; se houver, abre o painel de pendências pra reagendar um a um.
+  async function fecharDia() {
+    const livres = slotsLivresDia;
+    if (livres.length > 0) {
+      await fetch("/api/slots/dia", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: dataSelecionada, horarios: livres, acao: "bloquear" }) });
+      setSlotsBloqueados((prev) => Array.from(new Set([...prev, ...livres])));
+    }
+    const ativos = agsDia.filter((a) => a.status === "pendente" || a.status === "confirmado");
+    if (ativos.length > 0) setPendencias(ativos);
+    else mostrarSucesso(livres.length > 0 ? `Dia fechado — ${livres.length} horário(s) removido(s)` : "Dia fechado");
+  }
+
+  // Libera o dia: desbloqueia todos os horários bloqueados da data.
+  async function liberarDia() {
+    if (slotsBloqueados.length === 0) return;
+    const qtd = slotsBloqueados.length;
+    await fetch("/api/slots/dia", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: dataSelecionada, horarios: slotsBloqueados, acao: "desbloquear" }) });
+    setSlotsBloqueados([]);
+    mostrarSucesso(`Dia liberado — ${qtd} horário(s) disponível(is) de novo`);
+  }
+
+  async function salvarGrade(nova: GradeConfig) {
+    setSalvandoGrade(true);
+    try {
+      await fetch("/api/grade", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grade: nova }) });
+      setGrade(nova);
+      setConfigGradeOpen(false);
+      mostrarSucesso("Grade salva!");
+    } finally {
+      setSalvandoGrade(false);
+    }
   }
 
   function confirmarModal() {
@@ -605,8 +1059,14 @@ export default function AgendamentosAdminPage() {
     if (modal.tipo === "excluir" && modal.id) excluir(modal.id);
     if (modal.tipo === "fechar_caixa") fecharCaixa();
     if (modal.tipo === "bloquear" && modal.horario) toggleBloquearSlot(modal.horario);
+    if (modal.tipo === "fechar_dia") { setModal({ tipo: "fechar_dia_2" }); return; } // dupla confirmação
+    if (modal.tipo === "fechar_dia_2") { fecharDia(); setModal(null); return; }
+    if (modal.tipo === "liberar_dia") liberarDia();
+    if (modal.tipo === "caixa_fechado_retro" && modal.horario) { const h = modal.horario; setModal(null); reabrirCaixaERegistrar(h); return; }
     setModal(null);
   }
+
+  const agsAtivosDia = agsDia.filter((a) => a.status === "pendente" || a.status === "confirmado");
 
   const modalConfig = {
     concluir: { titulo: "Marcar como concluído?", mensagem: "Será incluído no caixa do dia.", confirmLabel: "Concluir", confirmClass: "bg-green-700 hover:bg-green-600" },
@@ -618,29 +1078,104 @@ export default function AgendamentosAdminPage() {
       confirmLabel: modal?.horario && slotsBloqueados.includes(modal.horario) ? "Desbloquear" : "Bloquear",
       confirmClass: "bg-[#2d2d2d] hover:bg-[#3d3d3d]",
     },
+    fechar_dia: {
+      titulo: "Fechar este dia?",
+      mensagem: `Bloqueia os ${slotsLivresDia.length} horário(s) livre(s) de ${dataLabel} — ninguém mais conseguirá agendar. Os agendamentos já existentes serão mantidos.`,
+      confirmLabel: "Continuar",
+      confirmClass: "bg-red-700 hover:bg-red-600",
+    },
+    fechar_dia_2: {
+      titulo: "Tem certeza?",
+      mensagem: agsAtivosDia.length > 0
+        ? `Ação definitiva. Em seguida você poderá reagendar os ${agsAtivosDia.length} agendamento(s) deste dia, um a um.`
+        : "Esta ação bloqueia o dia inteiro. Deseja continuar?",
+      confirmLabel: "Fechar o dia",
+      confirmClass: "bg-red-600 hover:bg-red-500",
+    },
+    liberar_dia: {
+      titulo: "Liberar este dia?",
+      mensagem: `Desbloqueia os ${slotsBloqueados.length} horário(s) bloqueado(s) de ${dataLabel} — o dia volta a aceitar agendamentos.`,
+      confirmLabel: "Liberar dia",
+      confirmClass: "bg-green-700 hover:bg-green-600",
+    },
+    caixa_fechado_retro: {
+      titulo: "Caixa deste dia está fechado",
+      mensagem: `Para manter a rastreabilidade, não dá pra registrar um agendamento retroativo em ${dataLabel} com o caixa já fechado. Reabra o caixa do dia para registrar (você poderá fechá-lo de novo depois).`,
+      confirmLabel: "Reabrir caixa e registrar",
+      confirmClass: "bg-[#b8944a] hover:bg-[#c9a84c] text-[#0A0A0A]",
+    },
   };
+
+  // Config exibida durante a animação de saída, quando `modal` já é null
+  const modalConfigVazio = { titulo: "", mensagem: "", confirmLabel: "", confirmClass: "" };
 
   const cardDark = "bg-[#111] border border-[#2d2d2d] rounded-xl";
   const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2 py-1 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a]";
 
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-5">
-      {modal && <Modal {...modalConfig[modal.tipo]} onConfirm={confirmarModal} onCancel={() => setModal(null)} />}
-      {walkInHorario && <WalkInModal horario={walkInHorario} dataSelecionada={dataSelecionada} barbeiros={barbeiros} onConfirm={criarWalkIn} onCancel={() => setWalkInHorario(null)} />}
-      {reagendarAg && <ReagendarModal ag={reagendarAg} dataSelecionada={dataSelecionada} slotsLivres={slotsLivresDia} onConfirm={reagendar} onCancel={() => setReagendarAg(null)} />}
-      {notificacaoLink && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-[#1a2a1a] border border-green-700/60 text-green-300 rounded-xl px-4 py-3 shadow-xl max-w-xs">
-          <MessageCircle size={18} className="shrink-0 text-green-400" />
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium">Reagendamento salvo</span>
-            <span className="text-xs text-green-400/70">Notifique o cliente pelo WhatsApp</span>
-          </div>
-          <div className="flex gap-2 ml-auto">
-            <a href={notificacaoLink} target="_blank" rel="noreferrer" onClick={() => setNotificacaoLink(null)} className="text-xs bg-green-700 hover:bg-green-600 text-white rounded px-2 py-1 transition">Enviar</a>
-            <button onClick={() => setNotificacaoLink(null)} className="text-xs text-gray-500 hover:text-gray-300 transition"><X size={14} /></button>
-          </div>
+      <AdminFab />
+
+      {/* Feedback de sucesso (reagendar, bloquear/liberar horário, fechar/liberar dia) */}
+      <SucessoModal open={!!sucesso} mensagem={sucesso ?? ""} onClose={() => setSucesso(null)} />
+
+      <Modal open={!!modal} {...(modal ? modalConfig[modal.tipo] : modalConfigVazio)} onConfirm={confirmarModal} onCancel={() => setModal(null)} />
+      <ConfigGradeModal open={configGradeOpen} grade={grade} salvando={salvandoGrade} onSave={salvarGrade} onClose={() => setConfigGradeOpen(false)} />
+
+      {/* Modal de pendências: aparece ao fechar o dia que tinha agendamentos.
+          Renderizado ANTES do ReagendarModal pra que este fique por cima ao reagendar. */}
+      <AnimatedModal open={!!pendencias && pendencias.length > 0} onClose={() => setPendencias(null)} className="nice-scroll bg-[#141414] border border-amber-700/40 rounded-xl shadow-xl max-w-md w-full mx-4 flex flex-col">
+        <div className="px-5 py-4 border-b border-[#1e1e1e] shrink-0">
+          <h3 className="font-bold text-amber-300 flex items-center gap-2"><AlertTriangle size={15} /> Dia fechado</h3>
+          <p className="text-xs text-gray-500 mt-0.5">{pendencias?.length ?? 0} agendamento(s) neste dia — mantenha no horário ou reagende, um a um.</p>
         </div>
+        <div className="flex flex-col divide-y divide-[#1a1a1a] max-h-[55vh] overflow-y-auto">
+          {(pendencias ?? []).map((ag) => (
+            <div key={ag.id} className="flex items-center justify-between gap-3 px-5 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-[#F5E6C8] truncate">{ag.horario} · {ag.nome}</p>
+                <p className="text-xs text-gray-500 truncate">{ag.servico}</p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button onClick={() => setPendencias((prev) => { const rest = (prev ?? []).filter((p) => p.id !== ag.id); return rest.length ? rest : null; })}
+                  className="px-2.5 py-1 text-xs text-gray-300 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition">Manter</button>
+                <button onClick={() => setReagendarAg(ag)}
+                  className="flex items-center gap-1 px-2.5 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><CalendarPlus size={12} /> Reagendar</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="px-5 py-4 border-t border-[#1e1e1e] flex justify-end shrink-0">
+          <button onClick={() => setPendencias(null)} className="flex items-center gap-1.5 px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition"><Check size={14} /> Concluir</button>
+        </div>
+      </AnimatedModal>
+      {/* Sempre montados (key força reset do form ao reabrir) — assim o AnimatePresence
+          interno do Modal roda a animação de SAÍDA ao fechar. */}
+      <AgendarModal open={agendarOpen} onClose={() => setAgendarOpen(false)} servicos={servicos} barbeiros={barbeiros} grade={grade} preData={agendarPre?.data ?? null} preHorario={agendarPre?.horario ?? null} onCriar={criarAgendamento} />
+      {reagendarRender && (
+        <ReagendarModal key={reagendarRender.key} open={!!reagendarAg} ag={reagendarRender.ag} dataSelecionada={dataSelecionada} slotsLivres={slotsLivresDia} grade={grade} onConfirm={reagendar} onCancel={() => setReagendarAg(null)} />
       )}
+      <AnimatePresence>
+        {notificacaoLink && (
+          <motion.div
+            className="fixed top-20 md:top-6 right-4 md:right-6 z-[60] flex items-center gap-3 bg-[#1a2a1a] border border-green-700/60 text-green-300 rounded-xl px-4 py-3 shadow-xl max-w-xs"
+            initial={{ opacity: 0, y: -16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -16, scale: 0.96 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <MessageCircle size={18} className="shrink-0 text-green-400" />
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium">Reagendamento salvo</span>
+              <span className="text-xs text-green-400/70">Notifique o cliente pelo WhatsApp</span>
+            </div>
+            <div className="flex gap-2 ml-auto">
+              <a href={notificacaoLink} target="_blank" rel="noreferrer" onClick={() => setNotificacaoLink(null)} className="text-xs bg-green-700 hover:bg-green-600 text-white rounded px-2 py-1 transition">Enviar</a>
+              <button onClick={() => setNotificacaoLink(null)} className="text-xs text-gray-500 hover:text-gray-300 transition"><X size={14} /></button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* cabeçalho */}
       <div className="flex items-center justify-between">
@@ -907,6 +1442,13 @@ export default function AgendamentosAdminPage() {
                                       </div>
                                     </details>
                                   )}
+                                  {ag.avisoPendente && (
+                                    <div className="mt-2 flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-amber-950/40 border border-amber-700/40">
+                                      <AlertTriangle size={12} className="text-amber-400 shrink-0" />
+                                      <span className="text-xs text-amber-300 flex-1">Confirmado automaticamente — avise o cliente.</span>
+                                      <button onClick={() => avisarCliente(ag.id)} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 text-xs text-green-300 bg-green-900/30 border border-green-700/50 rounded-lg hover:bg-green-900/50 transition shrink-0"><MessageCircle size={11} /> Avisar no WhatsApp</button>
+                                    </div>
+                                  )}
                                   {!caixaFechado && (
                                     <div className="flex items-center gap-1 flex-wrap mt-3">
                                       {ag.status === "pendente" && (
@@ -938,6 +1480,9 @@ export default function AgendamentosAdminPage() {
                               <div className="flex flex-col items-end gap-1 shrink-0 pt-0.5">
                                 {ag.preco && <span className="text-xs font-bold text-[#b8944a]">R$ {ag.preco}</span>}
                                 <span className={`text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap ${STATUS_STYLE[ag.status]}`}>{STATUS_LABEL[ag.status]}</span>
+                                {ag.confirmadoAuto && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#1a1a1a] text-gray-500 border border-[#2d2d2d] whitespace-nowrap">auto</span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -969,10 +1514,29 @@ export default function AgendamentosAdminPage() {
 
       {/* ── Grade de horários ─────────────────────────────────────────────────── */}
       {!diaFechado && (
-        <div className={`${cardDark} overflow-hidden`}>
-          <div className="px-5 py-4 border-b border-[#1a1a1a]">
-            <p className="text-sm font-bold text-[#F5E6C8] flex items-center gap-2"><LayoutGrid size={14} /> Grade de horários</p>
-            <p className="text-xs text-gray-500 mt-0.5 capitalize">{diaSemana}, {dataLabel} · clique para agendar ou bloquear</p>
+        <div id="grade-horarios" className={`${cardDark} overflow-hidden scroll-mt-20`}>
+          <div className="px-5 py-4 border-b border-[#1a1a1a] flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-[#F5E6C8] flex items-center gap-2"><LayoutGrid size={14} /> Grade de horários</p>
+              <p className="text-xs text-gray-500 mt-0.5 capitalize">{diaSemana}, {dataLabel} · clique para agendar ou bloquear</p>
+            </div>
+            {!caixaFechado && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={() => setConfigGradeOpen(true)} title="Configurar grade" className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-300 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition">
+                  <Settings2 size={13} /> <span className="hidden sm:inline">Configurar</span>
+                </button>
+                {slotsLivresDia.length > 0 && (
+                  <button onClick={() => setModal({ tipo: "fechar_dia" })} title="Fechar o dia (bloquear horários livres)" className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-red-400/80 border border-red-900/40 rounded-lg hover:border-red-500/60 hover:text-red-400 transition">
+                    <CalendarX size={13} /> <span className="hidden sm:inline">Fechar dia</span>
+                  </button>
+                )}
+                {slotsBloqueados.length > 0 && (
+                  <button onClick={() => setModal({ tipo: "liberar_dia" })} title="Liberar o dia (desbloquear horários)" className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-green-400/80 border border-green-900/40 rounded-lg hover:border-green-500/60 hover:text-green-400 transition">
+                    <CalendarCheck size={13} /> <span className="hidden sm:inline">Liberar dia</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           <div className="overflow-y-auto max-h-[480px] divide-y divide-[#1a1a1a]">
             {todosSlotsDia.map((slot) => {
@@ -1000,13 +1564,26 @@ export default function AgendamentosAdminPage() {
                       </div>
                     ) : livre ? (
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-green-500/80 font-medium">Disponível</span>
-                        {!caixaFechado && (
-                          <div className="flex gap-1">
-                            <button onClick={() => setWalkInHorario(slot)} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><CalendarPlus size={12} /> Agendar</button>
-                            <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition" title="Bloquear"><Ban size={13} /></button>
-                          </div>
+                        {slotPassou(slot) ? (
+                          <span className="text-sm text-gray-500 font-medium flex items-center gap-1.5"><Clock size={13} className="text-gray-600" /> Horário passado</span>
+                        ) : (
+                          <span className="text-sm text-green-500/80 font-medium">Disponível</span>
                         )}
+                        <div className="flex gap-1">
+                          {slotPassou(slot) ? (
+                            // Retroativo: sempre visível. Com caixa fechado, avisa (regra de rastreabilidade).
+                            <button onClick={() => caixaFechado ? setModal({ tipo: "caixa_fechado_retro", horario: slot }) : abrirAgendar({ data: dataSelecionada, horario: slot })}
+                              title="Registrar atendimento retroativo (cliente que veio e não foi lançado)"
+                              className="flex items-center gap-1 px-2 py-1 text-xs rounded transition border text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]">
+                              <CalendarPlus size={12} /> Registrar retroativo
+                            </button>
+                          ) : !caixaFechado ? (
+                            <>
+                              <button onClick={() => abrirAgendar({ data: dataSelecionada, horario: slot })} className="flex items-center gap-1 px-2 py-1 text-xs rounded transition border text-[#b8944a] border-[#b8944a]/30 hover:bg-[#b8944a]/10"><CalendarPlus size={12} /> Agendar</button>
+                              <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition" title="Bloquear"><Ban size={13} /></button>
+                            </>
+                          ) : null}
+                        </div>
                       </div>
                     ) : (
                       <>
@@ -1067,7 +1644,7 @@ export default function AgendamentosAdminPage() {
                           );
                         })}
                         {!cheio && !caixaFechado && (
-                          <button onClick={() => setWalkInHorario(slot)} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition self-start"><CalendarPlus size={12} /> Adicionar</button>
+                          <button onClick={() => abrirAgendar({ data: dataSelecionada, horario: slot })} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition self-start"><CalendarPlus size={12} /> Adicionar</button>
                         )}
                       </>
                     )}

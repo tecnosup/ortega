@@ -4,7 +4,7 @@ import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
   title: "Ortega Admin",
-  description: "Painel administrativo da Ortega Barber",
+  description: "Painel administrativo da Ortega",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

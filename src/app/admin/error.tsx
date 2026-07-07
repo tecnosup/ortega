@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle, RefreshCw, X } from "lucide-react";
+import { MessageCircle, RefreshCw } from "lucide-react";
+import Modal from "@/components/ui/Modal";
 
 const SUPORTE = [
   { nome: "Abraão", tel: "12996065673" },
@@ -10,22 +11,14 @@ const SUPORTE = [
 
 function waLink(tel: string) {
   const msg = encodeURIComponent(
-    "Olá, estou com um erro no painel da Ortega Barber e preciso de suporte."
+    "Olá, estou com um erro no painel da Ortega e preciso de suporte."
   );
   return `https://wa.me/55${tel}?text=${msg}`;
 }
 
-function ModalSuporte({ onFechar }: { onFechar: () => void }) {
+function ModalSuporte({ open, onFechar }: { open: boolean; onFechar: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6" onClick={onFechar}>
-      <div
-        className="relative bg-[#111] border border-[#2d2d2d] rounded-xl p-6 w-full max-w-xs flex flex-col gap-5 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button onClick={onFechar} className="absolute top-4 right-4 text-gray-600 hover:text-gray-300 transition">
-          <X size={16} />
-        </button>
-
+    <Modal open={open} onClose={onFechar} className="bg-[#111] border border-[#2d2d2d] rounded-xl p-6 w-full max-w-xs mx-6 flex flex-col gap-5 shadow-2xl">
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-bold text-[#F5E6C8]">Contatar suporte</h3>
           <p className="text-xs text-gray-500">Escolha um consultor para abrir o WhatsApp.</p>
@@ -45,8 +38,7 @@ function ModalSuporte({ onFechar }: { onFechar: () => void }) {
             </a>
           ))}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -61,7 +53,7 @@ export default function AdminError({
 
   return (
     <div className="min-h-screen-safe bg-[#0A0A0A] flex items-center justify-center px-6">
-      {mostraModal && <ModalSuporte onFechar={() => setMostraModal(false)} />}
+      <ModalSuporte open={mostraModal} onFechar={() => setMostraModal(false)} />
 
       <div className="text-center flex flex-col items-center gap-5 max-w-sm w-full">
 

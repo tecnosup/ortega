@@ -38,8 +38,8 @@ export default function EditarItemPage() {
       fd.append("file", file);
       fd.append("folder", "ortega/itens");
       const res = await fetch("/api/admin/upload", { method: "POST", body: fd, credentials: "include" });
-      const data = await res.json();
-      if (res.ok && data.url) setImageUrl(data.url);
+      const data = res.ok ? await res.json().catch(() => ({})) : {};
+      if (data.url) setImageUrl(data.url);
     } finally {
       setUploading(false);
     }

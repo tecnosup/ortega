@@ -13,6 +13,8 @@ export interface LandingSettings {
   enderecoEmbed: string;
   destaqueId: string;
   destaqueTipo: "servico" | "produto" | "";
+  autoConfirmMode: "manual" | "tempo" | "automatico";
+  autoConfirmMinutos: number;
 }
 
 const DEFAULTS: LandingSettings = {
@@ -29,6 +31,8 @@ const DEFAULTS: LandingSettings = {
   enderecoEmbed: "https://maps.google.com/maps?q=Rua+Capit%C3%A3o+Neco+300+Cruzeiro+SP&output=embed",
   destaqueId: "",
   destaqueTipo: "",
+  autoConfirmMode: "manual",
+  autoConfirmMinutos: 20,
 };
 
 export async function getLandingSettings(): Promise<LandingSettings> {

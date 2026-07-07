@@ -80,7 +80,7 @@ export default function AdminLoginPage() {
           <div className="relative w-28 h-28">
             <Image
               src="/logo-ortega.png"
-              alt="Ortega Barber"
+              alt="Ortega"
               fill
               className="object-contain drop-shadow-[0_0_24px_rgba(184,148,74,0.35)]"
               priority
@@ -88,7 +88,7 @@ export default function AdminLoginPage() {
           </div>
           <div className="text-center">
             <h1 className="text-[#b8944a] font-bold text-2xl tracking-[0.25em] uppercase">
-              Ortega Barber
+              Ortega
             </h1>
             <div className="flex items-center gap-3 mt-2">
               <div className="flex-1 h-px bg-[#2d2d2d]" />
@@ -169,7 +169,7 @@ export default function AdminLoginPage() {
         </div>
 
         <p className="text-[11px] text-gray-700 tracking-wide text-center">
-          Acesso restrito · Ortega Barber © {new Date().getFullYear()}
+          Acesso restrito · Ortega © {new Date().getFullYear()}
         </p>
       </div>
     </div>

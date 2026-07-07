@@ -53,14 +53,14 @@ function LoginConteudo() {
           <div className="relative w-24 h-24">
             <Image
               src="/logo-ortega.png"
-              alt="Ortega Barber"
+              alt="Ortega"
               fill
               className="object-contain drop-shadow-[0_0_24px_rgba(184,148,74,0.35)]"
               priority
             />
           </div>
           <div className="text-center">
-            <h1 className="text-[#b8944a] font-bold text-2xl tracking-[0.25em] uppercase">Ortega Barber</h1>
+            <h1 className="text-[#b8944a] font-bold text-2xl tracking-[0.25em] uppercase">Ortega</h1>
             <div className="flex items-center gap-3 mt-2">
               <div className="flex-1 h-px bg-[#2d2d2d]" />
               <p className="text-[10px] text-gray-600 tracking-widest uppercase">Área do Assinante</p>

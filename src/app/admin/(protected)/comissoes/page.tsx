@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { jsonOr } from "@/lib/safe-json";
 import { DollarSign, Loader2, RefreshCw } from "lucide-react";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import type { Agendamento } from "@/lib/agendamentos-types";
@@ -30,10 +31,10 @@ export default function ComissoesPage() {
       fetch("/api/admin/barbeiros", { credentials: "include" }),
       fetch("/api/agendamentos", { credentials: "include" }),
     ]);
-    const bJson = await resBarb.json();
-    const aJson: Agendamento[] = await resAgs.json();
+    const bJson = await jsonOr<{ barbeiros?: Barbeiro[] }>(resBarb, {});
+    const aJson = await jsonOr<Agendamento[]>(resAgs, []);
     setBarbeiros(bJson.barbeiros ?? []);
-    setAgendamentos(aJson);
+    setAgendamentos(Array.isArray(aJson) ? aJson : []);
     setCarregando(false);
   }, []);
 

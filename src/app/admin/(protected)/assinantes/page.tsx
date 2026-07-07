@@ -29,8 +29,8 @@ export default function AssinantesPage() {
 
   const carregar = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/admin/assinantes", { credentials: "include" });
-    const json = await res.json();
+    const res = await fetch("/api/admin/assinantes", { credentials: "include" }).catch(() => null);
+    const json = res && res.ok ? await res.json().catch(() => ({})) : {};
     setAssinantes(json.assinaturas ?? []);
     setLoading(false);
   }, []);

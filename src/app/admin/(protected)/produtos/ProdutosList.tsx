@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { Edit2, Trash2, GripVertical, ShoppingBag } from "lucide-react";
+import Modal from "@/components/ui/Modal";
+import { useModalMount } from "@/components/ui/useModalMount";
 import {
   DndContext,
   closestCenter,
@@ -52,7 +54,7 @@ function StatusToggle({ produto }: { produto: Produto }) {
   );
 }
 
-function DeleteModal({ produto, onClose, onDeleted }: { produto: Produto; onClose: () => void; onDeleted: (id: string) => void }) {
+function DeleteModal({ open, produto, onClose, onDeleted }: { open: boolean; produto: Produto; onClose: () => void; onDeleted: (id: string) => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,8 +72,7 @@ function DeleteModal({ produto, onClose, onDeleted }: { produto: Produto; onClos
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-sm p-6 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
+    <Modal open={open} onClose={onClose} className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-sm mx-4 p-6 flex flex-col gap-4">
         <div className="flex items-center gap-3">
           {produto.imagem && <img src={produto.imagem} alt={produto.titulo} className="w-12 h-12 object-cover rounded border border-[#2d2d2d] shrink-0" loading="lazy" />}
           <div>
@@ -86,8 +87,7 @@ function DeleteModal({ produto, onClose, onDeleted }: { produto: Produto; onClos
             {loading ? "Removendo..." : "Remover"}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -170,6 +170,7 @@ function SortableRow({ produto, onDelete }: { produto: Produto; onDelete: (p: Pr
 export default function ProdutosList({ produtos: initial, categorias }: { produtos: Produto[]; categorias: Categoria[] }) {
   const [produtos, setProdutos] = useState(initial);
   const [deleteTarget, setDeleteTarget] = useState<Produto | null>(null);
+  const deleteMount = useModalMount(deleteTarget);
   const [saving, setSaving] = useState(false);
 
   const categoriaMap = new Map(categorias.map((c) => [c.id, c.nome]));
@@ -236,8 +237,8 @@ export default function ProdutosList({ produtos: initial, categorias }: { produt
 
   return (
     <>
-      {deleteTarget && (
-        <DeleteModal produto={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={handleDeleted} />
+      {deleteMount.mounted && (
+        <DeleteModal key={deleteMount.key} open={deleteMount.open} produto={deleteMount.value} onClose={() => setDeleteTarget(null)} onDeleted={handleDeleted} />
       )}
 
       {saving && (

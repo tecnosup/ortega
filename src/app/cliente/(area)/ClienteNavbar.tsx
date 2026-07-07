@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Scissors, LayoutDashboard, Calendar, CalendarPlus, User, LogOut, Menu, X } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
 const NAV = [
   { href: "/cliente", label: "Início", icon: LayoutDashboard },
@@ -95,9 +96,12 @@ export default function ClienteNavbar({ nome }: { nome: string }) {
       </nav>
 
       {/* Mobile drawer menu */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex flex-col" onClick={() => setMenuOpen(false)}>
-          <div className="bg-[#111] border-b border-[#2d2d2d] p-5 flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
+      <AnimatePresence>
+        {menuOpen && (
+        <motion.div className="fixed inset-0 z-50 bg-black/80 flex flex-col" onClick={() => setMenuOpen(false)}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+          <motion.div className="bg-[#111] border-b border-[#2d2d2d] p-5 flex flex-col gap-1" onClick={(e) => e.stopPropagation()}
+            initial={{ y: -24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -24, opacity: 0 }} transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}>
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm text-[#F5E6C8] font-medium">{nome}</span>
               <button onClick={() => setMenuOpen(false)}><X size={18} className="text-gray-500" /></button>
@@ -119,9 +123,10 @@ export default function ClienteNavbar({ nome }: { nome: string }) {
             >
               <LogOut size={16} /> Sair
             </button>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

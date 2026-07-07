@@ -4,7 +4,7 @@
 
 ---
 
-Você está me ajudando a desenvolver o **Ortega Barber**, um sistema de agendamento online para barbearia premium. Sou o Vitor, um dos dois desenvolvedores do projeto. O Cardoso é o outro — cada um tem sua área de responsabilidade para evitar conflito de código.
+Você está me ajudando a desenvolver o **Ortega**, um sistema de agendamento online para barbearia premium. Sou o Vitor, um dos dois desenvolvedores do projeto. O Cardoso é o outro — cada um tem sua área de responsabilidade para evitar conflito de código.
 
 ---
 

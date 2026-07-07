@@ -39,6 +39,8 @@ export const demoSettings: LandingSettings = {
   enderecoEmbed: "https://maps.google.com/maps?q=Rua+Capit%C3%A3o+Neco+300+Cruzeiro+SP&output=embed",
   destaqueId: "",
   destaqueTipo: "",
+  autoConfirmMode: "manual",
+  autoConfirmMinutos: 20,
 };
 
 export const demoServicos: Item[] = [

@@ -55,7 +55,7 @@ export default function BarbeiroNav() {
       {/* Sidebar desktop */}
       <aside className="hidden md:flex w-52 bg-[#111] border-r border-[#2d2d2d] flex-col min-h-screen shrink-0">
         <div className="p-5 border-b border-[#2d2d2d]">
-          <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega Barber</span>
+          <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega</span>
           <p className="text-xs text-gray-600 mt-0.5">Portal do Barbeiro</p>
         </div>
 

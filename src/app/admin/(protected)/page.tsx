@@ -9,6 +9,7 @@ import {
   ChevronLeft, ChevronRight, AlertTriangle, Bell,
   Clock, CreditCard, X, CheckCircle2, AlertCircle, ExternalLink,
 } from "lucide-react";
+import AdminFab from "@/components/admin/AdminFab";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { Agendamento, FechamentoDia } from "@/lib/agendamentos-types";
 import { parsePriceNum } from "@/lib/agendamentos-types";
@@ -138,16 +139,19 @@ export default function AdminDashboard() {
   const jaVisualizou = useRef(false);
 
   const carregar = useCallback(async () => {
+    // parse resiliente: se a API falhar (ex.: 500 / cota Firestore) não quebra a página
+    const parseArr = async (res: Response | null) => {
+      if (!res || !res.ok) return [];
+      try { const d = await res.json(); return Array.isArray(d) ? d : []; } catch { return []; }
+    };
     const [resAgs, resFech, resGastos] = await Promise.all([
-      fetch("/api/agendamentos", { credentials: "include" }),
-      fetch("/api/fechamento", { credentials: "include" }),
-      fetch("/api/gastos", { credentials: "include" }),
+      fetch("/api/agendamentos", { credentials: "include" }).catch(() => null),
+      fetch("/api/fechamento", { credentials: "include" }).catch(() => null),
+      fetch("/api/gastos", { credentials: "include" }).catch(() => null),
     ]);
-    const agsData = await resAgs.json();
-    const fechData = await resFech.json();
-    setAgendamentos(Array.isArray(agsData) ? agsData : []);
-    setFechamentos(Array.isArray(fechData) ? fechData : []);
-    if (resGastos.ok) { const g = await resGastos.json(); setGastos(Array.isArray(g) ? g : []); }
+    setAgendamentos(await parseArr(resAgs));
+    setFechamentos(await parseArr(resFech));
+    setGastos(await parseArr(resGastos));
     setCarregando(false);
   }, []);
 
@@ -221,15 +225,14 @@ export default function AdminDashboard() {
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-6">
 
+      <AdminFab />
+
       {/* cabeçalho */}
       <div className="flex items-center justify-between gap-4 pb-2 border-b border-[#2d2d2d]">
         <div className="flex flex-col gap-1">
-          <p className="text-xs text-gray-500 capitalize tracking-wide">{hoje.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p>
           <h1 className="text-2xl font-bold text-[#F5E6C8] leading-none">Dashboard</h1>
+          <p className="text-xs text-gray-500 capitalize tracking-wide">{hoje.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p>
         </div>
-        <Link href="/admin/agendamentos" className="shrink-0 flex items-center gap-2 px-5 py-2.5 bg-[#b8944a] text-[#0A0A0A] text-xs font-black tracking-wider uppercase rounded-lg hover:bg-[#c9a84c] transition shadow-[0_0_16px_rgba(184,148,74,0.25)]">
-          + Novo agendamento
-        </Link>
       </div>
 
       {/* ── ALERTAS FINANCEIROS (mesmo estilo do financeiro) ─────────────────── */}
