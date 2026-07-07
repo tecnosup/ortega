@@ -8,10 +8,11 @@ import { auth } from "@/lib/firebase";
 import {
   LayoutDashboard, Scissors, Star, ClipboardList,
   LogOut, CalendarCheck, Tag, Menu, X, ShoppingBag, TrendingUp, ExternalLink, Users, DollarSign, CreditCard,
-  BellRing, AlertTriangle, Bell, Calendar, Wallet, ChevronRight,
+  BellRing, AlertTriangle, Bell, Calendar, Wallet, ChevronRight, Settings,
 } from "lucide-react";
 import { useAdminNotificacoes } from "@/hooks/useAdminNotificacoes";
 import { PushToggle } from "@/components/admin/PushToggle";
+import Drawer from "@/components/ui/Drawer";
 
 const links = [
   { href: "/admin",               label: "Dashboard",    icon: LayoutDashboard, badge: null as "agendamentos" | "financeiro" | null },
@@ -24,6 +25,7 @@ const links = [
   { href: "/admin/assinantes",    label: "Assinantes",   icon: CreditCard,      badge: null },
   { href: "/admin/descontos",     label: "Cupons",       icon: Tag,             badge: null },
   { href: "/admin/vitrine",       label: "Vitrine",      icon: Star,            badge: null },
+  { href: "/admin/configuracoes", label: "Configurações", icon: Settings,       badge: null },
   { href: "/admin/auditoria",     label: "Auditoria",    icon: ClipboardList,   badge: null },
 ];
 
@@ -68,16 +70,10 @@ export default function AdminNav() {
 
   const urgenciaTotal = caixasAbertos > 0 || pendentes > 0 ? "critico" : vencimentos > 0 ? "atencao" : "normal";
 
-  const modalAleratasContent = modalAlertas && (
-    <>
-      {/* overlay — no desktop não escurece o resto da tela, no mobile sim */}
-      <div className="fixed inset-0 z-[60] bg-black/60 md:bg-black/30" onClick={() => setModalAlertas(false)} />
-
-      {/* ── drawer: desliza da direita, altura cheia ── */}
-      <div
-        className="fixed top-0 right-0 z-[61] h-full w-full md:w-[420px] bg-[#141414] border-l border-[#2d2d2d] shadow-2xl flex flex-col transition-transform duration-200 translate-x-0"
-        onClick={(e) => e.stopPropagation()}
-      >
+  const modalAleratasContent = (
+    <Drawer open={modalAlertas} onClose={() => setModalAlertas(false)} side="right"
+      overlayClassName="!bg-black/60 md:!bg-black/30 !backdrop-blur-none z-[60]"
+      className="!z-[61] w-full md:w-[420px] bg-[#141414] border-l border-[#2d2d2d] shadow-2xl flex flex-col">
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#1e1e1e] shrink-0" style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.875rem)" }}>
           <div className="flex items-center gap-2">
             <BellRing size={15} className={urgenciaTotal === "critico" ? "text-red-400" : urgenciaTotal === "atencao" ? "text-amber-400" : "text-gray-400"} />
@@ -184,8 +180,7 @@ export default function AdminNav() {
             </div>
           )}
         </div>
-      </div>
-    </>
+    </Drawer>
   );
 
   const sidebarContent = (
@@ -311,17 +306,11 @@ export default function AdminNav() {
         </button>
       </nav>
 
-      {open && (
-        <div className="md:hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)} />
-      )}
-
-      <aside
-        className={`md:hidden fixed top-0 left-0 z-50 h-full w-72 bg-[#111] border-r border-[#2d2d2d] flex flex-col transition-transform duration-300 overflow-y-auto ${
-          open ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
+      <Drawer open={open} onClose={() => setOpen(false)} side="left"
+        overlayClassName="md:hidden"
+        className="md:hidden w-72 bg-[#111] border-r border-[#2d2d2d] flex flex-col overflow-y-auto">
         {sidebarContent}
-      </aside>
+      </Drawer>
     </>
   );
 }

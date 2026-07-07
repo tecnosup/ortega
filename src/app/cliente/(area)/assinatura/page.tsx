@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Scissors, Calendar, CheckCircle, XCircle, AlertCircle, Loader2, X } from "lucide-react";
+import { Scissors, Calendar, CheckCircle, XCircle, AlertCircle, Loader2 } from "lucide-react";
 import { PLANOS_PUBLICOS } from "@/lib/stripe-tipos";
 import type { Assinatura } from "@/lib/assinaturas";
+import Modal from "@/components/ui/Modal";
 
 const STATUS_INFO: Record<string, { label: string; cor: string; bg: string; icone: React.ReactNode }> = {
   ativa:        { label: "Ativa",        cor: "text-green-400",  bg: "bg-green-950 border-green-800",  icone: <CheckCircle size={14} /> },
@@ -58,18 +59,13 @@ export default function ClienteAssinaturaPage() {
 
   return (
     <>
-      {showModal && assinatura && plano && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4" onClick={() => setShowModal(false)}>
-          <div className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-sm p-6 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-[#F5E6C8] font-semibold">Cancelar assinatura?</h2>
-                <p className="text-sm text-gray-400 mt-1">
-                  Seu <span className="text-[#F5E6C8] font-medium">{plano.nome}</span> continuará ativo até{" "}
-                  <span className="text-[#b8944a]">{formatarData(assinatura.proximoVencimento)}</span>.
-                </p>
-              </div>
-              <button onClick={() => setShowModal(false)}><X size={16} className="text-gray-600" /></button>
+      <Modal open={showModal && !!assinatura && !!plano} onClose={() => setShowModal(false)} overlayClassName="!bg-black/80" className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-sm mx-4 p-6 flex flex-col gap-4">
+            <div>
+              <h2 className="text-[#F5E6C8] font-semibold">Cancelar assinatura?</h2>
+              <p className="text-sm text-gray-400 mt-1">
+                Seu <span className="text-[#F5E6C8] font-medium">{plano?.nome}</span> continuará ativo até{" "}
+                <span className="text-[#b8944a]">{assinatura && formatarData(assinatura.proximoVencimento)}</span>.
+              </p>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 border border-[#2d2d2d] text-gray-400 text-sm rounded-lg hover:border-gray-500 transition">
@@ -84,9 +80,7 @@ export default function ClienteAssinaturaPage() {
                 {cancelando ? "Cancelando..." : "Confirmar"}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       <div className="flex flex-col gap-5">
         <h1 className="text-xl font-bold text-[#F5E6C8]">Minha Assinatura</h1>

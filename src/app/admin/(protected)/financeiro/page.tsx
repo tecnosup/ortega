@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAdminNotificacoes, type VencimentoItem } from "@/hooks/useAdminNotificacoes";
 import {
-  Receipt, Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Settings, X, Check, Bell, BellOff, CalendarDays, ChevronDown, AlertTriangle,
+  Receipt, Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Settings, Check, Bell, BellOff, CalendarDays, ChevronDown, AlertTriangle,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -17,6 +17,8 @@ import type { Gasto, CategoriaGasto, FrequenciaGasto, CategoriaGastoCustom } fro
 import type { GastoDia } from "@/lib/gastos-dia-tipos";
 import CaixaCalendario from "@/components/admin/CaixaCalendario";
 import { CATEGORIA_LABEL, FREQUENCIA_LABEL, gastoMensalEquivalente } from "@/lib/gastos-tipos";
+import Modal from "@/components/ui/Modal";
+import { useModalMount } from "@/components/ui/useModalMount";
 
 function brl(v: number) { return `R$ ${v.toFixed(2).replace(".", ",")}` }
 const card = "bg-[#111] border border-[#2d2d2d] rounded-lg";
@@ -112,7 +114,8 @@ const PALETTE = [
 ];
 
 // ── Modal de categorias ───────────────────────────────────────────────────────
-function ModalCategorias({ categorias, onFechar, onChanged }: {
+function ModalCategorias({ open = true, categorias, onFechar, onChanged }: {
+  open?: boolean;
   categorias: CategoriaGastoCustom[];
   onFechar: () => void;
   onChanged: () => void;
@@ -158,11 +161,9 @@ function ModalCategorias({ categorias, onFechar, onChanged }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onFechar}>
-      <div className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-sm flex flex-col" style={{ maxHeight: "calc(100vh - 2rem)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e1e] shrink-0">
+    <Modal open={open} onClose={onFechar} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-sm mx-4 flex flex-col max-h-[calc(100vh-2rem)]">
+        <div className="flex items-center px-5 py-4 border-b border-[#1e1e1e] shrink-0">
           <h3 className="font-bold text-[#F5E6C8] text-sm">Categorias de gastos</h3>
-          <button onClick={onFechar} className="text-gray-600 hover:text-gray-300 transition"><X size={16} /></button>
         </div>
         <div className="flex-1 overflow-y-auto min-h-0">
           <div className="flex flex-col divide-y divide-[#1a1a1a] px-2 py-2">
@@ -213,13 +214,13 @@ function ModalCategorias({ categorias, onFechar, onChanged }: {
             </button>
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }
 
 // ── Form gasto (modal) ────────────────────────────────────────────────────────
-function FormGasto({ inicial, categorias, onSalvar, onCancelar, salvando }: {
+function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, salvando }: {
+  open?: boolean;
   inicial?: Partial<Gasto>;
   categorias: CategoriaGastoCustom[];
   onSalvar: (d: Partial<Gasto>) => void;
@@ -261,11 +262,9 @@ function FormGasto({ inicial, categorias, onSalvar, onCancelar, salvando }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onCancelar}>
-      <div className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: "calc(100vh - 2rem)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e1e] shrink-0">
+    <Modal open={open} onClose={onCancelar} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-md mx-4 flex flex-col max-h-[calc(100vh-2rem)]">
+        <div className="flex items-center px-5 py-4 border-b border-[#1e1e1e] shrink-0">
           <h3 className="font-bold text-[#F5E6C8] text-sm">{inicial?.id ? "Editar gasto" : "Novo gasto"}</h3>
-          <button onClick={onCancelar} className="text-gray-600 hover:text-gray-300 transition"><X size={16} /></button>
         </div>
         <div className="flex-1 overflow-y-auto min-h-0 px-5 py-4 flex flex-col gap-4">
           {erro && <p className="text-xs text-red-400 bg-red-900/10 border border-red-900/30 rounded px-3 py-2">{erro}</p>}
@@ -354,8 +353,7 @@ function FormGasto({ inicial, categorias, onSalvar, onCancelar, salvando }: {
           </button>
           <button onClick={onCancelar} className="px-5 py-2.5 border border-[#2d2d2d] text-gray-400 text-xs rounded-lg hover:border-[#b8944a] transition">Cancelar</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -371,6 +369,8 @@ export default function FinanceiroPage() {
   const [editandoGasto, setEditandoGasto] = useState<Gasto | null>(null);
   const [salvandoGasto, setSalvandoGasto] = useState(false);
   const [modalCategorias, setModalCategorias] = useState(false);
+  const catMount = useModalMount(modalCategorias ? true : null);
+  const gastoMount = useModalMount((mostraFormGasto || editandoGasto) ? (editandoGasto ?? true) : null);
   const [fechExpandido, setFechExpandido] = useState<string | null>(null);
   const [linhasVisiveis, setLinhasVisiveis] = useState({ fat: true, lucro: true, gastos: true });
   function toggleLinha(k: keyof typeof linhasVisiveis) {
@@ -521,12 +521,10 @@ export default function FinanceiroPage() {
       </div>
 
       {/* ── Modal de pagamento ── */}
-      {pagarModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => { setPagarModal(null); setPagarStep(1); }}>
-          <div className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-sm flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e1e]">
+      <Modal open={!!pagarModal} onClose={() => { setPagarModal(null); setPagarStep(1); }} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-sm mx-4 flex flex-col">
+        {pagarModal && <>
+            <div className="flex items-center px-5 py-4 border-b border-[#1e1e1e]">
               <h3 className="font-bold text-[#F5E6C8] text-sm">Confirmar pagamento</h3>
-              <button onClick={() => { setPagarModal(null); setPagarStep(1); }} className="text-gray-600 hover:text-gray-300"><X size={16} /></button>
             </div>
             <div className="px-5 py-4 flex flex-col gap-4">
               <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-3">
@@ -565,9 +563,8 @@ export default function FinanceiroPage() {
                 Cancelar
               </button>
             </div>
-          </div>
-        </div>
-      )}
+        </>}
+      </Modal>
 
       {/* ── Alertas financeiros ── */}
       {notif.financeiro > 0 && (
@@ -852,12 +849,14 @@ export default function FinanceiroPage() {
       </div>
 
       {/* ── Modais de gasto ── */}
-      {modalCategorias && (
-        <ModalCategorias categorias={categorias} onFechar={() => setModalCategorias(false)} onChanged={carregar} />
+      {catMount.mounted && (
+        <ModalCategorias open={catMount.open} categorias={categorias} onFechar={() => setModalCategorias(false)} onChanged={carregar} />
       )}
-      {(mostraFormGasto || editandoGasto) && (
+      {gastoMount.mounted && (
         <FormGasto
-          inicial={editandoGasto ?? undefined}
+          key={gastoMount.key}
+          open={gastoMount.open}
+          inicial={typeof gastoMount.value === "object" ? gastoMount.value : undefined}
           categorias={categorias}
           onSalvar={salvarGasto}
           onCancelar={() => { setMostraFormGasto(false); setEditandoGasto(null); }}
