@@ -53,7 +53,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   if (body.status === "confirmado") {
     const msg = encodeURIComponent(
-      `Olá ${ag.nome}! 👋\n\nSeu agendamento na *Ortega Barber* foi *confirmado*! ✅\n\n` +
+      `Olá ${ag.nome}! 👋\n\nSeu agendamento na *Ortega* foi *confirmado*! ✅\n\n` +
       `✂️ Serviço: ${ag.servico}\n📅 Data: ${dataFormatada}\n🕐 Horário: ${ag.horario}\n\n` +
       `Te esperamos! Qualquer dúvida é só chamar.`
     );
@@ -62,7 +62,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   if (body.status === "cancelado") {
     const msg = encodeURIComponent(
-      `Olá ${ag.nome}, tudo bem?\n\nInfelizmente precisamos *cancelar* seu agendamento na Ortega Barber.\n\n` +
+      `Olá ${ag.nome}, tudo bem?\n\nInfelizmente precisamos *cancelar* seu agendamento na Ortega.\n\n` +
       `✂️ Serviço: ${ag.servico}\n📅 Data: ${dataFormatada}\n🕐 Horário: ${ag.horario}\n\n` +
       `Pedimos desculpas pelo inconveniente. Entre em contato para reagendar! 😊`
     );
@@ -105,7 +105,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
       weekday: "long", day: "numeric", month: "long",
     });
     const msg = encodeURIComponent(
-      `Olá ${ag.nome}! 👋\n\nSeu agendamento na *Ortega Barber* foi *alterado* pelo nosso time. 📅\n\n` +
+      `Olá ${ag.nome}! 👋\n\nSeu agendamento na *Ortega* foi *alterado* pelo nosso time. 📅\n\n` +
       `✂️ Serviço: ${body.servico ?? ag.servico}\n` +
       `📅 Nova data: ${dataFormatada}\n` +
       `🕐 Novo horário: ${novoHorario}\n\n` +

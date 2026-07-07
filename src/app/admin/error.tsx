@@ -10,7 +10,7 @@ const SUPORTE = [
 
 function waLink(tel: string) {
   const msg = encodeURIComponent(
-    "Olá, estou com um erro no painel da Ortega Barber e preciso de suporte."
+    "Olá, estou com um erro no painel da Ortega e preciso de suporte."
   );
   return `https://wa.me/55${tel}?text=${msg}`;
 }

@@ -57,7 +57,7 @@ function AssinaturaConteudo() {
         <div className="text-center flex flex-col gap-4">
           <div className="flex items-center justify-center gap-3 mb-2">
             <Scissors size={28} className="text-[#b8944a]" />
-            <span className="text-[#b8944a] font-bold text-xl tracking-widest uppercase">Ortega Barber</span>
+            <span className="text-[#b8944a] font-bold text-xl tracking-widest uppercase">Ortega</span>
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold leading-tight">
             Sempre no estilo.<br />

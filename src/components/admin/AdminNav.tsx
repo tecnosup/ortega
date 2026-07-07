@@ -191,7 +191,7 @@ export default function AdminNav() {
   const sidebarContent = (
     <div className="flex flex-col h-full">
       <div className="px-5 pb-5 border-b border-[#2d2d2d] flex items-center justify-between" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)" }}>
-        <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega Barber</span>
+        <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega</span>
         <button onClick={() => setOpen(false)} className="md:hidden p-1.5 text-gray-500 hover:text-white transition rounded-lg hover:bg-[#2d2d2d]">
           <X size={18} />
         </button>

@@ -4,7 +4,7 @@ import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
   title: "Ortega — Portal do Barbeiro",
-  description: "Portal exclusivo para barbeiros da Ortega Barber",
+  description: "Portal exclusivo para barbeiros da Ortega",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

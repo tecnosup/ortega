@@ -127,7 +127,7 @@ export default function MinhaAssinaturaPage() {
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-3">
               <Scissors size={22} className="text-[#b8944a]" />
-              <span className="text-[#b8944a] font-bold tracking-widest uppercase text-sm">Ortega Barber</span>
+              <span className="text-[#b8944a] font-bold tracking-widest uppercase text-sm">Ortega</span>
             </div>
             <h1 className="text-2xl font-bold text-[#F5E6C8]">Minha Assinatura</h1>
             <p className="text-sm text-gray-500 mt-1">Digite seu e-mail para consultar</p>

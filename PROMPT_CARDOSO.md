@@ -1,4 +1,4 @@
-# Contexto para nova sessão — Ortega Barber (Cardoso)
+# Contexto para nova sessão — Ortega (Cardoso)
 
 Cole este arquivo inteiro como primeira mensagem ao Claude após /clear.
 

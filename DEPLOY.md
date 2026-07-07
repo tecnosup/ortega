@@ -1,4 +1,4 @@
-# Checklist de Deploy — Ortega Barber
+# Checklist de Deploy — Ortega
 
 Antes de qualquer deploy em produção (Vercel), confirme que todas as variáveis abaixo estão configuradas em **Settings → Environment Variables → Production**.
 

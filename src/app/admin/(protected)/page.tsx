@@ -224,12 +224,9 @@ export default function AdminDashboard() {
       {/* cabeçalho */}
       <div className="flex items-center justify-between gap-4 pb-2 border-b border-[#2d2d2d]">
         <div className="flex flex-col gap-1">
-          <p className="text-xs text-gray-500 capitalize tracking-wide">{hoje.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p>
           <h1 className="text-2xl font-bold text-[#F5E6C8] leading-none">Dashboard</h1>
+          <p className="text-xs text-gray-500 capitalize tracking-wide">{hoje.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p>
         </div>
-        <Link href="/admin/agendamentos" className="shrink-0 flex items-center gap-2 px-5 py-2.5 bg-[#b8944a] text-[#0A0A0A] text-xs font-black tracking-wider uppercase rounded-lg hover:bg-[#c9a84c] transition shadow-[0_0_16px_rgba(184,148,74,0.25)]">
-          + Novo agendamento
-        </Link>
       </div>
 
       {/* ── ALERTAS FINANCEIROS (mesmo estilo do financeiro) ─────────────────── */}
