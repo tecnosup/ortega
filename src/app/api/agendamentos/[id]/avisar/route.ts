@@ -24,7 +24,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     weekday: "long", day: "numeric", month: "long",
   });
   const msg = encodeURIComponent(
-    `Olá ${ag.nome}! 👋\n\nSeu agendamento na *Ortega Barber* foi *confirmado*! ✅\n\n` +
+    `Olá ${ag.nome}! 👋\n\nSeu agendamento na *Ortega* foi *confirmado*! ✅\n\n` +
     `✂️ Serviço: ${ag.servico}\n📅 Data: ${dataFormatada}\n🕐 Horário: ${ag.horario}\n\n` +
     `Te esperamos! Qualquer dúvida é só chamar.`
   );

@@ -19,6 +19,7 @@ import CaixaCalendario from "@/components/admin/CaixaCalendario";
 import { CATEGORIA_LABEL, FREQUENCIA_LABEL, gastoMensalEquivalente } from "@/lib/gastos-tipos";
 import Modal from "@/components/ui/Modal";
 import { useModalMount } from "@/components/ui/useModalMount";
+import AdminFab from "@/components/admin/AdminFab";
 
 function brl(v: number) { return `R$ ${v.toFixed(2).replace(".", ",")}` }
 const card = "bg-[#111] border border-[#2d2d2d] rounded-lg";
@@ -515,6 +516,8 @@ export default function FinanceiroPage() {
 
   return (
     <div className="max-w-5xl mx-auto flex flex-col gap-5">
+      <AdminFab />
+
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-[#F5E6C8]">Financeiro</h1>
         <p className="text-xs text-gray-500 hidden sm:block">Faturamento, gastos e lucro estimado</p>

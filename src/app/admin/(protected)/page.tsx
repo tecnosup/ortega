@@ -9,6 +9,7 @@ import {
   ChevronLeft, ChevronRight, AlertTriangle, Bell,
   Clock, CreditCard, X, CheckCircle2, AlertCircle, ExternalLink,
 } from "lucide-react";
+import AdminFab from "@/components/admin/AdminFab";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { Agendamento, FechamentoDia } from "@/lib/agendamentos-types";
 import { parsePriceNum } from "@/lib/agendamentos-types";
@@ -220,6 +221,8 @@ export default function AdminDashboard() {
 
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-6">
+
+      <AdminFab />
 
       {/* cabeçalho */}
       <div className="flex items-center justify-between gap-4 pb-2 border-b border-[#2d2d2d]">

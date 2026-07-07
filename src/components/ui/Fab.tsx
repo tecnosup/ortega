@@ -89,8 +89,15 @@ export default function Fab({ actions }: { actions: FabAction[] }) {
           aria-label={open ? "Fechar menu" : "Abrir menu de ações"}
           className="w-14 h-14 rounded-full bg-[#b8944a] text-[#0A0A0A] shadow-xl flex items-center justify-center hover:bg-[#c9a84c] transition-colors"
           whileTap={{ scale: 0.9 }}
-          animate={{ rotate: open ? 135 : 0 }}
-          transition={{ type: "spring", stiffness: 400, damping: 20 }}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1, rotate: open ? 135 : 0 }}
+          transition={{
+            // entrada: pop com leve overshoot, logo após a tela montar
+            scale: { type: "spring", stiffness: 320, damping: 14, delay: 0.12 },
+            opacity: { duration: 0.2, delay: 0.12 },
+            // giro do +/× ao abrir/fechar: sem delay
+            rotate: { type: "spring", stiffness: 400, damping: 20 },
+          }}
         >
           <Plus size={26} strokeWidth={2.5} />
         </motion.button>

@@ -7,12 +7,12 @@ import {
   CheckCircle, XCircle, Clock, RefreshCw, MessageCircle,
   Pencil, Trash2, Check, X, ChevronLeft, ChevronRight, Lock, Undo2,
   CalendarPlus, Ban, Unlock, LayoutGrid, List, Plus, TrendingUp,
-  AlertCircle, AlertTriangle, Bell, ChevronDown, Link2, FileText, CalendarClock,
+  AlertCircle, AlertTriangle, Bell, ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import Fab from "@/components/ui/Fab";
+import AdminFab from "@/components/admin/AdminFab";
 import type { Agendamento, AgendamentoStatus, FechamentoDia } from "@/lib/agendamentos-types";
 import { parsePriceNum } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
@@ -440,7 +440,6 @@ export default function AgendamentosAdminPage() {
   const [aba, setAba] = useState<"lista" | "grade">("lista");
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
   const [alertasExpandidos, setAlertasExpandidos] = useState<Set<string>>(new Set());
-  const [toast, setToast] = useState<string | null>(null);
   const router = useRouter();
 
   // Mantém o conteúdo do modal montado durante a animação de saída.
@@ -480,31 +479,14 @@ export default function AgendamentosAdminPage() {
     setScrollTarget(ag.id);
   }
 
-  function mostrarToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2500);
-  }
 
   // ── Ações do botão flutuante (+) ──
+  // "Agendar horário" e "Grade de hoje" são disparadas via ?acao= (ver efeito abaixo),
+  // para que o mesmo AdminFab funcione a partir de qualquer tela do admin.
   function fabAgendarHorario() {
     // abre o modal de novo agendamento no próximo horário livre do dia selecionado
     const proximoLivre = slotsLivresDia[0] ?? todosSlotsDia[0];
     if (proximoLivre) setWalkInHorario(proximoLivre);
-  }
-
-  async function fabLinkAgendamento() {
-    const url = `${window.location.origin}/agendamento`;
-    try {
-      await navigator.clipboard.writeText(url);
-      mostrarToast("Link de agendamento copiado!");
-    } catch {
-      mostrarToast(url);
-    }
-  }
-
-  function fabAbrirComanda() {
-    // comanda (atendimento avulso) vive no Caixa/Financeiro — leva pro dia de hoje
-    router.push(`/admin/financeiro?dia=${hojeKey}#caixa`);
   }
 
   function fabGradeHoje() {
@@ -514,6 +496,19 @@ export default function AgendamentosAdminPage() {
       document.getElementById("grade-horarios")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 120);
   }
+
+  // Dispara a ação do FAB quando chega de outra tela via ?acao=agendar|grade
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (carregando) return;
+    const acao = searchParams.get("acao");
+    if (acao !== "agendar" && acao !== "grade") return;
+    if (acao === "agendar") fabAgendarHorario();
+    if (acao === "grade") fabGradeHoje();
+    // limpa o param pra não repetir ao dar refresh
+    router.replace("/admin/agendamentos");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carregando, searchParams]);
 
   function tempoAtras(ts: number): string {
     const diff = Date.now() - ts;
@@ -683,25 +678,7 @@ export default function AgendamentosAdminPage() {
 
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-5">
-      <Fab actions={[
-        { label: "Agendar horário", icon: CalendarPlus, onClick: fabAgendarHorario },
-        { label: "Link de agendamento", icon: Link2, onClick: fabLinkAgendamento },
-        { label: "Abrir comanda", icon: FileText, onClick: fabAbrirComanda },
-        { label: "Grade de hoje", icon: CalendarClock, onClick: fabGradeHoje },
-      ]} />
-
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-2 bg-[#1a2a1a] border border-green-700/60 text-green-300 rounded-full px-4 py-2 shadow-xl text-sm font-medium"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
-          >
-            <Check size={15} className="text-green-400" /> {toast}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <AdminFab />
 
       <Modal open={!!modal} {...(modal ? modalConfig[modal.tipo] : modalConfigVazio)} onConfirm={confirmarModal} onCancel={() => setModal(null)} />
       {/* Sempre montados (key força reset do form ao reabrir) — assim o AnimatePresence
