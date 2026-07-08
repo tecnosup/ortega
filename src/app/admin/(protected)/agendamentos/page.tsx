@@ -1676,41 +1676,41 @@ export default function AgendamentosAdminPage() {
               const cheio = !bloqueado && agsNoSlot.length >= totalBarbeiros;
               const livre = agsNoSlot.length === 0 && !bloqueado;
               return (
-                <div key={slot} className={`flex gap-3 px-4 py-3 ${bloqueado ? "bg-[#0A0A0A]" : cheio ? "bg-red-950/10" : ""}`}>
-                  <div className="flex-shrink-0 w-12 pt-1">
-                    <span className="text-sm font-bold text-gray-500">{slot}</span>
+                <div key={slot} className={`flex gap-3 px-3 sm:px-4 py-3 transition-colors ${bloqueado ? "bg-[#0A0A0A]/60" : cheio ? "bg-red-950/[0.07]" : livre ? "hover:bg-white/[0.015]" : ""}`}>
+                  {/* coluna do horário — chip alinhado ao topo */}
+                  <div className="flex-shrink-0 w-14 flex flex-col items-center pt-0.5">
+                    <span className={`text-sm font-bold tabular-nums ${livre && !slotPassou(slot) ? "text-[#F5E6C8]" : "text-gray-500"}`}>{slot}</span>
                     {!bloqueado && (
-                      <p className="text-[10px] text-gray-600 mt-0.5">
+                      <span className={`text-[10px] mt-1 px-1.5 py-0.5 rounded-full border tabular-nums ${cheio ? "border-red-800/50 text-red-400/80 bg-red-950/30" : agsNoSlot.length > 0 ? "border-[#2d2d2d] text-gray-500" : "border-transparent text-gray-700"}`}>
                         {agsNoSlot.length}/{totalBarbeiros}
-                        {cheio && <span className="text-red-500/80 ml-1">cheio</span>}
-                      </p>
+                      </span>
                     )}
                   </div>
                   <div className="flex-1 flex flex-col gap-2 min-w-0">
                     {bloqueado ? (
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2 py-1">
                         <span className="text-sm text-gray-500 flex items-center gap-1.5"><Ban size={13} className="text-red-500/70" /> Bloqueado</span>
-                        {!caixaFechado && <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition"><Unlock size={12} /> Desbloquear</button>}
+                        {!caixaFechado && <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition shrink-0"><Unlock size={12} /> Desbloquear</button>}
                       </div>
                     ) : livre ? (
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2 py-1">
                         {slotPassou(slot) ? (
-                          <span className="text-sm text-gray-500 font-medium flex items-center gap-1.5"><Clock size={13} className="text-gray-600" /> Horário passado</span>
+                          <span className="text-sm text-gray-500 flex items-center gap-1.5"><Clock size={13} className="text-gray-600" /> Horário passado</span>
                         ) : (
-                          <span className="text-sm text-green-500/80 font-medium">Disponível</span>
+                          <span className="text-sm text-green-500/70 font-medium flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500/70" /> Disponível</span>
                         )}
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 shrink-0">
                           {slotPassou(slot) ? (
                             // Retroativo: sempre visível. Com caixa fechado, avisa (regra de rastreabilidade).
                             <button onClick={() => caixaFechado ? setModal({ tipo: "caixa_fechado_retro", horario: slot }) : abrirAgendar({ data: dataSelecionada, horario: slot })}
                               title="Registrar atendimento retroativo (cliente que veio e não foi lançado)"
-                              className="flex items-center gap-1 px-2 py-1 text-xs rounded transition border text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]">
-                              <CalendarPlus size={12} /> Registrar retroativo
+                              className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg transition border text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]">
+                              <CalendarPlus size={12} /> <span className="hidden sm:inline">Registrar retroativo</span><span className="sm:hidden">Retroativo</span>
                             </button>
                           ) : !caixaFechado ? (
                             <>
-                              <button onClick={() => abrirAgendar({ data: dataSelecionada, horario: slot })} className="flex items-center gap-1 px-2 py-1 text-xs rounded transition border text-[#b8944a] border-[#b8944a]/30 hover:bg-[#b8944a]/10"><CalendarPlus size={12} /> Agendar</button>
-                              <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition" title="Bloquear"><Ban size={13} /></button>
+                              <button onClick={() => abrirAgendar({ data: dataSelecionada, horario: slot })} className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg transition border text-[#b8944a] border-[#b8944a]/30 hover:bg-[#b8944a]/10"><CalendarPlus size={12} /> Agendar</button>
+                              <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="p-1.5 text-gray-500 hover:text-red-400 border border-transparent hover:border-red-900/40 rounded-lg transition" title="Bloquear"><Ban size={13} /></button>
                             </>
                           ) : null}
                         </div>
@@ -1723,7 +1723,7 @@ export default function AgendamentosAdminPage() {
                           const ehConcluido = ag.status === "concluido";
                           const finalizado = ehConcluido || ag.status === "nao_compareceu" || ag.status === "cancelado";
                           return (
-                            <div key={ag.id} className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg p-3 flex flex-col gap-2">
+                            <div key={ag.id} className={`bg-[#0d0d0d] border rounded-lg p-3 flex flex-col gap-2.5 ${ehConcluido ? "border-green-900/40" : ag.status === "nao_compareceu" ? "border-[#2a2a2a] opacity-70" : "border-[#2a2a2a]"}`}>
                               <div className="flex items-start gap-2">
                                 <div className="flex-1 min-w-0">
                                   {editando ? (
@@ -1745,9 +1745,9 @@ export default function AgendamentosAdminPage() {
                                   ) : (
                                     <>
                                       <p className="text-sm font-semibold text-[#F5E6C8] truncate">{ag.nome}</p>
-                                      <p className="text-xs text-gray-500 truncate">✂️ {ag.servico}{ag.barbeiroNome ? ` · ${ag.barbeiroNome}` : ""}</p>
+                                      <p className="text-xs text-gray-500 truncate mt-0.5">✂️ {ag.servico}{ag.barbeiroNome ? ` · ${ag.barbeiroNome}` : ""}</p>
                                       {ag.telefone && ag.telefone !== "00000000000" && (
-                                        <a href={`https://wa.me/55${ag.telefone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-600 hover:text-green-400 transition truncate block">{ag.telefone}</a>
+                                        <a href={`https://wa.me/55${ag.telefone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-600 hover:text-green-400 transition truncate block mt-0.5">{ag.telefone}</a>
                                       )}
                                     </>
                                   )}
@@ -1760,14 +1760,16 @@ export default function AgendamentosAdminPage() {
                                 )}
                               </div>
                               {!caixaFechado && !editando && (
-                                <div className="flex items-center gap-1 flex-wrap pt-1 border-t border-[#1a1a1a]">
-                                  {ag.status === "pendente" && <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 text-xs text-blue-400 border border-blue-700/40 rounded-lg hover:bg-blue-900/20 transition"><Check size={11} /> Confirmar</button>}
-                                  {(ag.status === "confirmado" || ag.status === "pendente") && <button onClick={() => setModal({ tipo: "concluir", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 text-xs text-green-400 border border-green-700/40 rounded-lg hover:bg-green-900/20 transition"><CheckCircle size={11} /> Concluir</button>}
-                                  {!finalizado && <button onClick={() => setReagendarAg(ag)} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><CalendarPlus size={11} /> Reagendar</button>}
-                                  {(ag.status === "confirmado" || ag.status === "pendente") && <button onClick={() => atualizarStatus(ag.id, "nao_compareceu")} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><Clock size={11} /> Não compareceu</button>}
-                                  {(ehConcluido || ag.status === "nao_compareceu") && <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><Undo2 size={11} /> Desfazer</button>}
-                                  {!finalizado && <button onClick={() => { setEditandoId(ag.id); const srvs = ag.servico.split(" + "); const precos = ag.preco.split(" + "); setEditLinhas(srvs.map((s, i) => ({ servico: s.trim(), preco: precos[i]?.trim() ?? "" }))); }} className="p-1.5 text-gray-500 hover:text-gray-300 rounded-lg transition"><Pencil size={13} /></button>}
-                                  <button onClick={() => setModal({ tipo: "excluir", id: ag.id })} className="p-1.5 text-red-500/50 hover:text-red-400 rounded-lg transition ml-auto"><Trash2 size={13} /></button>
+                                <div className="flex items-center gap-1.5 flex-wrap pt-2.5 border-t border-[#1a1a1a]">
+                                  {ag.status === "pendente" && <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-400 border border-blue-700/40 rounded-lg hover:bg-blue-900/20 transition"><Check size={12} /> Confirmar</button>}
+                                  {(ag.status === "confirmado" || ag.status === "pendente") && <button onClick={() => setModal({ tipo: "concluir", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-green-400 border border-green-700/40 rounded-lg hover:bg-green-900/20 transition"><CheckCircle size={12} /> Concluir</button>}
+                                  {!finalizado && <button onClick={() => setReagendarAg(ag)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><CalendarPlus size={12} /> Reagendar</button>}
+                                  {(ag.status === "confirmado" || ag.status === "pendente") && <button onClick={() => atualizarStatus(ag.id, "nao_compareceu")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><Clock size={12} /> Não compareceu</button>}
+                                  {(ehConcluido || ag.status === "nao_compareceu") && <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><Undo2 size={12} /> Desfazer</button>}
+                                  <div className="flex items-center gap-1 ml-auto">
+                                    {!finalizado && <button onClick={() => { setEditandoId(ag.id); const srvs = ag.servico.split(" + "); const precos = ag.preco.split(" + "); setEditLinhas(srvs.map((s, i) => ({ servico: s.trim(), preco: precos[i]?.trim() ?? "" }))); }} className="p-1.5 text-gray-500 hover:text-gray-300 border border-transparent hover:border-[#2d2d2d] rounded-lg transition" title="Editar"><Pencil size={13} /></button>}
+                                    <button onClick={() => setModal({ tipo: "excluir", id: ag.id })} className="p-1.5 text-red-500/50 hover:text-red-400 border border-transparent hover:border-red-900/40 rounded-lg transition" title="Excluir"><Trash2 size={13} /></button>
+                                  </div>
                                 </div>
                               )}
                             </div>
