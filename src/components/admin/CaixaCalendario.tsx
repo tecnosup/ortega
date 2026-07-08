@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   IconChevronLeft, IconChevronRight, IconChevronDown, IconLock, IconLockOpen,
-  IconPlus, IconTrash, IconTrendingDown, IconUser, IconCheck, IconX, IconClock, IconScissors,
+  IconPlus, IconTrash, IconTrendingDown, IconUser, IconCheck, IconX, IconClock, IconCashRegister,
   IconQrcode, IconCreditCard, IconCashBanknote,
 } from "@tabler/icons-react";
 import type { Icon } from "@tabler/icons-react";
@@ -18,9 +18,11 @@ import { useModalMount } from "@/components/ui/useModalMount";
 import { useToast } from "@/components/ui/Toast";
 
 function brl(v: number) { return `R$ ${v.toFixed(2).replace(".", ",")}` }
-function toDataStr(y: number, m: number, d: number) {
-  return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+function ymd(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+function addDiasCal(base: Date, n: number) { const r = new Date(base); r.setDate(r.getDate() + n); r.setHours(12, 0, 0, 0); return r; }
+function inicioSemana(d: Date) { const r = new Date(d); r.setDate(r.getDate() - r.getDay()); r.setHours(12, 0, 0, 0); return r; }
 
 const DIAS = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 const MESES = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
@@ -124,11 +126,14 @@ function FormGastoDia({ data, onSalvo, onCancelar }: { data: string; onSalvo: ()
 
 // ── Itens + catálogo (compartilhado entre criar e finalizar comanda) ────────────
 type CatalogItem = { id: string; titulo: string; preco: number; tipo: "servico" | "produto" };
-type ItemForm = { catalogKey: string; tipo: "servico" | "produto"; descricao: string; valor: string; produtoId?: string };
+type ItemForm = { uid: string; catalogKey: string; tipo: "servico" | "produto"; descricao: string; valor: string; produtoId?: string };
+
+let _uidSeq = 0;
+const newUid = () => `it_${_uidSeq++}`;
 
 function itensParaForm(itens?: ItemComanda[]): ItemForm[] {
-  return itens?.map((i) => ({ catalogKey: "manual", tipo: i.tipo, descricao: i.descricao, valor: String(i.valor), produtoId: i.produtoId }))
-    ?? [{ catalogKey: "manual", tipo: "servico", descricao: "", valor: "" }];
+  return itens?.map((i) => ({ uid: newUid(), catalogKey: "manual", tipo: i.tipo, descricao: i.descricao, valor: String(i.valor), produtoId: i.produtoId }))
+    ?? [{ uid: newUid(), catalogKey: "manual", tipo: "servico", descricao: "", valor: "" }];
 }
 
 /** Carrega catálogo de serviços/produtos e gerencia a lista de itens editáveis. */
@@ -162,7 +167,7 @@ function useItensEditor(inicial?: ItemComanda[]) {
   const servicos = catalog.filter((c) => c.tipo === "servico");
   const produtos = catalog.filter((c) => c.tipo === "produto");
 
-  function addItem() { setItens((p) => [...p, { catalogKey: "manual", tipo: "servico", descricao: "", valor: "" }]); }
+  function addItem() { setItens((p) => [{ uid: newUid(), catalogKey: "manual", tipo: "servico", descricao: "", valor: "" }, ...p]); }
   function removeItem(i: number) { setItens((p) => p.filter((_, idx) => idx !== i)); }
   function changeTipo(i: number, tipo: "servico" | "produto") {
     setItens((p) => p.map((it, idx) => idx === i ? { ...it, tipo, catalogKey: "manual", descricao: "", valor: "", produtoId: undefined } : it));
@@ -171,7 +176,7 @@ function useItensEditor(inicial?: ItemComanda[]) {
     if (key === "manual") { setItens((p) => p.map((it, idx) => idx === i ? { ...it, catalogKey: "manual", descricao: "", valor: "", produtoId: undefined } : it)); return; }
     const found = catalog.find((c) => `${c.tipo[0]}:${c.id}` === key);
     if (found) setItens((p) => p.map((it, idx) => idx === i
-      ? { catalogKey: key, tipo: found.tipo, descricao: found.titulo, valor: String(found.preco), produtoId: found.tipo === "produto" ? found.id : undefined }
+      ? { uid: it.uid, catalogKey: key, tipo: found.tipo, descricao: found.titulo, valor: String(found.preco), produtoId: found.tipo === "produto" ? found.id : undefined }
       : it));
   }
   function updateValor(i: number, v: string) { setItens((p) => p.map((it, idx) => idx === i ? { ...it, valor: v } : it)); }
@@ -205,10 +210,16 @@ function ItensEditorView({ ed, titulo = "Itens *" }: { ed: ItensEditor; titulo?:
         </button>
       </div>
       <div className="flex flex-col gap-2">
+        <AnimatePresence initial={false}>
         {ed.itens.map((item, i) => {
           const catalogDaTipo = item.tipo === "servico" ? ed.servicos : ed.produtos;
           return (
-            <div key={i} className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-3 flex flex-col gap-2.5">
+            <motion.div key={item.uid} layout
+              initial={{ opacity: 0, y: -10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96, height: 0, paddingTop: 0, paddingBottom: 0, marginTop: 0 }}
+              transition={{ type: "spring", stiffness: 420, damping: 32 }}
+              className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-3 flex flex-col gap-2.5 overflow-hidden">
               <div className="flex items-center justify-between">
                 <div className="flex gap-1">
                   <button onClick={() => ed.changeTipo(i, "servico")}
@@ -230,9 +241,10 @@ function ItensEditorView({ ed, titulo = "Itens *" }: { ed: ItensEditor; titulo?:
                 <label className="text-[10px] text-gray-600 tracking-widest uppercase shrink-0">Valor (R$)</label>
                 <input type="number" min="0" step="0.01" value={item.valor} onChange={(e) => ed.updateValor(i, e.target.value)} placeholder="0,00" className={`${inp} flex-1`} />
               </div>
-            </div>
+            </motion.div>
           );
         })}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -396,9 +408,6 @@ function FormFinalizar({ open = true, comanda, onFinalizado, onCancelar }: {
         </div>
       </div>
       <div className="px-5 py-4 flex flex-col gap-4 overflow-y-auto flex-1 min-h-0">
-        {/* Itens editáveis — pode adicionar serviço/produto na hora de pagar */}
-        <ItensEditorView ed={ed} titulo="Itens da comanda" />
-
         {/* Total (editável) */}
         <div className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg px-3 py-3 flex items-center justify-between gap-3">
           <div>
@@ -431,6 +440,9 @@ function FormFinalizar({ open = true, comanda, onFinalizado, onCancelar }: {
             ))}
           </div>
         </div>
+
+        {/* Itens editáveis — pode adicionar serviço/produto na hora de pagar */}
+        <ItensEditorView ed={ed} titulo="Itens da comanda" />
         <p className="text-[10px] text-gray-500">Ao finalizar, os produtos serão baixados do estoque e a comanda entrará no caixa do dia.</p>
       </div>
       <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2 shrink-0">
@@ -458,6 +470,8 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
   const [mes, setMes] = useState(() => new Date().getMonth());
   const [calendarioAberto, setCalendarioAberto] = useState(true);
   const [diaSel, setDiaSel] = useState<string>(hoje);
+  const [refSemana, setRefSemana] = useState<string>(hoje);
+  const [dirSemana, setDirSemana] = useState(0);
   const [fechando, setFechando] = useState(false);
   const [erroFechar, setErroFechar] = useState("");
   const toast = useToast();
@@ -467,6 +481,7 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
   const [editandoComanda, setEditandoComanda] = useState<Comanda | null>(null);
   const [finalizandoComanda, setFinalizandoComanda] = useState<Comanda | null>(null);
   const [modalCancelar, setModalCancelar] = useState<Comanda | null>(null);
+  const [modalReabrirComanda, setModalReabrirComanda] = useState<Comanda | null>(null);
   const [modalReabrir, setModalReabrir] = useState(false);
   const [modalFechar, setModalFechar] = useState(false);
 
@@ -474,6 +489,7 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
   const editarMount = useModalMount(editandoComanda);
   const finalizarMount = useModalMount(finalizandoComanda);
   const cancelarMount = useModalMount(modalCancelar);
+  const reabrirComandaMount = useModalMount(modalReabrirComanda);
   const reabrirMount = useModalMount(modalReabrir ? true : null);
   const fecharMount = useModalMount(modalFechar ? true : null);
 
@@ -482,6 +498,7 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
     const p = searchParams.get("dia");
     if (p && /^\d{4}-\d{2}-\d{2}$/.test(p)) {
       setDiaSel(p);
+      setRefSemana(p);
       const d = new Date(p + "T12:00:00");
       setAno(d.getFullYear()); setMes(d.getMonth());
       setTimeout(() => document.getElementById("caixa")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
@@ -539,13 +556,17 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
     setTimeout(() => { setModalCancelar(null); onAtualizar(); }, 1200);
   }
 
-  async function reabrirComanda(id: string) {
+  async function reabrirComanda(id: string): Promise<boolean> {
     const res = await fetch(`/api/comandas/${id}/reabrir`, { method: "POST", credentials: "include" });
-    if (res.ok) { toast.info("Comanda reaberta"); onAtualizar(); }
-    else {
+    if (!res.ok) {
       const j = await res.json().catch(() => ({}));
       toast.erro(j.error ?? "Não foi possível reabrir");
+      setModalReabrirComanda(null);
+      return false;
     }
+    // dá tempo do overlay de sucesso aparecer antes de recarregar/desmontar
+    setTimeout(() => { setModalReabrirComanda(null); onAtualizar(); }, 1200);
+    return true;
   }
 
   async function excluirGasto(id: string) {
@@ -557,10 +578,65 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
     const d = new Date(ano, mes + delta, 1);
     setAno(d.getFullYear()); setMes(d.getMonth());
   }
+  function navSemana(delta: number) {
+    setDirSemana(delta);
+    setRefSemana((prev) => ymd(addDiasCal(new Date(prev + "T12:00:00"), delta * 7)));
+  }
 
-  const primeiroDia = new Date(ano, mes, 1).getDay();
-  const diasNoMes = new Date(ano, mes + 1, 0).getDate();
-  const cells: (number | null)[] = [...Array(primeiroDia).fill(null), ...Array.from({ length: diasNoMes }, (_, i) => i + 1)];
+  // Semanas do MÊS (datas reais; dias de outros meses aparecem esmaecidos, sem célula vazia)
+  const primeiroMes = new Date(ano, mes, 1, 12);
+  const ultimoMes = new Date(ano, mes + 1, 0, 12);
+  const semanasMes: Date[][] = [];
+  {
+    let d = inicioSemana(primeiroMes);
+    do {
+      const semana: Date[] = [];
+      for (let i = 0; i < 7; i++) { semana.push(d); d = addDiasCal(d, 1); }
+      semanasMes.push(semana);
+    } while (semanasMes[semanasMes.length - 1][6] < ultimoMes);
+  }
+  // Semana visível quando retraído: 7 dias reais a partir do domingo de refSemana
+  const inicioSem = inicioSemana(new Date(refSemana + "T12:00:00"));
+  const semanaColuna: Date[] = Array.from({ length: 7 }, (_, i) => addDiasCal(inicioSem, i));
+  const semanasVisiveis: Date[][] = calendarioAberto ? semanasMes : [semanaColuna];
+  const labelData = calendarioAberto ? new Date(ano, mes, 1) : semanaColuna[3];
+
+  function toggleCalendario() {
+    if (calendarioAberto) setRefSemana(diaSel);            // retrai → semana do dia selecionado
+    else { setAno(semanaColuna[3].getFullYear()); setMes(semanaColuna[3].getMonth()); } // expande → mês da semana
+    setCalendarioAberto((v) => !v);
+  }
+
+  const renderDia = (date: Date) => {
+    const dataCel = ymd(date);
+    const foraDoMes = calendarioAberto && date.getMonth() !== mes;
+    const fech = fechPorData[dataCel];
+    const gastosNoDia = (gastosPorData[dataCel] ?? []).reduce((s, g) => s + g.valor, 0);
+    const comsDia = comandasPorData[dataCel] ?? [];
+    const fat = fech?.totalServicos ?? comsDia.filter((c) => c.status === "finalizada").reduce((s, c) => s + (c.total || 0), 0);
+    const temAbertas = comsDia.some((c) => c.status === "aberta");
+    const liquido = fat - gastosNoDia;
+    const eHoje = dataCel === hoje;
+    const sel = dataCel === diaSel;
+    const futuro = dataCel > hoje;
+
+    let borderCls = "border-transparent";
+    if (sel) borderCls = "border-[#F5E6C8]/40";
+    else if (temAbertas) borderCls = "border-amber-700/50";
+    else if (eHoje && !fech) borderCls = "border-[#F5E6C8]/15";
+    else if (fech && liquido > 0) borderCls = "border-green-900/50";
+    else if ((fech || gastosNoDia > 0) && liquido <= 0) borderCls = "border-red-900/50";
+
+    return (
+      <button key={dataCel} onClick={() => setDiaSel(dataCel)}
+        className={`relative flex flex-col items-center justify-center py-2 rounded border transition-all ${borderCls} ${sel ? "bg-[#1a1a1a]" : "hover:bg-[#0f0f0f]"} ${(futuro && !sel) || foraDoMes ? "opacity-30" : ""}`}>
+        <span className={`text-xs font-medium ${eHoje ? "text-white" : fech ? "text-[#F5E6C8]" : "text-gray-500"}`}>{date.getDate()}</span>
+        {fech && <span className={`text-[9px] font-medium leading-none mt-0.5 hidden sm:block ${liquido >= 0 ? "text-green-400" : "text-red-400"}`}>{liquido >= 0 ? "+" : "−"}{brl(Math.abs(liquido)).replace("R$ ", "R$")}</span>}
+        {temAbertas && <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-amber-500" />}
+        {eHoje && !fech && !temAbertas && <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#b8944a]" />}
+      </button>
+    );
+  };
 
   return (
     <>
@@ -584,6 +660,13 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
           sucessoMsg="Comanda cancelada" sucessoTipo="info"
           onConfirm={() => cancelarMount.value && cancelarComanda(cancelarMount.value.id)} onCancel={() => setModalCancelar(null)} />
       )}
+      {reabrirComandaMount.mounted && reabrirComandaMount.value && (
+        <ModalConfirm open={reabrirComandaMount.open} titulo="Reabrir comanda?"
+          mensagem={`A comanda de ${reabrirComandaMount.value.clienteNome} volta a ficar aberta e sai do caixa até ser finalizada de novo.`}
+          confirmLabel="Reabrir comanda" confirmClass="bg-amber-900/50 text-amber-300 border border-amber-800/60 hover:bg-amber-900/70"
+          sucessoMsg="Comanda reaberta" sucessoTipo="info"
+          onConfirm={() => reabrirComandaMount.value && reabrirComanda(reabrirComandaMount.value.id)} onCancel={() => setModalReabrirComanda(null)} />
+      )}
       {reabrirMount.mounted && (
         <ModalConfirm open={reabrirMount.open} titulo="Reabrir caixa?"
           mensagem="O fechamento será excluído e as comandas voltarão ao estado editável."
@@ -592,18 +675,36 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
           onConfirm={reabrirCaixa} onCancel={() => setModalReabrir(false)} />
       )}
       {fecharMount.mounted && (
-        <ModalConfirm open={fecharMount.open} titulo="Fechar o caixa?"
-          mensagem={`Os atendimentos de ${new Date(diaSel + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })} serão consolidados. Você ainda poderá reabrir caso precise corrigir algo.`}
-          confirmLabel={fechando ? "Fechando..." : "Fechar caixa"} confirmClass="bg-[#b8944a] text-[#0A0A0A] font-bold hover:bg-[#c9a84c]"
-          sucessoMsg="Caixa fechado!"
-          onConfirm={fecharCaixa} onCancel={() => setModalFechar(false)} />
+        abertas.length > 0 ? (
+          <Modal open={fecharMount.open} onClose={() => setModalFechar(false)}
+            className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl p-6 max-w-sm w-full mx-6 flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <h3 className="text-base font-bold text-[#F5E6C8]">Ainda não dá pra fechar</h3>
+              <p className="text-sm text-gray-400">
+                {abertas.length === 1 ? "Há 1 comanda em aberto" : `Há ${abertas.length} comandas em aberto`}. Finalize ou cancele {abertas.length === 1 ? "ela" : "cada uma"} antes de fechar o caixa.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setModalFechar(false)}
+                className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Voltar</button>
+              <button onClick={() => { setModalFechar(false); setTimeout(() => document.getElementById("comandas-abertas")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150); }}
+                className="flex-1 px-4 py-2 text-sm rounded bg-[#b8944a] text-[#0A0A0A] font-bold hover:bg-[#c9a84c] transition">Ver comandas em aberto</button>
+            </div>
+          </Modal>
+        ) : (
+          <ModalConfirm open={fecharMount.open} titulo="Fechar o caixa?"
+            mensagem={`Os atendimentos de ${new Date(diaSel + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })} serão consolidados. Você ainda poderá reabrir caso precise corrigir algo.`}
+            confirmLabel={fechando ? "Fechando..." : "Fechar caixa"} confirmClass="bg-[#b8944a] text-[#0A0A0A] font-bold hover:bg-[#c9a84c]"
+            sucessoMsg="Caixa fechado!"
+            onConfirm={fecharCaixa} onCancel={() => setModalFechar(false)} />
+        )
       )}
 
       <div className="bg-[#111] border border-[#2d2d2d] rounded-xl overflow-hidden">
         {/* ── Cabeçalho ── */}
         <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-[#1e1e1e]">
           <div className="flex items-center justify-center w-7 h-7 rounded-md bg-[#b8944a]/10 border border-[#b8944a]/20">
-            <IconScissors size={14} className="text-[#b8944a]" />
+            <IconCashRegister size={14} className="text-[#b8944a]" />
           </div>
           <div>
             <p className="text-sm font-bold text-[#F5E6C8] tracking-wide">Caixa</p>
@@ -614,65 +715,53 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
         {/* ── Calendário colapsável no topo ── */}
         <div className="p-5 border-b border-[#2d2d2d]">
           <div className="flex items-center justify-between mb-5">
-            <button onClick={() => navMes(-1)} className="p-1 text-gray-500 hover:text-gray-300 transition"><IconChevronLeft size={16} /></button>
-            <button onClick={() => setCalendarioAberto((v) => !v)} className="flex items-center gap-1.5 text-xs font-bold tracking-widest text-[#F5E6C8] hover:text-[#b8944a] transition">
-              {MESES[mes]} {ano}
+            <button onClick={() => calendarioAberto ? navMes(-1) : navSemana(-1)} className="p-1 text-gray-500 hover:text-gray-300 transition"><IconChevronLeft size={16} /></button>
+            <button onClick={toggleCalendario} className="flex items-center gap-1.5 text-xs font-bold tracking-widest text-[#F5E6C8] hover:text-[#b8944a] transition">
+              {MESES[labelData.getMonth()]} {labelData.getFullYear()}
               <IconChevronDown size={14} className={`text-gray-500 transition-transform ${calendarioAberto ? "" : "-rotate-90"}`} />
             </button>
-            <button onClick={() => navMes(1)} className="p-1 text-gray-500 hover:text-gray-300 transition"><IconChevronRight size={16} /></button>
+            <button onClick={() => calendarioAberto ? navMes(1) : navSemana(1)} className="p-1 text-gray-500 hover:text-gray-300 transition"><IconChevronRight size={16} /></button>
           </div>
-          {calendarioAberto && (
-            <>
-              <div className="grid grid-cols-7 mb-1">
-                {DIAS.map((d) => <div key={d} className="text-center text-[9px] font-medium tracking-widest text-gray-600 py-1">{d}</div>)}
-              </div>
-              <div className="grid grid-cols-7 gap-1">
-                {cells.map((dia, i) => {
-                  if (dia === null) return <div key={`e-${i}`} />;
-                  const dataCel = toDataStr(ano, mes, dia);
-                  const fech = fechPorData[dataCel];
-                  const gastosNoDia = (gastosPorData[dataCel] ?? []).reduce((s, g) => s + g.valor, 0);
-                  const comsDia = comandasPorData[dataCel] ?? [];
-                  const fat = fech?.totalServicos ?? comsDia.filter((c) => c.status === "finalizada").reduce((s, c) => s + (c.total || 0), 0);
-                  const temAbertas = comsDia.some((c) => c.status === "aberta");
-                  const liquido = fat - gastosNoDia;
-                  const eHoje = dataCel === hoje;
-                  const sel = dataCel === diaSel;
-                  const futuro = dataCel > hoje;
-
-                  let borderCls = "border-transparent";
-                  if (sel) borderCls = "border-[#F5E6C8]/40";
-                  else if (temAbertas) borderCls = "border-amber-700/50";
-                  else if (eHoje && !fech) borderCls = "border-[#F5E6C8]/15";
-                  else if (fech && liquido > 0) borderCls = "border-green-900/50";
-                  else if ((fech || gastosNoDia > 0) && liquido <= 0) borderCls = "border-red-900/50";
-
-                  return (
-                    <button key={dataCel} onClick={() => setDiaSel(dataCel)}
-                      className={`relative flex flex-col items-center justify-center py-2 rounded border transition-all ${borderCls} ${sel ? "bg-[#1a1a1a]" : "hover:bg-[#0f0f0f]"} ${futuro && !sel ? "opacity-25" : ""}`}>
-                      <span className={`text-xs font-medium ${eHoje ? "text-white" : fech ? "text-[#F5E6C8]" : "text-gray-500"}`}>{dia}</span>
-                      {fech && <span className={`text-[9px] font-medium leading-none mt-0.5 hidden sm:block ${liquido >= 0 ? "text-green-400" : "text-red-400"}`}>{liquido >= 0 ? "+" : "−"}{brl(Math.abs(liquido)).replace("R$ ", "R$")}</span>}
-                      {temAbertas && <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-amber-500" />}
-                      {eHoje && !fech && !temAbertas && <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#b8944a]" />}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t border-[#111]">
-                {[
-                  { cls: "border-green-900/50", label: "LUCRO POSITIVO" },
-                  { cls: "border-red-900/50", label: "SALDO NEGATIVO / GASTO" },
-                  { cls: "border-amber-700/50", label: "COMANDA EM ABERTO" },
-                  { cls: "border-[#F5E6C8]/15", label: "HOJE" },
-                ].map(({ cls, label }) => (
-                  <div key={label} className="flex items-center gap-1.5">
-                    <div className={`w-3 h-3 border rounded-sm ${cls}`} />
-                    <span className="text-[9px] font-medium tracking-widest text-gray-600">{label}</span>
+          <div className="grid grid-cols-7 mb-1">
+            {DIAS.map((d) => <div key={d} className="text-center text-[9px] font-medium tracking-widest text-gray-600 py-1">{d}</div>)}
+          </div>
+          <div className="overflow-hidden">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={calendarioAberto ? `mes-${ano}-${mes}` : `sem-${ymd(semanaColuna[0])}`}
+                initial={calendarioAberto ? { opacity: 0 } : { opacity: 0, x: dirSemana >= 0 ? 36 : -36 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={calendarioAberto ? { opacity: 0 } : { opacity: 0, x: dirSemana >= 0 ? -36 : 36 }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
+                className="flex flex-col gap-1"
+              >
+                {semanasVisiveis.map((semana, wi) => (
+                  <div key={wi} className="grid grid-cols-7 gap-1">
+                    {semana.map((date) => renderDia(date))}
                   </div>
                 ))}
-              </div>
-            </>
-          )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+          <AnimatePresence initial={false}>
+            {calendarioAberto && (
+              <motion.div key="legenda" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }} style={{ overflow: "hidden" }}>
+                <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t border-[#111]">
+                  {[
+                    { cls: "border-green-900/50", label: "LUCRO POSITIVO" },
+                    { cls: "border-red-900/50", label: "SALDO NEGATIVO / GASTO" },
+                    { cls: "border-amber-700/50", label: "COMANDA EM ABERTO" },
+                    { cls: "border-[#F5E6C8]/15", label: "HOJE" },
+                  ].map(({ cls, label }) => (
+                    <div key={label} className="flex items-center gap-1.5">
+                      <div className={`w-3 h-3 border rounded-sm ${cls}`} />
+                      <span className="text-[9px] font-medium tracking-widest text-gray-600">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* ── Painel do dia ── */}
@@ -707,26 +796,27 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
             <div className="mb-4 border border-[#1a1a1a] rounded-lg overflow-hidden">
               <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 px-3 pt-2.5 pb-1">Comandas finalizadas</p>
               {finalizadas.map((c) => (
-                <div key={c.id} className="border-t border-[#1a1a1a] px-3 py-2">
-                  <div className="flex justify-between items-center text-xs gap-2">
-                    <span className="text-[#F5E6C8] flex items-center gap-1.5 min-w-0"><IconCheck size={11} className="text-green-500 shrink-0" /> <span className="truncate">{c.clienteNome}</span></span>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[#b8944a] font-medium">{brl(c.total)}</span>
-                      {!fechDia && (
-                        <button onClick={() => reabrirComanda(c.id)} title="Reabrir comanda"
-                          className="flex items-center gap-1 text-[9px] font-bold tracking-widest uppercase text-gray-600 hover:text-amber-400 border border-[#2d2d2d] hover:border-amber-700/50 rounded px-1.5 py-0.5 transition">
-                          <IconLockOpen size={10} /> Reabrir
-                        </button>
-                      )}
-                    </div>
+                <div key={c.id} className="border-t border-[#1a1a1a] px-3 py-2.5">
+                  <div className="flex justify-between items-baseline gap-3">
+                    <span className="text-sm text-[#F5E6C8] flex items-center gap-1.5 min-w-0"><IconCheck size={12} className="text-green-500 shrink-0" /> <span className="truncate">{c.clienteNome}</span></span>
+                    <span className="text-sm font-semibold text-[#b8944a] shrink-0">{brl(c.total)}</span>
                   </div>
-                  <div className="pl-4 mt-0.5">
+                  <div className="pl-[22px] mt-1 flex flex-col gap-0.5">
                     {c.itens.map((it) => (
-                      <div key={it.id} className="flex justify-between text-[11px] text-gray-600">
-                        <span>{it.tipo === "produto" ? "📦" : "✂️"} {it.descricao}</span><span>{brl(it.valor)}</span>
+                      <div key={it.id} className="flex justify-between text-[11px] text-gray-500 gap-3">
+                        <span className="truncate">{it.tipo === "produto" ? "📦" : "✂️"} {it.descricao}</span>
+                        {c.itens.length > 1 && <span className="shrink-0 text-gray-600">{brl(it.valor)}</span>}
                       </div>
                     ))}
                   </div>
+                  {!fechDia && (
+                    <div className="flex justify-end mt-2">
+                      <button onClick={() => setModalReabrirComanda(c)}
+                        className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-400 hover:text-amber-300 border border-[#2d2d2d] hover:border-amber-700/50 rounded-lg px-3.5 py-2 transition active:scale-95">
+                        <IconLockOpen size={13} /> Reabrir comanda
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -787,12 +877,15 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
       </div>
 
       {/* ── Card SEPARADO: Comandas do dia (abertas) ── */}
-      {!fechDia && !ehFuturo && (
-        <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-5 mt-4">
+      {!fechDia && (!ehFuturo || abertas.length > 0) && (
+        <div id="comandas-abertas" className="bg-[#111] border border-[#2d2d2d] rounded-xl p-5 mt-4 scroll-mt-4">
           <p className="text-sm font-bold text-[#F5E6C8] mb-1">Comandas em aberto</p>
           <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-3">
             {abertas.length > 0 ? `${abertas.length} comanda${abertas.length > 1 ? "s" : ""} em aberto` : "Nenhuma comanda em aberto"}
           </p>
+          {ehFuturo && abertas.length > 0 && (
+            <p className="text-[11px] text-[#b8944a]/80 mb-3">Agendamentos deste dia. Serão cobrados/finalizados no dia do atendimento.</p>
+          )}
           {abertas.length === 0 ? (
             <p className="text-xs text-gray-500">Comandas abertas aparecem aqui até serem finalizadas ou canceladas.</p>
           ) : (
@@ -820,12 +913,14 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
                     <span className="text-sm font-bold text-[#b8944a] shrink-0">{brl(c.total)}</span>
                   </div>
                   <div className="flex gap-2 mt-3">
-                    <button onClick={() => setFinalizandoComanda(c)}
-                      className="flex-1 flex items-center justify-center gap-1.5 text-[10px] font-bold tracking-widest uppercase bg-green-700/90 text-white hover:bg-green-600 px-3 py-2 rounded-lg transition">
-                      <IconCheck size={12} /> Finalizar
-                    </button>
+                    {!ehFuturo && (
+                      <button onClick={() => setFinalizandoComanda(c)}
+                        className="flex-1 flex items-center justify-center gap-1.5 text-[10px] font-bold tracking-widest uppercase bg-green-700/90 text-white hover:bg-green-600 px-3 py-2 rounded-lg transition">
+                        <IconCheck size={12} /> Finalizar
+                      </button>
+                    )}
                     <button onClick={() => setEditandoComanda(c)}
-                      className="px-3 py-2 border border-[#2d2d2d] text-gray-400 text-[10px] font-bold tracking-widest uppercase rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition">
+                      className={`px-3 py-2 border border-[#2d2d2d] text-gray-400 text-[10px] font-bold tracking-widest uppercase rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition ${ehFuturo ? "flex-1 text-center" : ""}`}>
                       Editar
                     </button>
                     <button onClick={() => setModalCancelar(c)}
