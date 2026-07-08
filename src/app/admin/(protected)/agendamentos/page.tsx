@@ -281,33 +281,22 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, passoMin, car
     return () => clearTimeout(t);
   }, [telefone]);
 
-  // slots ocupados (só quando escolhe data/barbeiro no fluxo completo)
+  // slots ocupados do barbeiro escolhido (só no fluxo completo, com barbeiro definido).
+  // /api/slots já expande a duração de cada agendamento do barbeiro.
   useEffect(() => {
     if (!open || preSel) return;
+    if (!barbeiroId) { setSlotsOcupados([]); return; } // barbeiro obrigatório
     let cancel = false;
     setCarregandoSlots(true);
     (async () => {
       try {
-        if (barbeiroId) {
-          const res = await fetch(`/api/slots?data=${dataKey}&barbeiroId=${encodeURIComponent(barbeiroId)}`, { credentials: "include" });
-          const { bloqueados } = await res.json();
-          if (!cancel) setSlotsOcupados(bloqueados ?? []);
-        } else {
-          const [sr, ar] = await Promise.all([
-            fetch(`/api/slots?data=${dataKey}`, { credentials: "include" }),
-            fetch(`/api/agendamentos?data=${dataKey}`, { credentials: "include" }),
-          ]);
-          const { bloqueados } = await sr.json();
-          const ags = await ar.json();
-          // expande cada agendamento pela sua duração (reserva o intervalo inteiro),
-          // não só o horário de início — assim um corte de 45min bloqueia 09:00/09:15/09:30
-          const ocup = Array.isArray(ags) ? ocupacaoDeAgendamentos(ags, passoMin) : new Set<string>();
-          if (!cancel) setSlotsOcupados(Array.from(new Set([...(bloqueados ?? []), ...ocup])));
-        }
+        const res = await fetch(`/api/slots?data=${dataKey}&barbeiroId=${encodeURIComponent(barbeiroId)}`, { credentials: "include" });
+        const { bloqueados } = await res.json();
+        if (!cancel) setSlotsOcupados(bloqueados ?? []);
       } finally { if (!cancel) setCarregandoSlots(false); }
     })();
     return () => { cancel = true; };
-  }, [open, preSel, dataKey, barbeiroId, passoMin]);
+  }, [open, preSel, dataKey, barbeiroId]);
 
   // ── serviço(s) somados: nomes, preço e duração (mesma lógica do fluxo do cliente) ──
   const servico = servicosSel.map((s) => s.titulo).join(" + ");
@@ -421,11 +410,7 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, passoMin, car
 
         {step === "barbeiro" && (
           <>
-            <button onClick={() => { setBarbeiroId(null); setBarbeiroNome(null); irAposBarbeiro(); }}
-              className="text-left border border-[#2d2d2d] bg-[#111] p-3.5 rounded-xl hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#2d2d2d] flex items-center justify-center shrink-0">✂️</div>
-              <div><p className="font-semibold text-[#F5E6C8]">Qualquer disponível</p><p className="text-[11px] text-gray-500">O próximo barbeiro livre</p></div>
-            </button>
+            {barbeiros.length === 0 && <p className="text-sm text-gray-500 text-center py-6">Nenhum barbeiro cadastrado.</p>}
             {barbeiros.map((b) => (
               <button key={b.id} onClick={() => { setBarbeiroId(b.id); setBarbeiroNome(b.apelido ?? b.nome); irAposBarbeiro(); }}
                 className="text-left border border-[#2d2d2d] bg-[#111] p-3.5 rounded-xl hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition flex items-center gap-3">

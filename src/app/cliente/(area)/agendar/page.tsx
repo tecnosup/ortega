@@ -7,7 +7,7 @@ import type { Barbeiro } from "@/lib/barbeiros-types";
 import { toDateKey } from "@/lib/date-utils";
 import type { Agendamento } from "@/lib/agendamentos-types";
 import { resolverDuracaoMin } from "@/lib/agendamentos-types";
-import { gerarSlotsDia, calcularSlotsLivres, ocupacaoDeAgendamentos, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, CARENCIA_DEFAULT, type GradeConfig } from "@/lib/grade";
+import { gerarSlotsDia, calcularSlotsLivres, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, CARENCIA_DEFAULT, type GradeConfig } from "@/lib/grade";
 
 const MESES =["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["D","S","T","Q","Q","S","S"];
@@ -78,27 +78,17 @@ export default function ClienteAgendarPage() {
   }, []);
 
   const buscarSlots = useCallback(async (dateKey: string, barbeiroId: string | null) => {
-    const cacheKey = barbeiroId ? `${dateKey}__${barbeiroId}` : dateKey;
+    if (!barbeiroId) return; // barbeiro é obrigatório
+    const cacheKey = `${dateKey}__${barbeiroId}`;
     if (slotsOcupados[cacheKey] !== undefined) return;
     setCarregandoSlots(true);
     try {
-      if (barbeiroId) {
-        const res = await fetch(`/api/slots?data=${dateKey}&barbeiroId=${encodeURIComponent(barbeiroId)}`);
-        const { bloqueados } = await res.json();
-        setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: bloqueados ?? [] }));
-      } else {
-        const [slotsRes, agendRes] = await Promise.all([
-          fetch(`/api/slots?data=${dateKey}`),
-          fetch(`/api/agendamentos?data=${dateKey}`),
-        ]);
-        const { bloqueados } = await slotsRes.json();
-        const agendData = await agendRes.json();
-        // expande cada agendamento pela sua duração (reserva o intervalo inteiro)
-        const agendados = Array.isArray(agendData) ? Array.from(ocupacaoDeAgendamentos(agendData, passoMin)) : [];
-        setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: Array.from(new Set([...bloqueados, ...agendados])) }));
-      }
+      // /api/slots já expande a duração de cada agendamento do barbeiro
+      const res = await fetch(`/api/slots?data=${dateKey}&barbeiroId=${encodeURIComponent(barbeiroId)}`);
+      const { bloqueados } = await res.json();
+      setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: bloqueados ?? [] }));
     } finally { setCarregandoSlots(false); }
-  }, [slotsOcupados, passoMin]);
+  }, [slotsOcupados]);
 
   useEffect(() => {
     if (selecao.data) {
@@ -232,18 +222,9 @@ export default function ClienteAgendarPage() {
           <h1 className="text-xl font-bold text-[#F5E6C8] mt-1">Escolha o barbeiro</h1>
         </div>
         <div className="flex flex-col gap-3">
-          <button
-            onClick={() => { setSelecao((s) => ({ ...s, barbeiroId: null, barbeiroNome: null })); setStep("calendario"); }}
-            className="text-left border border-[#2d2d2d] bg-[#111] p-4 rounded-xl hover:border-[#b8944a] transition group"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-[#2d2d2d] flex items-center justify-center text-xl shrink-0">✂️</div>
-              <div>
-                <p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition">Qualquer disponível</p>
-                <p className="text-xs text-gray-500 mt-0.5">O próximo barbeiro livre atende você</p>
-              </div>
-            </div>
-          </button>
+          {barbeiros.length === 0 && (
+            <p className="text-center text-gray-500 text-sm py-8">Nenhum barbeiro disponível no momento.</p>
+          )}
           {barbeiros.map((b) => (
             <button
               key={b.id}

@@ -6,7 +6,7 @@ import type { Item } from "@/lib/admin-items";
 import { type Agendamento, resolverDuracaoMin, parsePriceNum } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import { toDateKey } from "@/lib/date-utils";
-import { gerarSlotsDia, calcularSlotsLivres, ocupacaoDeAgendamentos, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, CARENCIA_DEFAULT, type GradeConfig } from "@/lib/grade";
+import { gerarSlotsDia, calcularSlotsLivres, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, CARENCIA_DEFAULT, type GradeConfig } from "@/lib/grade";
 
 const MESES =["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["D","S","T","Q","Q","S","S"];
@@ -154,34 +154,21 @@ export default function AgendamentoPage() {
     });
   }, []);
 
-  // busca slots ocupados quando muda de data ou barbeiro
+  // busca slots ocupados do barbeiro escolhido quando muda de data/barbeiro.
+  // A API /api/slots já expande a duração de cada agendamento do barbeiro.
   const buscarSlots = useCallback(async (dateKey: string, barbeiroId: string | null) => {
-    const cacheKey = barbeiroId ? `${dateKey}__${barbeiroId}` : dateKey;
+    if (!barbeiroId) return; // barbeiro é obrigatório — sem ele não há o que buscar
+    const cacheKey = `${dateKey}__${barbeiroId}`;
     if (slotsOcupados[cacheKey] !== undefined) return;
     setCarregandoSlots(true);
     try {
-      if (barbeiroId) {
-        // API de slots já filtra horários ocupados do barbeiro específico
-        const res = await fetch(`/api/slots?data=${dateKey}&barbeiroId=${encodeURIComponent(barbeiroId)}`);
-        const { bloqueados } = await res.json();
-        setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: bloqueados ?? [] }));
-      } else {
-        // "qualquer": combina bloqueios globais + todos os agendamentos do dia
-        const [slotsRes, agendRes] = await Promise.all([
-          fetch(`/api/slots?data=${dateKey}`),
-          fetch(`/api/agendamentos?data=${dateKey}`),
-        ]);
-        const { bloqueados } = await slotsRes.json();
-        const agendData = await agendRes.json();
-        // expande cada agendamento pela sua duração (reserva o intervalo inteiro),
-        // não só o horário de início — mesma regra do branch por-barbeiro (/api/slots)
-        const agendados = Array.isArray(agendData) ? Array.from(ocupacaoDeAgendamentos(agendData, passoMin)) : [];
-        setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: Array.from(new Set([...bloqueados, ...agendados])) }));
-      }
+      const res = await fetch(`/api/slots?data=${dateKey}&barbeiroId=${encodeURIComponent(barbeiroId)}`);
+      const { bloqueados } = await res.json();
+      setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: bloqueados ?? [] }));
     } finally {
       setCarregandoSlots(false);
     }
-  }, [slotsOcupados, passoMin]);
+  }, [slotsOcupados]);
 
   useEffect(() => {
     if (selecao.data) {
@@ -325,18 +312,10 @@ export default function AgendamentoPage() {
       setSelecao((s) => ({ ...s, nome, telefone }));
       setAgendamentoId(data.id);
       setStatusAtual("pendente");
-      // invalida cache do slot que acabou de ser ocupado
+      // invalida o cache do slot que acabou de ser ocupado (barbeiro escolhido)
       setSlotsOcupados((prev) => {
         const prev2 = { ...prev };
-        delete prev2[dataKey];
-        if (selecao.barbeiroId) {
-          delete prev2[`${dataKey}__${selecao.barbeiroId}`];
-        } else {
-          // "qualquer": slot pode ter sido atribuído a qualquer barbeiro — invalida todos os caches deste dia
-          for (const key of Object.keys(prev2)) {
-            if (key.startsWith(`${dataKey}__`)) delete prev2[key];
-          }
-        }
+        if (selecao.barbeiroId) delete prev2[`${dataKey}__${selecao.barbeiroId}`];
         return prev2;
       });
       setStep("confirmado");
@@ -448,29 +427,12 @@ export default function AgendamentoPage() {
             <StepIndicator atual={2} />
             <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 2 de 4</span>
             <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Escolha o barbeiro</h1>
-            <p className="text-gray-500 text-sm mt-1">Ou deixe em branco para qualquer disponível</p>
           </div>
 
           <div className="flex flex-col gap-3">
-            {/* opção "qualquer" */}
-            <button
-              onClick={() => {
-                setSelecao((s) => ({ ...s, barbeiroId: null, barbeiroNome: null }));
-                setStep("calendario");
-              }}
-              className={`text-left border rounded-xl p-4 sm:p-5 transition-all duration-200 active:scale-[0.98] hover:border-[#b8944a] hover:bg-[#b8944a]/5 group ${
-                selecao.barbeiroId === null ? "border-[#b8944a] bg-[#b8944a]/5" : "border-[#2d2d2d] bg-[#111]"
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-[#2d2d2d] flex items-center justify-center text-xl shrink-0">✂️</div>
-                <div>
-                  <p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition">Qualquer disponível</p>
-                  <p className="text-xs text-gray-500 mt-0.5">O próximo barbeiro livre atende você</p>
-                </div>
-              </div>
-            </button>
-
+            {barbeiros.length === 0 && (
+              <p className="text-center text-gray-500 text-sm py-10">Nenhum barbeiro disponível no momento.</p>
+            )}
             {barbeiros.map((b) => (
               <button
                 key={b.id}
