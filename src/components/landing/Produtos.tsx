@@ -214,14 +214,14 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
 
         {/* mobile */}
         <div className="md:hidden -mx-4 px-4 overflow-x-auto scrollbar-hide">
-          <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
+          <div className="flex items-stretch gap-3 pb-2" style={{ width: "max-content" }}>
             {produtosFiltrados.map((produto) => {
               const { desconto, precoOriginal, precoFinal } = getPrecos(produto);
               return (
                 <button
                   key={produto.id}
                   onClick={() => setModalProduto(produto)}
-                  className="relative flex flex-col bg-white/[0.03] backdrop-blur-sm border border-[#C9A84C]/10 overflow-hidden text-left"
+                  className="relative flex flex-col bg-white/[0.03] backdrop-blur-sm border border-[#C9A84C]/10 overflow-hidden text-left shrink-0"
                   style={{ width: 180 }}
                 >
                   {desconto && (
@@ -229,34 +229,26 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
                       -{desconto.percentual}%
                     </span>
                   )}
-                  <div className="relative overflow-hidden bg-[#1a1a1a]" style={{ aspectRatio: "3/4" }}>
+                  {/* moldura fixa da imagem (mesma proporção com ou sem foto) */}
+                  <div className="relative w-full overflow-hidden bg-[#1a1a1a] shrink-0" style={{ aspectRatio: "3/4" }}>
                     {produto.imagem ? (
-                      <>
-                        <img src={produto.imagem} alt={produto.titulo} className="w-full h-full object-cover" loading="lazy" />
-                        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#141414] to-transparent" />
-                        <div className="absolute inset-x-0 bottom-0 p-3">
-                          <p className="font-semibold text-[#F5E6C8] text-xs leading-tight">{produto.titulo}</p>
-                          {precoOriginal && (
-                            <p className="text-[#C9A84C] text-xs font-bold mt-0.5">
-                              {precoFinal ? `R$ ${precoFinal}` : precoOriginal.startsWith("A") ? precoOriginal : `R$ ${precoOriginal}`}
-                            </p>
-                          )}
-                        </div>
-                      </>
+                      <img src={produto.imagem} alt={produto.titulo} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
                     ) : (
-                      // sem imagem: layout sólido e legível (ícone em cima, nome/preço embaixo)
-                      <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-3 text-center">
-                        <ShoppingBag size={30} className="text-[#C9A84C]/25" />
-                        <p className="font-semibold text-[#F5E6C8] text-xs leading-tight line-clamp-2">{produto.titulo}</p>
-                        {precoOriginal && (
-                          <p className="text-[#C9A84C] text-xs font-bold">
-                            {precoFinal ? `R$ ${precoFinal}` : precoOriginal.startsWith("A") ? precoOriginal : `R$ ${precoOriginal}`}
-                          </p>
-                        )}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <ShoppingBag size={34} className="text-[#C9A84C]/20" />
                       </div>
                     )}
                   </div>
-                  <div className="py-2.5 bg-[#C9A84C] text-[#0A0A0A] text-[10px] font-black tracking-widest uppercase text-center">
+                  {/* infos: sempre no mesmo lugar, com ou sem foto */}
+                  <div className="flex flex-col gap-1 p-3 flex-1">
+                    <p className="font-semibold text-[#F5E6C8] text-xs leading-tight line-clamp-2">{produto.titulo}</p>
+                    {precoOriginal && (
+                      <p className="text-[#C9A84C] text-xs font-bold mt-auto">
+                        {precoFinal ? `R$ ${precoFinal}` : precoOriginal.startsWith("A") ? precoOriginal : `R$ ${precoOriginal}`}
+                      </p>
+                    )}
+                  </div>
+                  <div className="py-2.5 bg-[#C9A84C] text-[#0A0A0A] text-[10px] font-black tracking-widest uppercase text-center shrink-0">
                     Ver produto
                   </div>
                 </button>
