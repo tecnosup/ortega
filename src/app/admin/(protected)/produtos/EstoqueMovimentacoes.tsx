@@ -8,6 +8,7 @@ import type { MovimentacaoEstoque, TipoMovimentacao } from "@/lib/estoque-movime
 import { TIPO_LABEL } from "@/lib/estoque-movimentacoes-tipos";
 import Modal from "@/components/ui/Modal";
 import { useModalMount } from "@/components/ui/useModalMount";
+import { useToast } from "@/components/ui/Toast";
 import type { Produto } from "@/lib/admin-produtos";
 
 const TIPOS: { key: TipoMovimentacao | "todos"; label: string }[] = [
@@ -167,6 +168,7 @@ function NovaMovimentacaoModal({
 const PAGE_SIZE = 5;
 
 export default function EstoqueMovimentacoes({ produtos }: { produtos: Produto[] }) {
+  const toast = useToast();
   const [movs, setMovs] = useState<MovimentacaoEstoque[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [expandido, setExpandido] = useState(true);
@@ -195,7 +197,7 @@ export default function EstoqueMovimentacoes({ produtos }: { produtos: Produto[]
           key={movMount.key}
           open={movMount.open}
           produtos={produtos}
-          onSalvar={() => { setModalAberto(false); carregar(); }}
+          onSalvar={() => { setModalAberto(false); toast.sucesso("Movimentação registrada!"); carregar(); }}
           onFechar={() => setModalAberto(false)}
         />
       )}

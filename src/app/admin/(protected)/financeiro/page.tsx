@@ -18,6 +18,7 @@ import type { GastoDia } from "@/lib/gastos-dia-tipos";
 import { CATEGORIA_LABEL, FREQUENCIA_LABEL, gastoMensalEquivalente } from "@/lib/gastos-tipos";
 import Modal from "@/components/ui/Modal";
 import { useModalMount } from "@/components/ui/useModalMount";
+import { useToast } from "@/components/ui/Toast";
 import AdminFab from "@/components/admin/AdminFab";
 
 function brl(v: number) { return `R$ ${v.toFixed(2).replace(".", ",")}` }
@@ -120,6 +121,7 @@ function ModalCategorias({ open = true, categorias, onFechar, onChanged }: {
   onFechar: () => void;
   onChanged: () => void;
 }) {
+  const toast = useToast();
   const [editando, setEditando] = useState<CategoriaGastoCustom | null>(null);
   const [novoNome, setNovoNome] = useState("");
   const [novaCor, setNovaCor] = useState(PALETTE[0]);
@@ -151,12 +153,13 @@ function ModalCategorias({ open = true, categorias, onFechar, onChanged }: {
         body: JSON.stringify({ nome: novoNome.trim(), cor: novaCor }),
       });
     }
-    setSalvando(false); fecharForm(); onChanged();
+    setSalvando(false); toast.sucesso(editando ? "Categoria atualizada!" : "Categoria criada!"); fecharForm(); onChanged();
   }
 
   async function excluir(id: string) {
     if (!confirm("Excluir esta categoria? Gastos vinculados não serão afetados.")) return;
     await fetch(`/api/gastos/categorias/${id}`, { method: "DELETE", credentials: "include" });
+    toast.info("Categoria excluída");
     onChanged();
   }
 
@@ -358,6 +361,7 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
 }
 
 export default function FinanceiroPage() {
+  const toast = useToast();
   const [fechamentos, setFechamentos] = useState<FechamentoDia[]>([]);
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [gastosDia, setGastosDia] = useState<GastoDia[]>([]);
@@ -398,6 +402,7 @@ export default function FinanceiroPage() {
     });
     setPagando(false);
     setPagarModal(null);
+    toast.sucesso("Pagamento registrado!");
     carregar();
   }
   const [gastoExpandido, setGastoExpandido] = useState<string | null>(null);
@@ -420,6 +425,7 @@ export default function FinanceiroPage() {
 
   async function salvarGasto(data: Partial<Gasto>) {
     setSalvandoGasto(true);
+    const editando = !!editandoGasto;
     if (editandoGasto) {
       await fetch(`/api/gastos/${editandoGasto.id}`, { credentials: "include", method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
       setEditandoGasto(null);
@@ -428,17 +434,20 @@ export default function FinanceiroPage() {
       setMostraFormGasto(false);
     }
     setSalvandoGasto(false);
+    toast.sucesso(editando ? "Gasto atualizado!" : "Gasto cadastrado!");
     carregar();
   }
 
   async function toggleGasto(g: Gasto) {
     await fetch(`/api/gastos/${g.id}`, { credentials: "include", method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ativo: !g.ativo }) });
+    toast.info(g.ativo ? "Gasto desativado" : "Gasto ativado");
     carregar();
   }
 
   async function excluirGasto(id: string) {
     if (!confirm("Excluir este gasto?")) return;
     await fetch(`/api/gastos/${id}`, { credentials: "include", method: "DELETE" });
+    toast.info("Gasto excluído");
     carregar();
   }
 
