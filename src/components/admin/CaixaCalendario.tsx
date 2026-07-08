@@ -88,39 +88,101 @@ function ModalConfirm({ open = true, titulo, mensagem, confirmLabel, confirmClas
   );
 }
 
-// ── Form de despesa do dia ──────────────────────────────────────────────────────
-function FormGastoDia({ data, onSalvo, onCancelar }: { data: string; onSalvo: () => void; onCancelar: () => void; }) {
+// ── Modal de despesa do dia ─────────────────────────────────────────────────────
+function FormGastoDia({ open = true, data, onSalvo, onCancelar }: { open?: boolean; data: string; onSalvo: () => void; onCancelar: () => void; }) {
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
+  const [categoriaId, setCategoriaId] = useState<string | null>(null);
+  const [categorias, setCategorias] = useState<{ id: string; nome: string; cor: string }[]>([]);
   const [salvando, setSalvando] = useState(false);
+  const [sucesso, setSucesso] = useState(false);
   const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    let cancelado = false;
+    fetch("/api/gastos/categorias", { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then((d) => { if (!cancelado) setCategorias(Array.isArray(d) ? d : []); })
+      .catch(() => {});
+    return () => { cancelado = true; };
+  }, []);
 
   async function salvar() {
     if (!descricao.trim()) { setErro("Descrição obrigatória"); return; }
     if (!valor || isNaN(Number(valor)) || Number(valor) <= 0) { setErro("Valor inválido"); return; }
-    setSalvando(true);
+    setErro(""); setSalvando(true);
+    const cat = categorias.find((c) => c.id === categoriaId);
     const res = await fetch("/api/gastos-dia", {
       method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data, descricao, valor: Number(valor) }),
+      body: JSON.stringify({
+        data, descricao: descricao.trim(), valor: Number(valor),
+        ...(cat ? { categoriaId: cat.id, categoriaNome: cat.nome, categoriaCor: cat.cor } : {}),
+      }),
     });
     setSalvando(false);
-    if (res.ok) onSalvo(); else setErro("Erro ao salvar");
+    if (!res.ok) { setErro("Erro ao salvar"); return; }
+    setSucesso(true);
+    setTimeout(() => onSalvo(), 1200);
   }
 
   return (
-    <div className="bg-[#0d0d0d] border border-[#2d2d2d] rounded-lg p-4 flex flex-col gap-3 mt-2">
-      <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase">Despesa do dia</p>
-      {erro && <p className="text-xs text-red-400">{erro}</p>}
-      <input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex: Produto comprado, material..." className={inp} />
-      <input type="number" min="0" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="Valor (R$)" className={inp} />
-      <div className="flex gap-2">
-        <button onClick={salvar} disabled={salvando} className="px-4 py-1.5 bg-red-900/50 border border-red-800/60 text-red-300 text-xs font-bold rounded hover:bg-red-900/70 transition disabled:opacity-50">
-          {salvando ? "Salvando..." : "Registrar despesa"}
-        </button>
-        <button onClick={onCancelar} className="px-4 py-1.5 border border-[#2d2d2d] text-gray-400 text-xs rounded hover:border-[#b8944a] transition">Cancelar</button>
+    <Modal open={open} onClose={onCancelar} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-md mx-4 flex flex-col">
+      <AnimatePresence>
+        {sucesso && (
+          <motion.div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#141414] rounded-xl"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div className="w-16 h-16 rounded-full bg-red-800/80 flex items-center justify-center"
+              initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300, damping: 15 }}>
+              <IconTrendingDown size={30} className="text-white" strokeWidth={2.5} />
+            </motion.div>
+            <motion.p className="text-sm font-bold text-red-300" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+              Despesa registrada!
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="px-5 py-4 border-b border-[#1e1e1e]">
+        <h3 className="font-bold text-[#F5E6C8] text-sm">Registrar despesa</h3>
+        <p className="text-[10px] text-gray-500 mt-0.5">{new Date(data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}</p>
       </div>
-    </div>
+
+      <div className="px-5 py-4 flex flex-col gap-3">
+        {erro && <p className="text-xs text-red-400 bg-red-900/10 border border-red-900/30 rounded px-3 py-2">{erro}</p>}
+        <input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex: Produto comprado, material..." className={inp} />
+        <div className="flex items-center gap-2">
+          <label className="text-[10px] text-gray-600 tracking-widest uppercase shrink-0">Valor (R$)</label>
+          <input type="number" min="0" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" className={`${inp} flex-1`} />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Categoria <span className="text-gray-600 lowercase tracking-normal">(opcional)</span></p>
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" onClick={() => setCategoriaId(null)}
+                className={`text-xs px-2.5 py-1.5 rounded-lg border transition ${categoriaId === null ? "border-[#b8944a] text-[#b8944a] bg-[#b8944a]/10" : "border-[#2d2d2d] text-gray-500 hover:border-[#b8944a]/50"}`}>
+                Sem categoria
+              </button>
+              {categorias.map((c, i) => (
+                <motion.button key={c.id} type="button" onClick={() => setCategoriaId(c.id)}
+                  initial={{ opacity: 0, scale: 0.8, y: 4 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ delay: i * 0.05, type: "spring", stiffness: 500, damping: 24 }}
+                  className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${categoriaId === c.id ? "border-[#b8944a] text-[#F5E6C8] bg-[#b8944a]/10" : "border-[#2d2d2d] text-gray-400 hover:border-[#b8944a]/50"}`}>
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.cor }} /> {c.nome}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+      </div>
+
+      <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2">
+        <button onClick={salvar} disabled={salvando || sucesso}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-red-900/50 border border-red-800/60 text-red-300 text-xs font-bold tracking-widest uppercase rounded-lg hover:bg-red-900/70 transition disabled:opacity-50">
+          <IconTrendingDown size={14} /> {salvando ? "Salvando..." : "Registrar despesa"}
+        </button>
+        <button onClick={onCancelar} disabled={sucesso} className="px-5 py-2.5 border border-[#2d2d2d] text-gray-400 text-xs rounded-lg hover:border-[#b8944a] transition disabled:opacity-50">Cancelar</button>
+      </div>
+    </Modal>
   );
 }
 
@@ -307,7 +369,7 @@ function FormComanda({ open = true, data, inicial, onSalvo, onCancelar }: {
 
       <div className="flex items-center px-5 py-4 border-b border-[#1e1e1e]">
         <div>
-          <h3 className="font-bold text-[#F5E6C8] text-sm">{inicial ? "Editar comanda" : "Nova comanda"}</h3>
+          <h3 className="font-bold text-[#F5E6C8] text-sm">{inicial ? "Editar comanda" : "Abrir comanda"}</h3>
           <p className="text-[10px] text-gray-500 mt-0.5">{new Date(data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}</p>
         </div>
       </div>
@@ -488,6 +550,7 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
   const novaComandaMount = useModalMount(novaComanda ? true : null);
   const editarMount = useModalMount(editandoComanda);
   const finalizarMount = useModalMount(finalizandoComanda);
+  const gastoMount = useModalMount(mostraFormGasto ? true : null);
   const cancelarMount = useModalMount(modalCancelar);
   const reabrirComandaMount = useModalMount(modalReabrirComanda);
   const reabrirMount = useModalMount(modalReabrir ? true : null);
@@ -502,6 +565,9 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
       const d = new Date(p + "T12:00:00");
       setAno(d.getFullYear()); setMes(d.getMonth());
       setTimeout(() => document.getElementById("caixa")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    }
+    if (searchParams.get("acao") === "nova-comanda") {
+      setNovaComanda(true);
     }
   }, [searchParams]); // eslint-disable-line
 
@@ -598,7 +664,6 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
   // Semana visível quando retraído: 7 dias reais a partir do domingo de refSemana
   const inicioSem = inicioSemana(new Date(refSemana + "T12:00:00"));
   const semanaColuna: Date[] = Array.from({ length: 7 }, (_, i) => addDiasCal(inicioSem, i));
-  const semanasVisiveis: Date[][] = calendarioAberto ? semanasMes : [semanaColuna];
   const labelData = calendarioAberto ? new Date(ano, mes, 1) : semanaColuna[3];
 
   function toggleCalendario() {
@@ -652,6 +717,10 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
       {finalizarMount.mounted && finalizarMount.value && (
         <FormFinalizar open={finalizarMount.open} comanda={finalizarMount.value}
           onFinalizado={() => { setFinalizandoComanda(null); onAtualizar(); }} onCancelar={() => setFinalizandoComanda(null)} />
+      )}
+      {gastoMount.mounted && (
+        <FormGastoDia open={gastoMount.open} data={diaSel}
+          onSalvo={() => { setMostraFormGasto(false); onAtualizar(); }} onCancelar={() => setMostraFormGasto(false)} />
       )}
       {cancelarMount.mounted && cancelarMount.value && (
         <ModalConfirm open={cancelarMount.open} titulo="Cancelar comanda?"
@@ -725,24 +794,40 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
           <div className="grid grid-cols-7 mb-1">
             {DIAS.map((d) => <div key={d} className="text-center text-[9px] font-medium tracking-widest text-gray-600 py-1">{d}</div>)}
           </div>
-          <div className="overflow-hidden">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={calendarioAberto ? `mes-${ano}-${mes}` : `sem-${ymd(semanaColuna[0])}`}
-                initial={calendarioAberto ? { opacity: 0 } : { opacity: 0, x: dirSemana >= 0 ? 36 : -36 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={calendarioAberto ? { opacity: 0 } : { opacity: 0, x: dirSemana >= 0 ? -36 : 36 }}
-                transition={{ duration: 0.22, ease: "easeOut" }}
-                className="flex flex-col gap-1"
-              >
-                {semanasVisiveis.map((semana, wi) => (
-                  <div key={wi} className="grid grid-cols-7 gap-1">
-                    {semana.map((date) => renderDia(date))}
-                  </div>
-                ))}
+          <AnimatePresence mode="wait" initial={false}>
+            {calendarioAberto ? (
+              <motion.div key="mes-view"
+                initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }} style={{ overflow: "hidden" }}>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div key={`mes-${ano}-${mes}`}
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }} className="flex flex-col gap-1">
+                    {semanasMes.map((semana, wi) => (
+                      <div key={wi} className="grid grid-cols-7 gap-1">
+                        {semana.map((date) => renderDia(date))}
+                      </div>
+                    ))}
+                  </motion.div>
+                </AnimatePresence>
               </motion.div>
-            </AnimatePresence>
-          </div>
+            ) : (
+              <motion.div key="sem-view"
+                initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }} style={{ overflow: "hidden" }}>
+                <AnimatePresence mode="wait" initial={false} custom={dirSemana}>
+                  <motion.div key={`sem-${ymd(semanaColuna[0])}`}
+                    initial={{ opacity: 0, x: dirSemana >= 0 ? 36 : -36 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: dirSemana >= 0 ? -36 : 36 }}
+                    transition={{ duration: 0.22, ease: "easeOut" }}
+                    className="grid grid-cols-7 gap-1">
+                    {semanaColuna.map((date) => renderDia(date))}
+                  </motion.div>
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <AnimatePresence initial={false}>
             {calendarioAberto && (
               <motion.div key="legenda" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }} style={{ overflow: "hidden" }}>
@@ -841,20 +926,14 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
             </div>
           )}
 
-          {/* ── Form gasto ── */}
-          {mostraFormGasto && !fechDia && (
-            <FormGastoDia data={diaSel} onSalvo={() => { setMostraFormGasto(false); onAtualizar(); }} onCancelar={() => setMostraFormGasto(false)} />
-          )}
-
           {/* ── Botões de ação ── */}
-          {!mostraFormGasto && (
-            <div className="mt-3">
+          <div className="mt-3">
               {erroFechar && <p className="text-xs text-amber-400 bg-amber-950/30 border border-amber-800/40 rounded px-3 py-2 mb-2">{erroFechar}</p>}
               {!fechDia ? (
                 <div className="grid grid-cols-3 gap-2">
                   <button onClick={() => setNovaComanda(true)} disabled={ehFuturo}
                     className="flex flex-col items-center justify-center gap-1 text-[10px] font-bold tracking-widest bg-[#b8944a]/15 border border-[#b8944a]/40 text-[#b8944a] hover:bg-[#b8944a]/25 hover:border-[#b8944a] px-2 py-3 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed">
-                    <IconPlus size={15} /> NOVA COMANDA
+                    <IconPlus size={15} /> ABRIR COMANDA
                   </button>
                   <button onClick={() => setMostraFormGasto(true)} disabled={ehFuturo}
                     className="flex flex-col items-center justify-center gap-1 text-[10px] font-bold tracking-widest bg-red-950/40 border border-red-900/50 text-red-400/90 hover:border-red-800 hover:text-red-400 px-2 py-3 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed">
@@ -872,7 +951,6 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
                 </button>
               )}
             </div>
-          )}
         </div>
       </div>
 

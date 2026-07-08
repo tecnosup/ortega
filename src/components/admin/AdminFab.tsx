@@ -33,7 +33,7 @@ export default function AdminFab() {
     <Fab actions={[
       { label: "Agendar horário", icon: IconCalendarPlus, onClick: () => router.push("/admin/agendamentos?acao=agendar") },
       { label: "Link de agendamento", icon: IconLink, onClick: copiarLink },
-      { label: "Abrir comanda", icon: IconFileText, onClick: () => router.push(`/admin/caixa?dia=${hojeKey}#caixa`) },
+      { label: "Abrir comanda", icon: IconFileText, onClick: () => router.push(`/admin/caixa?acao=nova-comanda&dia=${hojeKey}`) },
       { label: "Grade de hoje", icon: IconCalendarClock, onClick: () => router.push("/admin/agendamentos?acao=grade") },
     ]} />
   );
