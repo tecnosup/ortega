@@ -6,7 +6,7 @@ import type { Item } from "@/lib/admin-items";
 import { type Agendamento, resolverDuracaoMin, parsePriceNum } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import { toDateKey } from "@/lib/date-utils";
-import { gerarSlotsDia, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, type GradeConfig } from "@/lib/grade";
+import { gerarSlotsDia, servicoCabeNoDia, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, CARENCIA_DEFAULT, type GradeConfig } from "@/lib/grade";
 
 const MESES =["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["D","S","T","Q","Q","S","S"];
@@ -123,6 +123,7 @@ export default function AgendamentoPage() {
   const [carregandoSlots, setCarregandoSlots] = useState(false);
   const [grade, setGrade] = useState<GradeConfig>(GRADE_DEFAULT);
   const [passoMin, setPassoMin] = useState<number>(PASSO_DEFAULT);
+  const [carenciaMin, setCarenciaMin] = useState<number>(CARENCIA_DEFAULT);
 
   // ref da seção de horários — usado para rolar até ela ao escolher o dia
   const horariosRef = useRef<HTMLDivElement>(null);
@@ -148,6 +149,7 @@ export default function AgendamentoPage() {
       if (dSettings.whatsappNumber) setWhatsappNumber(dSettings.whatsappNumber);
       if (dGrade.grade) setGrade(mesclarGrade(dGrade.grade));
       if (dGrade.passoMin) setPassoMin(dGrade.passoMin);
+      if (dGrade.carenciaMin !== undefined) setCarenciaMin(dGrade.carenciaMin);
       setCarregandoDados(false);
     });
   }, []);
@@ -223,23 +225,22 @@ export default function AgendamentoPage() {
     if (todos.length === 0) return [];
     const cacheKey = selecao.barbeiroId ? `${dateKey}__${selecao.barbeiroId}` : dateKey;
     const ocupados = new Set(slotsOcupados[cacheKey] ?? []);
-    const todosSet = new Set(todos);
     const agora = new Date();
     const hojeKey = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}-${String(agora.getDate()).padStart(2, "0")}`;
     const minutosAgora = agora.getHours() * 60 + agora.getMinutes();
     // duração do serviço escolhido (fallback = 1 passo, comportamento antigo)
     const dur = selecao.duracaoMin > 0 ? selecao.duracaoMin : passoMin;
+    const dia = grade[diaSemana];
     const fmt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
     return todos.filter((s) => {
       const [h, m] = s.split(":").map(Number);
       const ini = h * 60 + m;
       if (dateKey === hojeKey && ini <= minutosAgora) return false;
-      // o serviço precisa caber inteiro: cada sub-slot [ini, ini+dur) deve existir na
-      // grade do dia (não passa do fim/almoço) e estar livre
+      // cabe no expediente (fim + carência) e não atravessa o almoço
+      if (!servicoCabeNoDia(s, dur, dia, carenciaMin)) return false;
+      // não colide com nenhum agendamento existente no intervalo [ini, ini+dur)
       for (let t = ini; t < ini + dur; t += passoMin) {
-        const slot = fmt(t);
-        if (!todosSet.has(slot)) return false; // fora do expediente ou dentro do almoço
-        if (ocupados.has(slot)) return false;  // colide com agendamento existente
+        if (ocupados.has(fmt(t))) return false;
       }
       return true;
     });
