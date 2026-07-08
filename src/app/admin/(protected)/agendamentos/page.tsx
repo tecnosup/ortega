@@ -1499,7 +1499,7 @@ export default function AgendamentosAdminPage() {
                     {ehFuturo ? "Nenhum agendamento para este dia ainda." : "Nenhum agendamento neste dia."}
                   </div>
                 ) : (
-                  <div className="divide-y divide-[#1a1a1a]">
+                  <div className="flex flex-col gap-2 p-3">
                     {agsDia.map((ag) => {
                       const editando = editandoId === ag.id;
                       const ocupado = processando === ag.id;
@@ -1519,10 +1519,11 @@ export default function AgendamentosAdminPage() {
                       const horarioFim = `${String(Math.floor(fimMin / 60)).padStart(2, "0")}:${String(fimMin % 60).padStart(2, "0")}`;
 
                       return (
-                        <div key={ag.id} id={`ag-${ag.id}`} className={`px-4 py-4 transition rounded-lg ${finalizado && !ehConcluido ? "opacity-50" : ""}`}>
+                        <div key={ag.id} id={`ag-${ag.id}`} className={`bg-[#0d0d0d] border rounded-xl px-3 sm:px-4 py-3.5 transition ${ehConcluido ? "border-green-900/40" : ag.status === "nao_compareceu" || ag.status === "cancelado" ? "border-[#242424] opacity-60" : "border-[#242424]"}`}>
                           <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 w-20 pt-0.5">
-                              <p className="text-sm font-bold text-[#F5E6C8]">{ag.horario} – {horarioFim}</p>
+                            <div className="flex-shrink-0 w-[52px] flex flex-col items-center pt-0.5">
+                              <span className="text-sm font-bold text-[#F5E6C8] tabular-nums leading-tight">{ag.horario}</span>
+                              <span className="text-[10px] text-gray-600 tabular-nums leading-tight mt-0.5">{horarioFim}</span>
                             </div>
                             <div className="flex-1 min-w-0 flex gap-2">
                               <div className="flex-1 min-w-0">
@@ -1580,26 +1581,28 @@ export default function AgendamentosAdminPage() {
                                     </div>
                                   )}
                                   {!caixaFechado && (
-                                    <div className="flex items-center gap-1 flex-wrap mt-3">
+                                    <div className="flex items-center gap-1.5 flex-wrap mt-3 pt-3 border-t border-[#1a1a1a]">
                                       {ag.status === "pendente" && (
-                                        <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1 text-xs text-blue-400 border border-blue-700/40 rounded-lg hover:bg-blue-900/20 transition"><Check size={11} /> Confirmar</button>
+                                        <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-400 border border-blue-700/40 rounded-lg hover:bg-blue-900/20 transition"><Check size={12} /> Confirmar</button>
                                       )}
                                       {(ag.status === "confirmado" || ag.status === "pendente") && (
-                                        <button onClick={() => setModal({ tipo: "concluir", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1 text-xs text-green-400 border border-green-700/40 rounded-lg hover:bg-green-900/20 transition"><CheckCircle size={11} /> Concluir</button>
+                                        <button onClick={() => setModal({ tipo: "concluir", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-green-400 border border-green-700/40 rounded-lg hover:bg-green-900/20 transition"><CheckCircle size={12} /> Concluir</button>
                                       )}
                                       {!finalizado && (
-                                        <button onClick={() => setReagendarAg(ag)} className="flex items-center gap-1 px-2.5 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><CalendarPlus size={11} /> Reagendar</button>
+                                        <button onClick={() => setReagendarAg(ag)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><CalendarPlus size={12} /> Reagendar</button>
                                       )}
                                       {(ag.status === "confirmado" || ag.status === "pendente") && (
-                                        <button onClick={() => atualizarStatus(ag.id, "nao_compareceu")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><Clock size={11} /> Não compareceu</button>
+                                        <button onClick={() => atualizarStatus(ag.id, "nao_compareceu")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><Clock size={12} /> Não compareceu</button>
                                       )}
                                       {(ehConcluido || ag.status === "nao_compareceu") && (
-                                        <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><Undo2 size={11} /> Desfazer</button>
+                                        <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><Undo2 size={12} /> Desfazer</button>
                                       )}
-                                      {!finalizado && (
-                                        <button onClick={() => { setEditandoId(ag.id); const srvs = ag.servico.split(" + "); const precos = ag.preco.split(" + "); setEditLinhas(srvs.map((s, i) => ({ servico: s.trim(), preco: precos[i]?.trim() ?? "" }))); }} className="p-1.5 text-gray-500 hover:text-gray-300 rounded-lg transition"><Pencil size={13} /></button>
-                                      )}
-                                      <button onClick={() => setModal({ tipo: "excluir", id: ag.id })} className="p-1.5 text-red-500/50 hover:text-red-400 rounded-lg transition"><Trash2 size={13} /></button>
+                                      <div className="flex items-center gap-1 ml-auto">
+                                        {!finalizado && (
+                                          <button onClick={() => { setEditandoId(ag.id); const srvs = ag.servico.split(" + "); const precos = ag.preco.split(" + "); setEditLinhas(srvs.map((s, i) => ({ servico: s.trim(), preco: precos[i]?.trim() ?? "" }))); }} className="p-1.5 text-gray-500 hover:text-gray-300 border border-transparent hover:border-[#2d2d2d] rounded-lg transition" title="Editar"><Pencil size={13} /></button>
+                                        )}
+                                        <button onClick={() => setModal({ tipo: "excluir", id: ag.id })} className="p-1.5 text-red-500/50 hover:text-red-400 border border-transparent hover:border-red-900/40 rounded-lg transition" title="Excluir"><Trash2 size={13} /></button>
+                                      </div>
                                     </div>
                                   )}
                                 </>
