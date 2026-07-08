@@ -3,12 +3,10 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import Link from "next/link";
 import {
-  Scissors, DollarSign, CalendarCheck, TrendingUp,
-  ChevronLeft, ChevronRight, AlertTriangle, Bell,
-  Clock, CreditCard, X, CheckCircle2, AlertCircle, ExternalLink,
-} from "lucide-react";
+  IconAlertCircle, IconAlertTriangle, IconBell, IconCalendarCheck, IconChevronLeft, IconChevronRight, IconCircleCheck, IconClock, IconCreditCard, IconCurrencyDollar, IconExternalLink, IconScissors, IconTrendingUp, IconX,
+} from "@tabler/icons-react";
+import Link from "next/link";
 import AdminFab from "@/components/admin/AdminFab";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { Agendamento, FechamentoDia } from "@/lib/agendamentos-types";
@@ -35,10 +33,10 @@ interface Alerta {
 }
 
 const ALERTA_STYLES: Record<AlertaNivel, { bg: string; border: string; text: string; icon: React.ReactNode }> = {
-  vermelho: { bg: "bg-red-950/60",    border: "border-red-700/50",    text: "text-red-300",    icon: <AlertCircle size={15} /> },
-  laranja:  { bg: "bg-orange-950/60", border: "border-orange-600/50", text: "text-orange-300", icon: <AlertTriangle size={15} /> },
-  amarelo:  { bg: "bg-yellow-950/50", border: "border-yellow-600/40", text: "text-yellow-300", icon: <Bell size={15} /> },
-  azul:     { bg: "bg-blue-950/50",   border: "border-blue-600/40",   text: "text-blue-300",   icon: <CheckCircle2 size={15} /> },
+  vermelho: { bg: "bg-red-950/60",    border: "border-red-700/50",    text: "text-red-300",    icon: <IconAlertCircle size={15} /> },
+  laranja:  { bg: "bg-orange-950/60", border: "border-orange-600/50", text: "text-orange-300", icon: <IconAlertTriangle size={15} /> },
+  amarelo:  { bg: "bg-yellow-950/50", border: "border-yellow-600/40", text: "text-yellow-300", icon: <IconBell size={15} /> },
+  azul:     { bg: "bg-blue-950/50",   border: "border-blue-600/40",   text: "text-blue-300",   icon: <IconCircleCheck size={15} /> },
 };
 
 function calcularAlertas(
@@ -240,12 +238,12 @@ export default function AdminDashboard() {
         <div className="flex flex-col gap-1.5">
           {notif.caixasAbertos > 0 && (
             <div className="bg-red-950/40 border border-red-800/50 rounded-lg px-3.5 py-2.5 flex items-center gap-2 flex-wrap">
-              <AlertTriangle size={13} className="text-red-400 shrink-0" />
+              <IconAlertTriangle size={13} className="text-red-400 shrink-0" />
               <span className="text-xs font-semibold text-red-300 shrink-0">
                 {notif.caixasAbertos} caixa{notif.caixasAbertos > 1 ? "s" : ""} retroativo{notif.caixasAbertos > 1 ? "s" : ""} em aberto
               </span>
               {notif.caixasAbertosLista.map((data) => (
-                <Link key={data} href={`/admin/financeiro?dia=${data}#caixa`}
+                <Link key={data} href={`/admin/caixa?dia=${data}#caixa`}
                   className="text-[10px] font-medium text-red-300/80 border border-red-800/40 rounded px-2 py-0.5 hover:border-red-500/60 hover:text-red-300 transition capitalize">
                   {new Date(data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}
                 </Link>
@@ -255,7 +253,7 @@ export default function AdminDashboard() {
           {notif.vencimentos > 0 && (
             <div className="bg-amber-950/30 border border-amber-700/40 rounded-lg p-3.5 flex flex-col gap-2.5">
               <div className="flex items-center gap-2">
-                <Bell size={13} className="text-amber-400 shrink-0" />
+                <IconBell size={13} className="text-amber-400 shrink-0" />
                 <span className="text-xs font-semibold text-amber-300">
                   {notif.vencimentos} vencimento{notif.vencimentos > 1 ? "s" : ""} próximo{notif.vencimentos > 1 ? "s" : ""}
                 </span>
@@ -273,7 +271,7 @@ export default function AdminDashboard() {
                     </div>
                     <Link href="/admin/financeiro"
                       className="text-[10px] font-bold tracking-widest uppercase shrink-0 px-2.5 py-1 bg-amber-800/30 border border-amber-700/40 text-amber-300 rounded hover:bg-amber-800/50 transition flex items-center gap-1">
-                      <ExternalLink size={9} /> Ver no financeiro
+                      <IconExternalLink size={9} /> Ver no financeiro
                     </Link>
                   </div>
                 ))}
@@ -297,7 +295,7 @@ export default function AdminDashboard() {
                   <span className="flex-1 text-sm font-medium">{alerta.mensagem}</span>
                 )}
                 <button onClick={() => setAlertasDismissed((prev) => new Set([...prev, alerta.id]))} className="shrink-0 opacity-50 hover:opacity-100 transition">
-                  <X size={14} />
+                  <IconX size={14} />
                 </button>
               </div>
             );
@@ -423,11 +421,11 @@ export default function AdminDashboard() {
         {/* calendário */}
         <div className={`${card} p-5`}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-[#F5E6C8] flex items-center gap-2 text-sm"><CalendarCheck size={15} className="text-[#b8944a]" /> Agendamentos</h2>
+            <h2 className="font-semibold text-[#F5E6C8] flex items-center gap-2 text-sm"><IconCalendarCheck size={15} className="text-[#b8944a]" /> Agendamentos</h2>
             <div className="flex items-center gap-1">
-              <button onClick={() => setMesCalendario(new Date(ano, mes - 1, 1))} className="p-1 text-gray-500 hover:text-[#b8944a] transition"><ChevronLeft size={16} /></button>
+              <button onClick={() => setMesCalendario(new Date(ano, mes - 1, 1))} className="p-1 text-gray-500 hover:text-[#b8944a] transition"><IconChevronLeft size={16} /></button>
               <span className="text-xs font-medium text-gray-400 w-20 text-center">{MESES[mes]} {ano}</span>
-              <button onClick={() => setMesCalendario(new Date(ano, mes + 1, 1))} className="p-1 text-gray-500 hover:text-[#b8944a] transition"><ChevronRight size={16} /></button>
+              <button onClick={() => setMesCalendario(new Date(ano, mes + 1, 1))} className="p-1 text-gray-500 hover:text-[#b8944a] transition"><IconChevronRight size={16} /></button>
             </div>
           </div>
           <div className="grid grid-cols-7 mb-1">
@@ -452,7 +450,7 @@ export default function AdminDashboard() {
 
         {/* ranking de serviços */}
         <div className={`${card} p-5`}>
-          <h2 className="font-semibold text-[#F5E6C8] flex items-center gap-2 mb-4 text-sm"><Scissors size={15} className="text-[#b8944a]" /> Serviços mais realizados</h2>
+          <h2 className="font-semibold text-[#F5E6C8] flex items-center gap-2 mb-4 text-sm"><IconScissors size={15} className="text-[#b8944a]" /> Serviços mais realizados</h2>
           {rankServicos.length === 0 ? (
             <p className="text-sm text-gray-500 py-8 text-center">Nenhum serviço concluído ainda.</p>
           ) : (

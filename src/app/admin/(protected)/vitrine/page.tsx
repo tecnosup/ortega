@@ -3,7 +3,9 @@
 export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
-import { Star, Scissors, ShoppingBag } from "lucide-react";
+import {
+  IconScissors, IconShoppingBag, IconStar,
+} from "@tabler/icons-react";
 import type { LandingSettings } from "@/lib/admin-settings";
 import type { Item } from "@/lib/admin-items";
 import type { Produto } from "@/lib/admin-produtos";
@@ -140,11 +142,11 @@ export default function VitrinePage() {
         <div className="flex gap-2">
           <button onClick={() => setDestaqueTipo("servico")}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border transition ${destaqueTipo === "servico" ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-bold" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a]"}`}>
-            <Scissors size={12} /> Serviço
+            <IconScissors size={12} /> Serviço
           </button>
           <button onClick={() => setDestaqueTipo("produto")}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border transition ${destaqueTipo === "produto" ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-bold" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a]"}`}>
-            <ShoppingBag size={12} /> Produto
+            <IconShoppingBag size={12} /> Produto
           </button>
         </div>
 
@@ -162,7 +164,7 @@ export default function VitrinePage() {
                       className={`relative rounded-lg overflow-hidden border-2 transition text-left ${selected ? "border-[#b8944a]" : "border-[#2d2d2d] hover:border-[#555]"}`}>
                       {item.imagem
                         ? <img src={item.imagem} alt={item.titulo} className="w-full h-28 object-cover" />
-                        : <div className="w-full h-28 bg-[#1a1a1a] flex items-center justify-center"><Star size={20} className="text-gray-600" /></div>
+                        : <div className="w-full h-28 bg-[#1a1a1a] flex items-center justify-center"><IconStar size={20} className="text-gray-600" /></div>
                       }
                       <div className="p-2">
                         <p className="text-xs font-semibold text-[#F5E6C8] truncate">{item.titulo}</p>
@@ -170,7 +172,7 @@ export default function VitrinePage() {
                       </div>
                       {selected && (
                         <div className="absolute top-2 right-2 bg-[#b8944a] rounded-full p-0.5">
-                          <Star size={10} className="text-[#0A0A0A] fill-[#0A0A0A]" />
+                          <IconStar size={10} className="text-[#0A0A0A] fill-[#0A0A0A]" />
                         </div>
                       )}
                     </button>

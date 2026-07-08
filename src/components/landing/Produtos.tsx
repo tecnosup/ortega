@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ShoppingBag, Tag, X } from "lucide-react";
+import {
+  IconShoppingBag, IconTag, IconX,
+} from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import type { Produto } from "@/lib/admin-produtos";
 import type { Desconto } from "@/lib/admin-descontos";
@@ -59,14 +61,14 @@ function ProdutoModal({
           onClick={onClose}
           className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-[#1a1a1a] border border-[#2d2d2d] text-gray-400 hover:text-[#F5E6C8] transition"
         >
-          <X size={14} />
+          <IconX size={14} />
         </button>
 
         {produto.imagem ? (
           <img src={produto.imagem} alt={produto.titulo} className="w-full h-56 object-cover" loading="lazy" />
         ) : (
           <div className="w-full h-56 bg-[#1a1a1a] flex items-center justify-center">
-            <ShoppingBag size={48} className="text-[#C9A84C]/20" />
+            <IconShoppingBag size={48} className="text-[#C9A84C]/20" />
           </div>
         )}
 
@@ -84,7 +86,7 @@ function ProdutoModal({
 
           {precoOriginal && (
             <div className="flex items-center gap-2 pt-2 border-t border-[#C9A84C]/10">
-              <Tag size={13} className="text-[#C9A84C]" />
+              <IconTag size={13} className="text-[#C9A84C]" />
               {precoFinal ? (
                 <span className="flex items-center gap-2">
                   <span className="text-sm line-through text-[#F5E6C8]/25">R$ {precoOriginal}</span>
@@ -234,7 +236,7 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
                       <img src={produto.imagem} alt={produto.titulo} className="w-full h-full object-cover" loading="lazy" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-[#C9A84C]/15">
-                        <ShoppingBag size={32} />
+                        <IconShoppingBag size={32} />
                       </div>
                     )}
                     <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#141414] to-transparent" />
@@ -288,7 +290,7 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-[#C9A84C]/15">
-                      <ShoppingBag size={40} />
+                      <IconShoppingBag size={40} />
                     </div>
                   )}
                   <div className={`absolute inset-0 bg-[#0A0A0A]/60 flex items-end transition-opacity duration-400 ${isHovered ? "opacity-100" : "opacity-0"}`}>
@@ -310,7 +312,7 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
                   )}
                   {precoOriginal && (
                     <div className="flex items-center gap-1.5 pt-2 border-t border-[#C9A84C]/10 mt-auto">
-                      <Tag size={11} className="text-[#C9A84C]" />
+                      <IconTag size={11} className="text-[#C9A84C]" />
                       {precoFinal ? (
                         <span className="flex items-center gap-1.5">
                           <span className="text-xs line-through text-[#F5E6C8]/25">R$ {precoOriginal}</span>

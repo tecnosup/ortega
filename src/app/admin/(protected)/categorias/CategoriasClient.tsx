@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import {
+  IconCheck, IconPencil, IconPlus, IconTrash, IconX,
+} from "@tabler/icons-react";
 import { createCategoriaAction, updateCategoriaAction, deleteCategoriaAction } from "./actions";
 import type { Categoria } from "@/lib/admin-categorias";
 import Modal from "@/components/ui/Modal";
@@ -109,19 +111,19 @@ export default function CategoriasClient({ categorias: initial }: { categorias: 
                   {editandoId === cat.id ? (
                     <>
                       <button onClick={() => handleUpdate(cat.id)} disabled={loading} className="p-1.5 text-green-400 hover:text-green-300 transition">
-                        <Check size={14} />
+                        <IconCheck size={14} />
                       </button>
                       <button onClick={() => setEditandoId(null)} className="p-1.5 text-gray-500 hover:text-gray-300 transition">
-                        <X size={14} />
+                        <IconX size={14} />
                       </button>
                     </>
                   ) : (
                     <>
                       <button onClick={() => { setEditandoId(cat.id); setEditNome(cat.nome); }} className="p-1.5 text-gray-500 hover:text-[#b8944a] transition">
-                        <Pencil size={14} />
+                        <IconPencil size={14} />
                       </button>
                       <button onClick={() => setDeleteModal(cat)} className="p-1.5 text-gray-500 hover:text-red-400 transition">
-                        <Trash2 size={14} />
+                        <IconTrash size={14} />
                       </button>
                     </>
                   )}
@@ -145,12 +147,12 @@ export default function CategoriasClient({ categorias: initial }: { categorias: 
               {loading ? "..." : "Criar"}
             </button>
             <button onClick={() => { setCriando(false); setNovoNome(""); }} className="px-3 py-2 border border-[#2d2d2d] text-gray-500 text-sm rounded hover:border-gray-500 transition shrink-0">
-              <X size={14} />
+              <IconX size={14} />
             </button>
           </div>
         ) : (
           <button onClick={() => setCriando(true)} className="self-start flex items-center gap-2 px-4 py-2 border border-[#2d2d2d] text-gray-400 text-sm rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition">
-            <Plus size={14} /> Nova categoria
+            <IconPlus size={14} /> Nova categoria
           </button>
         )}
 

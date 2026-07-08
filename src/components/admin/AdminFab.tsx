@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import {
+  IconCalendarClock, IconCalendarPlus, IconCheck, IconFileText, IconLink,
+} from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
-import { CalendarPlus, Link2, FileText, CalendarClock, Check } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import Fab from "@/components/ui/Fab";
 import { toDateKey } from "@/lib/date-utils";
@@ -38,10 +40,10 @@ export default function AdminFab() {
   return (
     <>
       <Fab actions={[
-        { label: "Agendar horário", icon: CalendarPlus, onClick: () => router.push("/admin/agendamentos?acao=agendar") },
-        { label: "Link de agendamento", icon: Link2, onClick: copiarLink },
-        { label: "Abrir comanda", icon: FileText, onClick: () => router.push(`/admin/financeiro?dia=${hojeKey}#caixa`) },
-        { label: "Grade de hoje", icon: CalendarClock, onClick: () => router.push("/admin/agendamentos?acao=grade") },
+        { label: "Agendar horário", icon: IconCalendarPlus, onClick: () => router.push("/admin/agendamentos?acao=agendar") },
+        { label: "Link de agendamento", icon: IconLink, onClick: copiarLink },
+        { label: "Abrir comanda", icon: IconFileText, onClick: () => router.push(`/admin/caixa?dia=${hojeKey}#caixa`) },
+        { label: "Grade de hoje", icon: IconCalendarClock, onClick: () => router.push("/admin/agendamentos?acao=grade") },
       ]} />
 
       <AnimatePresence>
@@ -52,7 +54,7 @@ export default function AdminFab() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
           >
-            <Check size={15} className="text-green-400" /> {toast}
+            <IconCheck size={15} className="text-green-400" /> {toast}
           </motion.div>
         )}
       </AnimatePresence>

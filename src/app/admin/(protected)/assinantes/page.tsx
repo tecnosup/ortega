@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { CreditCard, Loader2, RefreshCw } from "lucide-react";
+import {
+  IconCreditCard, IconLoader2, IconRefresh,
+} from "@tabler/icons-react";
 import { PLANOS_PUBLICOS } from "@/lib/stripe-tipos";
 import type { AssinaturaResumo, AssinaturaStatus } from "@/lib/stripe-tipos";
 
@@ -53,11 +55,11 @@ export default function AssinantesPage() {
     <div className="max-w-5xl mx-auto flex flex-col gap-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <CreditCard size={22} className="text-[#b8944a]" />
+          <IconCreditCard size={22} className="text-[#b8944a]" />
           <h1 className="text-2xl font-bold text-[#F5E6C8]">Assinantes</h1>
         </div>
         <button onClick={carregar} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#b8944a] transition">
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Atualizar
+          <IconRefresh size={14} className={loading ? "animate-spin" : ""} /> Atualizar
         </button>
       </div>
 
@@ -96,7 +98,7 @@ export default function AssinantesPage() {
 
       {loading ? (
         <div className="flex items-center gap-2 text-gray-500 text-sm">
-          <Loader2 size={16} className="animate-spin" /> Carregando…
+          <IconLoader2 size={16} className="animate-spin" /> Carregando…
         </div>
       ) : filtrados.length === 0 ? (
         <p className="text-gray-500 text-sm">Nenhum assinante encontrado.</p>

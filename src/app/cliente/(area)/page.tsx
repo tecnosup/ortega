@@ -1,11 +1,13 @@
 import { cookies } from "next/headers";
+import {
+  IconCalendar, IconChevronRight, IconCreditCard, IconScissors,
+} from "@tabler/icons-react";
 import { redirect } from "next/navigation";
 import { verificarSessionToken, CLIENTE_COOKIE } from "@/lib/cliente-auth";
 import { getAssinaturaDoCliente } from "@/lib/cliente-auth-server";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { PLANOS_PUBLICOS } from "@/lib/stripe-tipos";
 import type { Agendamento } from "@/lib/agendamentos-types";
-import { Scissors, Calendar, CreditCard, ChevronRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -82,7 +84,7 @@ export default async function ClienteDashboard() {
         <div className="p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-gray-400">
-              <Scissors size={14} className="text-[#b8944a]" />
+              <IconScissors size={14} className="text-[#b8944a]" />
               Cortes disponíveis este mês
             </div>
             <span className="text-sm font-bold text-[#F5E6C8]">
@@ -125,10 +127,10 @@ export default async function ClienteDashboard() {
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-[#F5E6C8] flex items-center gap-1.5">
-            <Calendar size={14} className="text-[#b8944a]" /> Próximos agendamentos
+            <IconCalendar size={14} className="text-[#b8944a]" /> Próximos agendamentos
           </h2>
           <a href="/cliente/agendamentos" className="text-xs text-gray-600 hover:text-[#b8944a] transition flex items-center gap-0.5">
-            Ver todos <ChevronRight size={12} />
+            Ver todos <IconChevronRight size={12} />
           </a>
         </div>
 
@@ -160,12 +162,12 @@ export default async function ClienteDashboard() {
       {/* Atalhos */}
       <div className="grid grid-cols-2 gap-3">
         <a href="/cliente/assinatura" className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 flex flex-col gap-2 hover:border-[#b8944a]/40 transition group">
-          <CreditCard size={18} className="text-[#b8944a]" />
+          <IconCreditCard size={18} className="text-[#b8944a]" />
           <p className="text-xs font-medium text-[#F5E6C8] group-hover:text-[#b8944a] transition">Minha assinatura</p>
           <p className="text-[10px] text-gray-600">Plano, vencimento e cancelamento</p>
         </a>
         <a href="/cliente/agendamentos" className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 flex flex-col gap-2 hover:border-[#b8944a]/40 transition group">
-          <Calendar size={18} className="text-[#b8944a]" />
+          <IconCalendar size={18} className="text-[#b8944a]" />
           <p className="text-xs font-medium text-[#F5E6C8] group-hover:text-[#b8944a] transition">Histórico</p>
           <p className="text-[10px] text-gray-600">Todos os seus cortes</p>
         </a>

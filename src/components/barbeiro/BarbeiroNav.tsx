@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import {
+  IconBell, IconBellOff, IconCalendarCheck, IconLoader2, IconLogout, IconTrendingUp,
+} from "@tabler/icons-react";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { CalendarCheck, TrendingUp, LogOut, Bell, BellOff, Loader2 } from "lucide-react";
 import { useBarbeiroPush } from "@/hooks/useBarbeiroPush";
 
 const links = [
-  { href: "/barbeiro",           label: "Agenda",     icon: CalendarCheck },
-  { href: "/barbeiro/financeiro", label: "Financeiro", icon: TrendingUp },
+  { href: "/barbeiro",           label: "Agenda",     icon: IconCalendarCheck },
+  { href: "/barbeiro/financeiro", label: "Financeiro", icon: IconTrendingUp },
 ];
 
 export default function BarbeiroNav() {
@@ -29,7 +31,7 @@ export default function BarbeiroNav() {
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-b border-[#2d2d2d] flex items-center justify-between px-4 h-14">
         <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega</span>
         <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-400 transition">
-          <LogOut size={18} />
+          <IconLogout size={18} />
         </button>
       </div>
 
@@ -83,17 +85,17 @@ export default function BarbeiroNav() {
           {pushStatus !== "unsupported" && (
             pushStatus === "granted" ? (
               <button onClick={unsubscribe} className="flex items-center gap-3 px-3 py-2.5 text-sm text-green-400 hover:text-gray-400 hover:bg-[#1a1a1a] transition w-full rounded-lg">
-                <Bell size={16} />
+                <IconBell size={16} />
                 <span className="flex-1">Notificações ativas</span>
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
               </button>
             ) : pushStatus === "denied" ? (
               <div className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 w-full rounded-lg">
-                <BellOff size={16} /> <span>Notificações bloqueadas</span>
+                <IconBellOff size={16} /> <span>Notificações bloqueadas</span>
               </div>
             ) : (
               <button onClick={subscribe} disabled={pushStatus === "loading"} className="flex items-center gap-3 px-3 py-2.5 text-sm text-[#b8944a] hover:bg-[#b8944a]/10 transition w-full rounded-lg disabled:opacity-50">
-                {pushStatus === "loading" ? <Loader2 size={16} className="animate-spin" /> : <Bell size={16} />}
+                {pushStatus === "loading" ? <IconLoader2 size={16} className="animate-spin" /> : <IconBell size={16} />}
                 <span>{pushStatus === "loading" ? "Ativando..." : "Ativar notificações"}</span>
               </button>
             )
@@ -102,7 +104,7 @@ export default function BarbeiroNav() {
             onClick={handleLogout}
             className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-400 hover:text-red-400 hover:bg-red-900/10 transition w-full rounded-lg"
           >
-            <LogOut size={16} />
+            <IconLogout size={16} />
             Sair
           </button>
         </div>

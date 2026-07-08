@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
+import {
+  IconChevronDown, IconChevronUp, IconRotateClockwise2,
+} from "@tabler/icons-react";
 import { revertAuditAction } from "../produtos/actions";
 import Modal from "@/components/ui/Modal";
 import { useModalMount } from "@/components/ui/useModalMount";
@@ -156,7 +158,7 @@ export default function AuditLogRow({ log }: { log: AuditLog }) {
                   onClick={() => setExpanded((v) => !v)}
                   className="flex items-center gap-1 text-xs text-gray-500 hover:text-[#F5E6C8] transition"
                 >
-                  {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  {expanded ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />}
                   {expanded ? "Ocultar" : "Detalhes"}
                 </button>
               )}
@@ -168,7 +170,7 @@ export default function AuditLogRow({ log }: { log: AuditLog }) {
                   onClick={() => setShowModal(true)}
                   className="flex items-center gap-1.5 px-2.5 py-1 border border-[#2d2d2d] text-gray-500 text-xs rounded hover:border-[#b8944a] hover:text-[#b8944a] transition"
                 >
-                  <RotateCcw size={11} />
+                  <IconRotateClockwise2 size={11} />
                   Reverter
                 </button>
               ) : null}

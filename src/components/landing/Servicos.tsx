@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Scissors, Clock, Tag, ArrowRight } from "lucide-react";
+import {
+  IconArrowRight, IconClock, IconScissors, IconTag,
+} from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import type { Item } from "@/lib/admin-items";
 import type { Desconto } from "@/lib/admin-descontos";
@@ -124,7 +126,7 @@ export default function Servicos({ items, descontos, categorias = [] }: Servicos
                       </span>
                     )}
                     <div className="w-10 h-10 border border-[#C9A84C]/30 bg-[#C9A84C]/10 flex items-center justify-center text-[#C9A84C] group-hover:bg-[#C9A84C]/20 transition-colors duration-300">
-                      <Scissors size={18} />
+                      <IconScissors size={18} />
                     </div>
                     <div>
                       <h3
@@ -145,7 +147,7 @@ export default function Servicos({ items, descontos, categorias = [] }: Servicos
                     <div className="flex items-center gap-4 pt-4 border-t border-[#C9A84C]/10">
                       {precoOrig && (
                         <span className="flex items-center gap-2">
-                          <Tag size={12} className="text-[#C9A84C]" />
+                          <IconTag size={12} className="text-[#C9A84C]" />
                           {precoFinal ? (
                             <span className="flex items-center gap-2">
                               <span className="text-xs line-through text-[#F5E6C8]/25">R$ {precoOrig}</span>
@@ -160,7 +162,7 @@ export default function Servicos({ items, descontos, categorias = [] }: Servicos
                       )}
                       {item.duracao && (
                         <span className="flex items-center gap-1.5 text-xs text-[#F5E6C8]/30">
-                          <Clock size={12} /> {item.duracao}
+                          <IconClock size={12} /> {item.duracao}
                         </span>
                       )}
                     </div>
@@ -168,7 +170,7 @@ export default function Servicos({ items, descontos, categorias = [] }: Servicos
                       href="/agendamento"
                       className="flex items-center justify-center gap-2 py-3 bg-[#C9A84C] text-[#0A0A0A] text-xs font-black tracking-widest uppercase hover:bg-[#E2C06A] active:scale-[0.97] transition-all duration-300"
                     >
-                      Agendar agora <ArrowRight size={12} />
+                      Agendar agora <IconArrowRight size={12} />
                     </a>
                   </div>
                 </motion.div>
@@ -185,7 +187,7 @@ export default function Servicos({ items, descontos, categorias = [] }: Servicos
             >
               <div className="flex flex-col items-center gap-5 px-8 text-center">
                 <div className="w-14 h-14 border-2 border-[#C9A84C]/40 flex items-center justify-center text-[#C9A84C]">
-                  <Scissors size={24} />
+                  <IconScissors size={24} />
                 </div>
                 <p className="text-lg font-bold text-[#F5E6C8] leading-snug" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
                   Pronto para agendar?
@@ -194,7 +196,7 @@ export default function Servicos({ items, descontos, categorias = [] }: Servicos
                   href="/agendamento"
                   className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#C9A84C] text-[#0A0A0A] text-xs font-black tracking-widest uppercase hover:bg-[#E2C06A] active:scale-[0.97] transition-all duration-300"
                 >
-                  Ver horários <ArrowRight size={13} />
+                  Ver horários <IconArrowRight size={13} />
                 </a>
               </div>
             </motion.div>
@@ -235,7 +237,7 @@ export default function Servicos({ items, descontos, categorias = [] }: Servicos
                   <div className="flex items-center gap-4 pt-2 border-t border-[#C9A84C]/10 text-sm">
                     {precoOrig && (
                       <span className="flex items-center gap-1.5">
-                        <Tag size={12} className="text-[#C9A84C]" />
+                        <IconTag size={12} className="text-[#C9A84C]" />
                         {precoFinal ? (
                           <>
                             <span className="line-through text-[#F5E6C8]/25 text-xs">R$ {precoOrig}</span>
@@ -250,7 +252,7 @@ export default function Servicos({ items, descontos, categorias = [] }: Servicos
                     )}
                     {item.duracao && (
                       <span className="flex items-center gap-1.5 text-[#F5E6C8]/30">
-                        <Clock size={12} /> {item.duracao}
+                        <IconClock size={12} /> {item.duracao}
                       </span>
                     )}
                   </div>
@@ -262,7 +264,7 @@ export default function Servicos({ items, descontos, categorias = [] }: Servicos
               href="/agendamento"
               className="mt-2 w-full flex items-center justify-center gap-2 py-4 bg-[#C9A84C] text-[#0A0A0A] text-sm font-black tracking-widest uppercase hover:bg-[#E2C06A] active:scale-[0.97] transition-all duration-300"
             >
-              Agendar agora <ArrowRight size={14} />
+              Agendar agora <IconArrowRight size={14} />
             </a>
           </div>
         </div>

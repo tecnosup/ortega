@@ -60,9 +60,9 @@ export async function GET(_req: NextRequest) {
 
     // ── Caixas retroativos abertos (apenas últimos 30 dias) ───────────────────
     const [fechSnap, concluidosSnap, avulsosSnap] = await Promise.all([
-      db.collection("fechamentos").where("data", ">=", limite30dStr).where("data", "<", hoje).get(),
-      db.collection("agendamentos").where("data", ">=", limite30dStr).where("data", "<", hoje).get(),
-      db.collection("atendimentos_avulsos").where("data", ">=", limite30dStr).where("data", "<", hoje).get(),
+      db.collection("fechamentos").where("data", ">=", limite30dStr).where("data", "<", hoje).limit(100).get(),
+      db.collection("agendamentos").where("data", ">=", limite30dStr).where("data", "<", hoje).limit(500).get(),
+      db.collection("atendimentos_avulsos").where("data", ">=", limite30dStr).where("data", "<", hoje).limit(500).get(),
     ]);
 
     const fechDatas = new Set(fechSnap.docs.map(d => d.data().data as string));

@@ -1,9 +1,11 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Plus } from "lucide-react";
+import {
+  IconPlus,
+} from "@tabler/icons-react";
 import { useEffect, useState } from "react";
-import type { LucideIcon } from "lucide-react";
+import type { Icon as LucideIcon } from "@tabler/icons-react";
 import { useScrollLock } from "./useScrollLock";
 
 export interface FabAction {
@@ -99,7 +101,7 @@ export default function Fab({ actions }: { actions: FabAction[] }) {
             rotate: { type: "spring", stiffness: 400, damping: 20 },
           }}
         >
-          <Plus size={26} strokeWidth={2.5} />
+          <IconPlus size={26} strokeWidth={2.5} />
         </motion.button>
       </div>
     </>

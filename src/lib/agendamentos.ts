@@ -1,6 +1,7 @@
 import "server-only";
 import { getAdminDb } from "./firebase-admin";
 import type { Agendamento, FechamentoDia, AtendimentoAvulso } from "./agendamentos-types";
+import type { Comanda } from "./comandas-types";
 
 export type { AgendamentoStatus, Agendamento, FechamentoDia, AtendimentoAvulso } from "./agendamentos-types";
 export { parsePriceNum } from "./agendamentos-types";
@@ -63,19 +64,24 @@ export async function fecharCaixaDia(
   data: string,
   agendamentos: Agendamento[],
   avulsos: AtendimentoAvulso[] = [],
+  comandas: Comanda[] = [],
 ): Promise<string> {
   const concluidos = agendamentos.filter((a) => a.status === "concluido");
   const totalAgs = concluidos.reduce((sum, a) => {
     return sum + (parseFloat(a.preco.replace(/[^\d.,]/g, "").replace(",", ".")) || 0);
   }, 0);
   const totalAvulsos = avulsos.reduce((sum, av) => sum + av.total, 0);
+  // Comandas finalizadas são a fonte de verdade do faturamento no novo modelo.
+  const finalizadas = comandas.filter((c) => c.status === "finalizada");
+  const totalComandas = finalizadas.reduce((sum, c) => sum + (c.total || 0), 0);
   const db = getAdminDb();
   const ref = await db.collection("fechamentos").add({
     data,
     agendamentos: concluidos,
     avulsos,
-    totalServicos: totalAgs + totalAvulsos,
-    quantidadeAtendidos: concluidos.length + avulsos.length,
+    comandas: finalizadas,
+    totalServicos: totalAgs + totalAvulsos + totalComandas,
+    quantidadeAtendidos: concluidos.length + avulsos.length + finalizadas.length,
     fechadoEm: Date.now(),
   });
   return ref.id;

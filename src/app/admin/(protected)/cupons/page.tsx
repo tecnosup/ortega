@@ -3,7 +3,9 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from "react";
-import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Tag, Percent, DollarSign } from "lucide-react";
+import {
+  IconCurrencyDollar, IconEdit, IconPercentage, IconPlus, IconTag, IconToggleLeft, IconToggleRight, IconTrash,
+} from "@tabler/icons-react";
 import type { Cupom, TipoCupom } from "@/lib/cupons-tipos";
 
 function brl(v: number) {
@@ -126,7 +128,7 @@ export default function CuponsPage() {
         <h1 className="text-2xl font-bold text-[#F5E6C8]">Cupons</h1>
         <button onClick={() => { setEditando(null); setMostraForm(true); }}
           className="flex items-center gap-2 px-4 py-2 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded hover:bg-[#c9a84c] transition">
-          <Plus size={16} /> Novo cupom
+          <IconPlus size={16} /> Novo cupom
         </button>
       </div>
 
@@ -137,7 +139,7 @@ export default function CuponsPage() {
         <p className="text-sm text-gray-500 text-center py-12">Carregando...</p>
       ) : cupons.length === 0 ? (
         <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-12 text-center">
-          <Tag size={32} className="text-gray-600 mx-auto mb-3" />
+          <IconTag size={32} className="text-gray-600 mx-auto mb-3" />
           <p className="text-gray-500 text-sm">Nenhum cupom criado ainda.</p>
         </div>
       ) : (
@@ -145,7 +147,7 @@ export default function CuponsPage() {
           {cupons.map((c) => (
             <div key={c.id} className={`bg-[#111] border rounded-lg p-5 flex items-center gap-4 transition ${c.ativo ? "border-[#2d2d2d]" : "border-[#1a1a1a] opacity-50"}`}>
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${c.tipo === "percentual" ? "bg-blue-900/30 text-blue-400" : "bg-green-900/30 text-green-400"}`}>
-                {c.tipo === "percentual" ? <Percent size={18} /> : <DollarSign size={18} />}
+                {c.tipo === "percentual" ? <IconPercentage size={18} /> : <IconCurrencyDollar size={18} />}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -160,10 +162,10 @@ export default function CuponsPage() {
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <button onClick={() => toggleAtivo(c)} className={`p-2 rounded transition ${c.ativo ? "text-green-400 hover:text-green-300" : "text-gray-600 hover:text-gray-400"}`} title={c.ativo ? "Desativar" : "Ativar"}>
-                  {c.ativo ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                  {c.ativo ? <IconToggleRight size={20} /> : <IconToggleLeft size={20} />}
                 </button>
-                <button onClick={() => { setMostraForm(false); setEditando(c); }} className="p-2 text-gray-500 hover:text-[#F5E6C8] rounded transition" title="Editar"><Edit2 size={16} /></button>
-                <button onClick={() => excluir(c.id)} disabled={excluindo === c.id} className="p-2 text-gray-500 hover:text-red-400 rounded transition disabled:opacity-40" title="Excluir"><Trash2 size={16} /></button>
+                <button onClick={() => { setMostraForm(false); setEditando(c); }} className="p-2 text-gray-500 hover:text-[#F5E6C8] rounded transition" title="Editar"><IconEdit size={16} /></button>
+                <button onClick={() => excluir(c.id)} disabled={excluindo === c.id} className="p-2 text-gray-500 hover:text-red-400 rounded transition disabled:opacity-40" title="Excluir"><IconTrash size={16} /></button>
               </div>
             </div>
           ))}

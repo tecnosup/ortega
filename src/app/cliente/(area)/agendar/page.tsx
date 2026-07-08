@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Check } from "lucide-react";
+import {
+  IconCheck, IconChevronLeft, IconChevronRight,
+} from "@tabler/icons-react";
 import type { Item } from "@/lib/admin-items";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import { toDateKey } from "@/lib/date-utils";
@@ -32,7 +34,7 @@ function StepIndicator({ atual }: { atual: 1 | 2 | 3 }) {
             n === atual ? "bg-[#b8944a]/20 border border-[#b8944a] text-[#b8944a]" :
             "bg-[#1a1a1a] border border-[#2d2d2d] text-gray-600"
           }`}>
-            {n < atual ? <Check size={12} /> : n}
+            {n < atual ? <IconCheck size={12} /> : n}
           </div>
           {n < 3 && <div className={`w-6 h-px ${n < atual ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`} />}
         </div>
@@ -286,11 +288,11 @@ export default function ClienteAgendarPage() {
         <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
           <div className="flex items-center justify-between mb-4">
             <button onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1, 1))} className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-[#b8944a] rounded-lg transition">
-              <ChevronLeft size={18} />
+              <IconChevronLeft size={18} />
             </button>
             <h2 className="text-sm font-bold text-[#F5E6C8]">{MESES[mesAtual.getMonth()]} <span className="text-gray-500 font-normal">{mesAtual.getFullYear()}</span></h2>
             <button onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1, 1))} className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-[#b8944a] rounded-lg transition">
-              <ChevronRight size={18} />
+              <IconChevronRight size={18} />
             </button>
           </div>
           <div className="grid grid-cols-7 mb-1">

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ShoppingBag, ChevronUp, ChevronDown, Plus, ShoppingCart, TrendingUp, RotateCcw, SlidersHorizontal } from "lucide-react";
+import {
+  IconAdjustmentsHorizontal, IconChevronDown, IconChevronUp, IconPlus, IconRotateClockwise2, IconShoppingBag, IconShoppingCart, IconTrendingUp,
+} from "@tabler/icons-react";
 import type { MovimentacaoEstoque, TipoMovimentacao } from "@/lib/estoque-movimentacoes-tipos";
 import { TIPO_LABEL } from "@/lib/estoque-movimentacoes-tipos";
 import Modal from "@/components/ui/Modal";
@@ -24,10 +26,10 @@ const TIPO_COR: Record<TipoMovimentacao, string> = {
 };
 
 const TIPO_BADGE: Record<TipoMovimentacao, { icon: React.ReactNode; bg: string; border: string }> = {
-  venda:         { icon: <ShoppingCart size={9} />,      bg: "bg-[#b8944a]",   border: "border-yellow-900" },
-  reposicao:     { icon: <TrendingUp size={9} />,        bg: "bg-green-500",   border: "border-green-900" },
-  devolucao:     { icon: <RotateCcw size={9} />,         bg: "bg-blue-500",    border: "border-blue-900" },
-  ajuste_manual: { icon: <SlidersHorizontal size={9} />, bg: "bg-gray-600",    border: "border-gray-800" },
+  venda:         { icon: <IconShoppingCart size={9} />,      bg: "bg-[#b8944a]",   border: "border-yellow-900" },
+  reposicao:     { icon: <IconTrendingUp size={9} />,        bg: "bg-green-500",   border: "border-green-900" },
+  devolucao:     { icon: <IconRotateClockwise2 size={9} />,         bg: "bg-blue-500",    border: "border-blue-900" },
+  ajuste_manual: { icon: <IconAdjustmentsHorizontal size={9} />, bg: "bg-gray-600",    border: "border-gray-800" },
 };
 
 function formatData(ts: number) {
@@ -214,13 +216,13 @@ export default function EstoqueMovimentacoes({ produtos }: { produtos: Produto[]
               onClick={() => setModalAberto(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase text-[#0A0A0A] bg-[#b8944a] rounded hover:bg-[#c9a84c] transition"
             >
-              <Plus size={11} /> Registrar
+              <IconPlus size={11} /> Registrar
             </button>
             <button
               onClick={() => setExpandido((v) => !v)}
               className="p-1.5 text-gray-500 hover:text-gray-300 transition"
             >
-              {expandido ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              {expandido ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
             </button>
           </div>
         </div>
@@ -262,7 +264,7 @@ export default function EstoqueMovimentacoes({ produtos }: { produtos: Produto[]
                           {m.produtoImagem ? (
                             <img src={m.produtoImagem} alt={m.produtoNome} className="w-full h-full object-cover" />
                           ) : (
-                            <ShoppingBag size={15} className="text-gray-600" />
+                            <IconShoppingBag size={15} className="text-gray-600" />
                           )}
                         </div>
                         <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-white border ${badge.bg} ${badge.border}`}>

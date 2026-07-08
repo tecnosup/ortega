@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Scissors } from "lucide-react";
+import {
+  IconLoader2, IconScissors,
+} from "@tabler/icons-react";
 import type { Agendamento } from "@/lib/agendamentos-types";
 
 const STATUS_INFO: Record<string, { label: string; cor: string }> = {
@@ -35,7 +37,7 @@ export default function ClienteAgendamentosPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 size={24} className="animate-spin text-[#b8944a]" />
+        <IconLoader2 size={24} className="animate-spin text-[#b8944a]" />
       </div>
     );
   }
@@ -74,7 +76,7 @@ export default function ClienteAgendamentosPage() {
 
       {agendamentos.length === 0 && (
         <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-8 flex flex-col items-center gap-3 text-center">
-          <Scissors size={28} className="text-gray-700" />
+          <IconScissors size={28} className="text-gray-700" />
           <p className="text-gray-500 text-sm">Nenhum agendamento ainda</p>
           <a href="/cliente/agendar" className="text-[#b8944a] text-sm hover:underline">Agendar primeiro corte →</a>
         </div>
