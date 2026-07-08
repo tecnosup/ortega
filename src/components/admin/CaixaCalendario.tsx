@@ -15,6 +15,7 @@ import { calcularTotalItens } from "@/lib/comandas-types";
 import type { GastoDia } from "@/lib/gastos-dia-tipos";
 import Modal from "@/components/ui/Modal";
 import { useModalMount } from "@/components/ui/useModalMount";
+import { useToast } from "@/components/ui/Toast";
 
 function brl(v: number) { return `R$ ${v.toFixed(2).replace(".", ",")}` }
 function toDataStr(y: number, m: number, d: number) {
@@ -208,6 +209,7 @@ function FormComanda({ open = true, data, inicial, onSalvo, onCancelar }: {
   const [clienteTelefone, setClienteTelefone] = useState(inicial?.clienteTelefone ?? "");
   const ed = useItensEditor(inicial?.itens);
   const [salvando, setSalvando] = useState(false);
+  const [sucesso, setSucesso] = useState(false);
   const [erro, setErro] = useState("");
 
   useEffect(() => {
@@ -226,11 +228,34 @@ function FormComanda({ open = true, data, inicial, onSalvo, onCancelar }: {
     } else {
       await fetch("/api/comandas", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     }
-    setSalvando(false); onSalvo();
+    setSalvando(false);
+    setSucesso(true);
+    setTimeout(() => onSalvo(), 1200);
   }
 
   return (
     <Modal open={open} onClose={onCancelar} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-lg mx-4 flex flex-col max-h-[calc(100vh-2rem)]">
+      <AnimatePresence>
+        {sucesso && (
+          <motion.div
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#141414] rounded-xl"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="w-16 h-16 rounded-full bg-green-600 flex items-center justify-center"
+              initial={{ scale: 0 }} animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 15 }}
+            >
+              <IconCheck size={34} className="text-white" strokeWidth={3} />
+            </motion.div>
+            <motion.p className="text-sm font-bold text-green-400"
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+              {inicial ? "Comanda atualizada!" : "Comanda aberta!"}
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex items-center px-5 py-4 border-b border-[#1e1e1e]">
         <div>
           <h3 className="font-bold text-[#F5E6C8] text-sm">{inicial ? "Editar comanda" : "Nova comanda"}</h3>
@@ -253,10 +278,10 @@ function FormComanda({ open = true, data, inicial, onSalvo, onCancelar }: {
       </div>
 
       <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2 shrink-0">
-        <button onClick={salvar} disabled={salvando} className="flex-1 py-2.5 bg-[#b8944a] text-[#0A0A0A] text-xs font-bold tracking-widest uppercase rounded-lg hover:bg-[#c9a84c] transition disabled:opacity-50">
+        <button onClick={salvar} disabled={salvando || sucesso} className="flex-1 py-2.5 bg-[#b8944a] text-[#0A0A0A] text-xs font-bold tracking-widest uppercase rounded-lg hover:bg-[#c9a84c] transition disabled:opacity-50">
           {salvando ? "Salvando..." : inicial ? "Salvar comanda" : "Abrir comanda"}
         </button>
-        <button onClick={onCancelar} className="px-5 py-2.5 border border-[#2d2d2d] text-gray-400 text-xs rounded-lg hover:border-[#b8944a] transition">Cancelar</button>
+        <button onClick={onCancelar} disabled={sucesso} className="px-5 py-2.5 border border-[#2d2d2d] text-gray-400 text-xs rounded-lg hover:border-[#b8944a] transition disabled:opacity-50">Cancelar</button>
       </div>
     </Modal>
   );
@@ -398,12 +423,7 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
   const [diaSel, setDiaSel] = useState<string>(hoje);
   const [fechando, setFechando] = useState(false);
   const [erroFechar, setErroFechar] = useState("");
-  // Toast de sucesso (criar comanda, fechar/reabrir caixa, reabrir comanda)
-  const [toast, setToast] = useState<{ msg: string; tipo: "sucesso" | "info" } | null>(null);
-  function mostrarToast(msg: string, tipo: "sucesso" | "info" = "sucesso") {
-    setToast({ msg, tipo });
-    setTimeout(() => setToast(null), 2500);
-  }
+  const toast = useToast();
 
   const [mostraFormGasto, setMostraFormGasto] = useState(false);
   const [novaComanda, setNovaComanda] = useState(false);
@@ -460,27 +480,27 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         setErroFechar(j.error ?? "Erro ao fechar o caixa");
-      } else { mostrarToast("Caixa fechado!"); onAtualizar(); }
+      } else { toast.sucesso("Caixa fechado!"); onAtualizar(); }
     } finally { setFechando(false); }
   }
 
   async function reabrirCaixa() {
     if (!fechDia) return;
     await fetch(`/api/fechamento/${fechDia.id}`, { method: "DELETE", credentials: "include" });
-    setModalReabrir(false); mostrarToast("Caixa reaberto", "info"); onAtualizar();
+    setModalReabrir(false); toast.info("Caixa reaberto"); onAtualizar();
   }
 
   async function cancelarComanda(id: string) {
     await fetch(`/api/comandas/${id}/cancelar`, { method: "POST", credentials: "include" });
-    setModalCancelar(null); mostrarToast("Comanda cancelada", "info"); onAtualizar();
+    setModalCancelar(null); toast.info("Comanda cancelada"); onAtualizar();
   }
 
   async function reabrirComanda(id: string) {
     const res = await fetch(`/api/comandas/${id}/reabrir`, { method: "POST", credentials: "include" });
-    if (res.ok) { mostrarToast("Comanda reaberta", "info"); onAtualizar(); }
+    if (res.ok) { toast.info("Comanda reaberta"); onAtualizar(); }
     else {
       const j = await res.json().catch(() => ({}));
-      mostrarToast(j.error ?? "Não foi possível reabrir", "info");
+      toast.erro(j.error ?? "Não foi possível reabrir");
     }
   }
 
@@ -500,29 +520,10 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
 
   return (
     <>
-      {/* ── Toast de sucesso ── */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-2 rounded-full px-4 py-2 shadow-xl text-sm font-medium border ${
-              toast.tipo === "sucesso"
-                ? "bg-[#1a2a1a] border-green-700/60 text-green-300"
-                : "bg-[#1a1a2a] border-[#b8944a]/50 text-[#F5E6C8]"
-            }`}
-            initial={{ opacity: 0, y: 16, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.9 }}
-          >
-            <IconCheck size={15} className={toast.tipo === "sucesso" ? "text-green-400" : "text-[#b8944a]"} />
-            {toast.msg}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* ── Modais ── */}
       {novaComandaMount.mounted && (
         <FormComanda key={novaComandaMount.key} open={novaComandaMount.open} data={diaSel}
-          onSalvo={() => { setNovaComanda(false); mostrarToast("Comanda aberta!"); onAtualizar(); }} onCancelar={() => setNovaComanda(false)} />
+          onSalvo={() => { setNovaComanda(false); onAtualizar(); }} onCancelar={() => setNovaComanda(false)} />
       )}
       {editarMount.mounted && editarMount.value && (
         <FormComanda open={editarMount.open} data={diaSel} inicial={editarMount.value}
