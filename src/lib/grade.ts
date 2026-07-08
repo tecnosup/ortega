@@ -157,3 +157,68 @@ export function gerarSlotsData(dateKey: string, grade: GradeConfig, passoMin: nu
   const dow = new Date(dateKey + "T12:00:00").getDay();
   return gerarSlotsDia(grade[dow], passoMin);
 }
+
+// ─── FONTE DA VERDADE de disponibilidade ─────────────────────────────────────
+// Toda tela de agendamento (cliente público, cliente logado, admin manual,
+// reagendar) DEVE usar estas funções para calcular horários livres. Não
+// reimplementar a lógica em cada lugar — senão volta a divergir.
+
+export interface AgendamentoOcupacao {
+  horario: string;              // "09:00"
+  duracaoMin?: number;          // se ausente, ocupa 1 passo (retrocompat)
+  status?: string;              // "cancelado" é ignorado
+}
+
+/**
+ * Expande uma lista de agendamentos para o conjunto de slots que eles ocupam,
+ * considerando a duração de cada um (no passo indicado). Ignora cancelados.
+ * Use para saber o que já está tomado num dia (por barbeiro ou global).
+ */
+export function ocupacaoDeAgendamentos(
+  ags: AgendamentoOcupacao[],
+  passoMin: number = PASSO_DEFAULT
+): Set<string> {
+  const ocupados = new Set<string>();
+  for (const a of ags) {
+    if (a.status === "cancelado") continue;
+    for (const s of slotsOcupadosPorAgendamento(a.horario, a.duracaoMin, passoMin)) {
+      ocupados.add(s);
+    }
+  }
+  return ocupados;
+}
+
+/**
+ * Calcula os horários de início livres num dia para um serviço de `duracaoMin`.
+ * Regras aplicadas (a MESMA lógica em toda tela):
+ *  - passo configurável (passoMin)
+ *  - o serviço precisa caber: fim ≤ fechamento + carência, sem atravessar almoço
+ *  - não pode colidir, em NENHUM sub-slot da duração, com algo já ocupado/bloqueado
+ *  - opcionalmente remove horários que já passaram (quando `agoraMin` é dado p/ hoje)
+ *
+ * @param ocupados conjunto de slots já tomados (use ocupacaoDeAgendamentos + bloqueios)
+ * @param agoraMin minutos do momento atual; passe apenas se o dia for hoje (senão undefined)
+ */
+export function calcularSlotsLivres(params: {
+  dia: DiaGrade | undefined | null;
+  passoMin: number;
+  carenciaMin: number;
+  duracaoMin: number;
+  ocupados: Set<string>;
+  agoraMin?: number;
+}): string[] {
+  const { dia, passoMin, carenciaMin, ocupados, agoraMin } = params;
+  const passo = passoMin > 0 ? passoMin : PASSO_DEFAULT;
+  const dur = params.duracaoMin > 0 ? params.duracaoMin : passo; // sem duração → 1 passo
+  const base = gerarSlotsDia(dia, passo);
+  return base.filter((slot) => {
+    const [h, m] = slot.split(":").map(Number);
+    const ini = h * 60 + m;
+    if (agoraMin !== undefined && ini <= agoraMin) return false; // já passou
+    if (!servicoCabeNoDia(slot, dur, dia, carenciaMin)) return false; // não cabe no expediente
+    for (let t = ini; t < ini + dur; t += passo) {                    // colide com ocupado?
+      if (ocupados.has(fmt(t))) return false;
+    }
+    return true;
+  });
+}

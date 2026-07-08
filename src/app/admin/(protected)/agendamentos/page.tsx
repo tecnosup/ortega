@@ -11,11 +11,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import AdminFab from "@/components/admin/AdminFab";
 import type { Agendamento, AgendamentoStatus, FechamentoDia } from "@/lib/agendamentos-types";
-import { parsePriceNum } from "@/lib/agendamentos-types";
+import { parsePriceNum, resolverDuracaoMin } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import type { Item } from "@/lib/admin-items";
 import { toDateKey } from "@/lib/date-utils";
-import { gerarSlotsData, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, PASSO_MIN, PASSO_MAX, CARENCIA_DEFAULT, CARENCIA_MAX, DIAS_SEMANA, type GradeConfig, type DiaGrade } from "@/lib/grade";
+import { gerarSlotsData, mesclarGrade, slotsOcupadosPorAgendamento, ocupacaoDeAgendamentos, calcularSlotsLivres, GRADE_DEFAULT, PASSO_DEFAULT, PASSO_MIN, PASSO_MAX, CARENCIA_DEFAULT, CARENCIA_MAX, DIAS_SEMANA, type GradeConfig, type DiaGrade } from "@/lib/grade";
 import AnimatedModal from "@/components/ui/Modal";
 
 function parseDuracaoMin(duracao: string): number {
@@ -215,19 +215,20 @@ type AgStep = "servico" | "barbeiro" | "dataHora" | "dados";
 // Modal de agendamento do admin — MESMO fluxo do lado cliente (wizard):
 // serviço → barbeiro → data/horário → dados. Telefone opcional, com cupom e crédito de assinatura.
 // Se vier de um slot da grade (preData+preHorario), pula a etapa de data/horário.
-function AgendarModal({ open, onClose, servicos, barbeiros, grade, preData, preHorario, onCriar }: {
+function AgendarModal({ open, onClose, servicos, barbeiros, grade, passoMin, carenciaMin, preData, preHorario, onCriar }: {
   open: boolean; onClose: () => void;
-  servicos: Item[]; barbeiros: Barbeiro[]; grade: GradeConfig;
+  servicos: Item[]; barbeiros: Barbeiro[]; grade: GradeConfig; passoMin: number; carenciaMin: number;
   preData?: string | null; preHorario?: string | null;
-  onCriar: (dados: { nome: string; telefone: string; servico: string; preco: string; data: string; horario: string; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string; cupom?: string | null }) => Promise<void>;
+  onCriar: (dados: { nome: string; telefone: string; servico: string; preco: string; data: string; horario: string; duracaoMin?: number; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string; cupom?: string | null }) => Promise<void>;
 }) {
   const hojeKey = toDateKey(new Date());
   const preSel = !!(preData && preHorario);
   const passos: AgStep[] = preSel ? ["servico", "barbeiro", "dados"] : ["servico", "barbeiro", "dataHora", "dados"];
 
   const [step, setStep] = useState<AgStep>("servico");
-  const [servico, setServico] = useState("");
-  const [preco, setPreco] = useState("");
+  // multi-serviço: mesmo barbeiro, durações e preços somados (igual ao fluxo do cliente)
+  const [servicosSel, setServicosSel] = useState<Item[]>([]);
+  const [precoEditado, setPrecoEditado] = useState<string | null>(null); // admin sobrescreveu o preço somado?
   const [barbeiroId, setBarbeiroId] = useState<string | null>(null);
   const [barbeiroNome, setBarbeiroNome] = useState<string | null>(null);
   const [dataKey, setDataKey] = useState(preData ?? hojeKey);
@@ -251,7 +252,7 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, preData, preH
   // reset ao (re)abrir
   useEffect(() => {
     if (!open) return;
-    setStep("servico"); setServico(""); setPreco("");
+    setStep("servico"); setServicosSel([]); setPrecoEditado(null);
     setBarbeiroId(null); setBarbeiroNome(null);
     setDataKey(preData ?? hojeKey); setHorario(preHorario ?? "");
     setNome(""); setTelefone(""); setCodigoCupom(""); setCupom(null); setErroCupom("");
@@ -277,46 +278,56 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, preData, preH
     return () => clearTimeout(t);
   }, [telefone]);
 
-  // slots ocupados (só quando escolhe data/barbeiro no fluxo completo)
+  // slots ocupados do barbeiro escolhido (só no fluxo completo, com barbeiro definido).
+  // /api/slots já expande a duração de cada agendamento do barbeiro.
   useEffect(() => {
     if (!open || preSel) return;
+    if (!barbeiroId) { setSlotsOcupados([]); return; } // barbeiro obrigatório
     let cancel = false;
     setCarregandoSlots(true);
     (async () => {
       try {
-        if (barbeiroId) {
-          const res = await fetch(`/api/slots?data=${dataKey}&barbeiroId=${encodeURIComponent(barbeiroId)}`, { credentials: "include" });
-          const { bloqueados } = await res.json();
-          if (!cancel) setSlotsOcupados(bloqueados ?? []);
-        } else {
-          const [sr, ar] = await Promise.all([
-            fetch(`/api/slots?data=${dataKey}`, { credentials: "include" }),
-            fetch(`/api/agendamentos?data=${dataKey}`, { credentials: "include" }),
-          ]);
-          const { bloqueados } = await sr.json();
-          const ags = await ar.json();
-          const ocup = Array.isArray(ags) ? ags.filter((a: Agendamento) => a.status !== "cancelado").map((a: Agendamento) => a.horario) : [];
-          if (!cancel) setSlotsOcupados(Array.from(new Set([...(bloqueados ?? []), ...ocup])));
-        }
+        const res = await fetch(`/api/slots?data=${dataKey}&barbeiroId=${encodeURIComponent(barbeiroId)}`, { credentials: "include" });
+        const { bloqueados } = await res.json();
+        if (!cancel) setSlotsOcupados(bloqueados ?? []);
       } finally { if (!cancel) setCarregandoSlots(false); }
     })();
     return () => { cancel = true; };
   }, [open, preSel, dataKey, barbeiroId]);
 
+  // ── serviço(s) somados: nomes, preço e duração (mesma lógica do fluxo do cliente) ──
+  const servico = servicosSel.map((s) => s.titulo).join(" + ");
+  const precoSomado = servicosSel.reduce((acc, s) => acc + parsePriceNum(s.preco), 0);
+  const duracaoMin = servicosSel.reduce((acc, s) => acc + resolverDuracaoMin(s, passoMin), 0);
+  // preço padrão = soma dos serviços; admin pode sobrescrever (precoEditado)
+  const precoStrBase = precoSomado > 0 ? precoSomado.toFixed(2).replace(".", ",") : "";
+  const preco = precoEditado !== null ? precoEditado : precoStrBase;
+
+  // FONTE DA VERDADE: mesma função de disponibilidade de todas as telas.
+  // Reserva o intervalo pela duração somada, respeita passo/carência e almoço.
   const slotsDisponiveis = (() => {
-    const todos = gerarSlotsData(dataKey, grade);
+    const dow = new Date(dataKey + "T12:00:00").getDay();
+    // slotsOcupados já vem expandido por duração (bloqueios + agendamentos do dia)
+    const ocupados = new Set(slotsOcupados);
     const agora = new Date();
-    const min = agora.getHours() * 60 + agora.getMinutes();
-    return todos.filter((s) => {
-      if (slotsOcupados.includes(s)) return false;
-      if (dataKey === hojeKey) { const [h, m] = s.split(":").map(Number); if (h * 60 + m <= min) return false; }
-      return true;
+    const ehHoje = dataKey === hojeKey;
+    return calcularSlotsLivres({
+      dia: grade[dow],
+      passoMin,
+      carenciaMin,
+      duracaoMin,
+      ocupados,
+      agoraMin: ehHoje ? agora.getHours() * 60 + agora.getMinutes() : undefined,
     });
   })();
 
   const precoBase = parseFloat((preco || "").replace(",", ".")) || 0;
   const precoFinal = cupom ? Math.max(precoBase - cupom.desconto, 0) : precoBase;
   const temCredito = assinatura?.status === "ativa" && (assinatura?.cortesRestantes ?? 0) > 0;
+
+  function toggleServico(s: Item) {
+    setServicosSel((prev) => prev.some((x) => x.id === s.id) ? prev.filter((x) => x.id !== s.id) : [...prev, s]);
+  }
 
   async function aplicarCupom() {
     if (!codigoCupom.trim()) return;
@@ -337,6 +348,7 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, preData, preH
       await onCriar({
         nome, telefone, servico, preco: precoStr,
         data: dataKey, horario,
+        duracaoMin: duracaoMin > 0 ? duracaoMin : undefined,
         barbeiroId: barbeiroId ?? undefined, barbeiroNome: barbeiroNome ?? undefined,
         usarCredito: usarCredito && !!assinatura, assinaturaId: usarCredito && assinatura ? assinatura.id : undefined,
         cupom: cupom?.codigo ?? null,
@@ -370,24 +382,32 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, preData, preH
       <div className="px-5 py-4 flex flex-col gap-3 max-h-[58vh] overflow-y-auto">
         {step === "servico" && (
           servicos.length === 0 ? <p className="text-sm text-gray-500 text-center py-6">Nenhum serviço cadastrado.</p> :
-          servicos.map((s) => (
-            <button key={s.id} onClick={() => { setServico(s.titulo); setPreco(s.preco); setCupom(null); setStep("barbeiro"); }}
-              className="text-left border border-[#2d2d2d] bg-[#111] p-3.5 rounded-xl hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition group">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0"><p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition truncate">{s.titulo}</p>{s.descricao && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{s.descricao}</p>}</div>
-                {s.preco && <p className="text-[#b8944a] font-bold text-sm shrink-0">R$ {s.preco}</p>}
-              </div>
-            </button>
-          ))
+          <>
+            <p className="text-[11px] text-gray-500 -mt-1">Pode marcar mais de um — a duração e o preço somam.</p>
+            {servicos.map((s) => {
+              const marcado = servicosSel.some((x) => x.id === s.id);
+              return (
+                <button key={s.id} onClick={() => { toggleServico(s); setCupom(null); }}
+                  className={`text-left border p-3.5 rounded-xl transition group ${marcado ? "border-[#b8944a] bg-[#b8944a]/10" : "border-[#2d2d2d] bg-[#111] hover:border-[#b8944a] hover:bg-[#b8944a]/5"}`}>
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition ${marcado ? "bg-[#b8944a] border-[#b8944a]" : "border-[#3d3d3d]"}`}>
+                      {marcado && <IconCheck size={13} className="text-[#0A0A0A]" />}
+                    </div>
+                    <div className="min-w-0 flex-1"><p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition truncate">{s.titulo}</p>{s.descricao && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{s.descricao}</p>}</div>
+                    <div className="text-right shrink-0">
+                      {s.preco && <p className="text-[#b8944a] font-bold text-sm">R$ {s.preco}</p>}
+                      {(s.duracaoMin || s.duracao) && <p className="text-[10px] text-gray-600 mt-0.5">{resolverDuracaoMin(s, passoMin)} min</p>}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </>
         )}
 
         {step === "barbeiro" && (
           <>
-            <button onClick={() => { setBarbeiroId(null); setBarbeiroNome(null); irAposBarbeiro(); }}
-              className="text-left border border-[#2d2d2d] bg-[#111] p-3.5 rounded-xl hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#2d2d2d] flex items-center justify-center shrink-0">✂️</div>
-              <div><p className="font-semibold text-[#F5E6C8]">Qualquer disponível</p><p className="text-[11px] text-gray-500">O próximo barbeiro livre</p></div>
-            </button>
+            {barbeiros.length === 0 && <p className="text-sm text-gray-500 text-center py-6">Nenhum barbeiro cadastrado.</p>}
             {barbeiros.map((b) => (
               <button key={b.id} onClick={() => { setBarbeiroId(b.id); setBarbeiroNome(b.apelido ?? b.nome); irAposBarbeiro(); }}
                 className="text-left border border-[#2d2d2d] bg-[#111] p-3.5 rounded-xl hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition flex items-center gap-3">
@@ -407,7 +427,7 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, preData, preH
               <label className="text-xs text-gray-400 capitalize">{dataLabel}</label>
               {carregandoSlots ? <p className="text-sm text-gray-600 py-3 text-center">Carregando horários...</p> :
                slotsDisponiveis.length === 0 ? <p className="text-sm text-gray-500 py-3 text-center">Sem horários disponíveis neste dia.</p> :
-               <div className="grid grid-cols-4 gap-2">
+               <div className="grid grid-cols-4 gap-2 max-h-[240px] overflow-y-auto nice-scroll -mr-1 pr-1">
                  {slotsDisponiveis.map((s) => (
                    <button key={s} onClick={() => setHorario(s)} className={`py-2 text-sm rounded-lg border font-medium transition ${horario === s ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "border-[#2d2d2d] text-[#F5E6C8] hover:border-[#b8944a]"}`}>{s}</button>
                  ))}
@@ -419,10 +439,10 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, preData, preH
         {step === "dados" && (
           <>
             <div className="bg-[#0d0d0d] border border-[#2d2d2d] rounded-lg p-3 flex flex-col gap-1 text-xs">
-              <div className="flex justify-between"><span className="text-gray-500">Serviço</span><span className="text-[#F5E6C8] font-medium">{servico}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-gray-500 shrink-0">Serviço</span><span className="text-[#F5E6C8] font-medium text-right">{servico}</span></div>
               {barbeiroNome && <div className="flex justify-between"><span className="text-gray-500">Barbeiro</span><span className="text-[#F5E6C8]">{barbeiroNome}</span></div>}
               <div className="flex justify-between"><span className="text-gray-500">Data</span><span className="text-[#F5E6C8] capitalize">{dataLabel}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Horário</span><span className="text-[#F5E6C8]">{horario}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Horário</span><span className="text-[#F5E6C8]">{horario}{duracaoMin > 0 && <span className="text-gray-500"> · {duracaoMin} min</span>}</span></div>
             </div>
             <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Nome do cliente</label><input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: João Silva" className={inp} /></div>
             <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">WhatsApp (opcional)</label>
@@ -438,7 +458,10 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, preData, preH
                 </div>
               )}
             </div>
-            <div className="flex flex-col gap-1"><label className="text-xs text-gray-400">Preço (R$)</label><input value={preco} onChange={(e) => { setPreco(e.target.value); setCupom(null); }} placeholder="55" className={`${inp} disabled:opacity-50`} disabled={usarCredito} /></div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-400">Preço (R$){servicosSel.length > 1 && <span className="text-gray-600"> · soma de {servicosSel.length} serviços</span>}</label>
+              <input value={preco} onChange={(e) => { setPrecoEditado(e.target.value); setCupom(null); }} placeholder="55" className={`${inp} disabled:opacity-50`} disabled={usarCredito} />
+            </div>
             {!usarCredito && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs text-gray-400 flex items-center gap-1.5"><IconTag size={12} /> Cupom (opcional)</label>
@@ -456,8 +479,14 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, preData, preH
         )}
       </div>
 
-      <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2 justify-between shrink-0">
+      <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2 justify-between items-center shrink-0">
         <button onClick={() => { if (idx === 0) onClose(); else setStep(passos[idx - 1]); }} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">{idx === 0 ? "Cancelar" : "← Voltar"}</button>
+        {step === "servico" && (
+          <div className="flex items-center gap-3">
+            {servicosSel.length > 0 && <span className="text-[11px] text-gray-500 hidden sm:block">{servicosSel.length} serviço{servicosSel.length > 1 ? "s" : ""} · {duracaoMin} min</span>}
+            <button onClick={() => setStep("barbeiro")} disabled={servicosSel.length === 0} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">Continuar →</button>
+          </div>
+        )}
         {step === "dataHora" && <button onClick={() => setStep("dados")} disabled={!horario} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">Continuar →</button>}
         {step === "dados" && <button onClick={confirmar} disabled={salvando || nome.trim().length < 2} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">{salvando ? "Salvando..." : "Confirmar"}</button>}
       </div>
@@ -530,15 +559,33 @@ function DateFieldBR({ value, min, onChange }: { value: string; min: string; onC
   );
 }
 
-function ReagendarModal({ open, ag, dataSelecionada, slotsLivres, grade, onConfirm, onCancel }: {
-  open: boolean; ag: Agendamento; dataSelecionada: string; slotsLivres: string[]; grade: GradeConfig;
+function ReagendarModal({ open, ag, dataSelecionada, agsDia, slotsBloqueados, grade, passoMin, carenciaMin, onConfirm, onCancel }: {
+  open: boolean; ag: Agendamento; dataSelecionada: string; agsDia: Agendamento[]; slotsBloqueados: string[]; grade: GradeConfig; passoMin: number; carenciaMin: number;
   onConfirm: (novaData: string, novoHorario: string) => void; onCancel: () => void;
 }) {
   const [novaData, setNovaData] = useState(dataSelecionada);
-  const [novoHorario, setNovoHorario] = useState(slotsLivres[0] ?? ag.horario);
+  const [novoHorario, setNovoHorario] = useState("");
   const [slotsLivresFetch, setSlotsLivresFetch] = useState<string[] | null>(null);
   const [buscandoSlots, setBuscandoSlots] = useState(false);
   const hojeKey = toDateKey(new Date());
+  // o serviço mantém a duração ao reagendar — reserva o mesmo intervalo no novo horário
+  const duracaoAg = ag.duracaoMin && ag.duracaoMin > 0 ? ag.duracaoMin : passoMin;
+
+  // horários livres na DATA JÁ CARREGADA (dataSelecionada): mesma lógica central,
+  // excluindo o próprio agendamento e mantendo o horário atual dele como opção.
+  const slotsMesmaData = (() => {
+    const ocupacao = ocupacaoDeAgendamentos(agsDia.filter((a) => a.id !== ag.id), passoMin);
+    for (const b of slotsBloqueados) ocupacao.add(b);
+    const dow = new Date(dataSelecionada + "T12:00:00").getDay();
+    const agora = new Date();
+    const livres = calcularSlotsLivres({
+      dia: grade[dow], passoMin, carenciaMin, duracaoMin: duracaoAg, ocupados: ocupacao,
+      agoraMin: dataSelecionada === hojeKey ? agora.getHours() * 60 + agora.getMinutes() : undefined,
+    });
+    // garante que o horário atual do agendamento apareça (pra não sumir da lista ao reabrir)
+    if (!livres.includes(ag.horario) && dataSelecionada !== hojeKey) return [ag.horario, ...livres].sort();
+    return livres;
+  })();
 
   useEffect(() => {
     if (novaData === dataSelecionada) {
@@ -550,31 +597,27 @@ function ReagendarModal({ open, ag, dataSelecionada, slotsLivres, grade, onConfi
       fetch(`/api/agendamentos?data=${novaData}`, { credentials: "include" }).then((r) => r.json()),
       fetch(`/api/slots?data=${novaData}`, { credentials: "include" }).then((r) => r.json()),
     ]).then(([ags, { bloqueados }]: [Agendamento[], { bloqueados: string[] }]) => {
-      const ocupados = new Set([
-        ...ags.filter((a) => a.id !== ag.id && a.status !== "cancelado").map((a) => a.horario),
-        ...bloqueados,
-      ]);
-      const todos = gerarSlotsData(novaData, grade);
-      const minutosAgora = new Date().getHours() * 60 + new Date().getMinutes();
-      setSlotsLivresFetch(todos.filter((s) => {
-        if (ocupados.has(s)) return false;
-        if (novaData === hojeKey) {
-          const [h, m] = s.split(":").map(Number);
-          return h * 60 + m > minutosAgora;
-        }
-        return true;
-      }));
+      // FONTE DA VERDADE: expande os agendamentos pela duração (menos o próprio),
+      // soma bloqueios, e calcula os horários onde o serviço inteiro cabe.
+      const ocupacao = ocupacaoDeAgendamentos(ags.filter((a) => a.id !== ag.id), passoMin);
+      for (const b of bloqueados) ocupacao.add(b);
+      const dow = new Date(novaData + "T12:00:00").getDay();
+      const agora = new Date();
+      const livres = calcularSlotsLivres({
+        dia: grade[dow],
+        passoMin,
+        carenciaMin,
+        duracaoMin: duracaoAg,
+        ocupados: ocupacao,
+        agoraMin: novaData === hojeKey ? agora.getHours() * 60 + agora.getMinutes() : undefined,
+      });
+      setSlotsLivresFetch(livres);
       setBuscandoSlots(false);
     }).catch(() => setBuscandoSlots(false));
-  }, [novaData, dataSelecionada, ag.id, hojeKey, grade]);
+  }, [novaData, dataSelecionada, ag.id, hojeKey, grade, passoMin, carenciaMin, duracaoAg]);
 
-  const minutosAgora = new Date().getHours() * 60 + new Date().getMinutes();
   const slotsParaData = novaData === dataSelecionada
-    ? slotsLivres.filter((s) => {
-        if (novaData !== hojeKey) return true;
-        const [h, m] = s.split(":").map(Number);
-        return h * 60 + m > minutosAgora;
-      })
+    ? slotsMesmaData
     : (slotsLivresFetch ?? []);
 
   return (
@@ -1027,9 +1070,21 @@ export default function AgendamentosAdminPage() {
   const agsDia = agendamentos.filter((a) => a.data === dataSelecionada).sort((a, b) => a.horario.localeCompare(b.horario));
   const concluidos = agsDia.filter((a) => a.status === "concluido");
   const totalDia = concluidos.reduce((s, a) => s + parsePriceNum(a.preco), 0);
+  const totalBarbeiros = barbeiros.length || 1;
   const todosSlotsDia = gerarSlotsData(dataSelecionada, grade, passoMin);
-  const horariosOcupados = new Set(agsDia.map((a) => a.horario));
-  const slotsLivresDia = todosSlotsDia.filter((s) => !horariosOcupados.has(s) && !slotsBloqueados.includes(s));
+  // ocupação por slot considerando a DURAÇÃO de cada agendamento (não só o ponto de início).
+  // Ex: corte 45min às 09:00 marca 09:00/09:15/09:30 como ocupados (passo 15).
+  const ativosDia = agsDia.filter((a) => a.status !== "cancelado" && a.status !== "nao_compareceu");
+  const ocupacaoPorSlot = new Map<string, number>();
+  for (const a of ativosDia) {
+    for (const s of slotsOcupadosPorAgendamento(a.horario, a.duracaoMin, passoMin)) {
+      ocupacaoPorSlot.set(s, (ocupacaoPorSlot.get(s) ?? 0) + 1);
+    }
+  }
+  // slot livre = ninguém agendado ali E não bloqueado E cabe pelo menos 1 barbeiro
+  const slotsLivresDia = todosSlotsDia.filter(
+    (s) => (ocupacaoPorSlot.get(s) ?? 0) < totalBarbeiros && !slotsBloqueados.includes(s)
+  );
 
   const ehHoje = dataSelecionada === hojeKey;
   const ehFuturo = dataSelecionada > hojeKey;
@@ -1114,7 +1169,7 @@ export default function AgendamentosAdminPage() {
     mostrarSucesso(jaBloqueado ? `Horário ${horario} liberado` : `Horário ${horario} bloqueado`);
   }
 
-  async function criarAgendamento(dados: { nome: string; telefone: string; servico: string; preco: string; data: string; horario: string; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string; cupom?: string | null }) {
+  async function criarAgendamento(dados: { nome: string; telefone: string; servico: string; preco: string; data: string; horario: string; duracaoMin?: number; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string; cupom?: string | null }) {
     const body: Record<string, unknown> = {
       ...dados,
       telefone: dados.telefone || "00000000000",
@@ -1278,9 +1333,9 @@ export default function AgendamentosAdminPage() {
       </AnimatedModal>
       {/* Sempre montados (key força reset do form ao reabrir) — assim o AnimatePresence
           interno do Modal roda a animação de SAÍDA ao fechar. */}
-      <AgendarModal open={agendarOpen} onClose={() => setAgendarOpen(false)} servicos={servicos} barbeiros={barbeiros} grade={grade} preData={agendarPre?.data ?? null} preHorario={agendarPre?.horario ?? null} onCriar={criarAgendamento} />
+      <AgendarModal open={agendarOpen} onClose={() => setAgendarOpen(false)} servicos={servicos} barbeiros={barbeiros} grade={grade} passoMin={passoMin} carenciaMin={carenciaMin} preData={agendarPre?.data ?? null} preHorario={agendarPre?.horario ?? null} onCriar={criarAgendamento} />
       {reagendarRender && (
-        <ReagendarModal key={reagendarRender.key} open={!!reagendarAg} ag={reagendarRender.ag} dataSelecionada={dataSelecionada} slotsLivres={slotsLivresDia} grade={grade} onConfirm={reagendar} onCancel={() => setReagendarAg(null)} />
+        <ReagendarModal key={reagendarRender.key} open={!!reagendarAg} ag={reagendarRender.ag} dataSelecionada={dataSelecionada} agsDia={agsDia} slotsBloqueados={slotsBloqueados} grade={grade} passoMin={passoMin} carenciaMin={carenciaMin} onConfirm={reagendar} onCancel={() => setReagendarAg(null)} />
       )}
       <AnimatePresence>
         {notificacaoLink && (
@@ -1670,19 +1725,23 @@ export default function AgendamentosAdminPage() {
           </div>
           <div className="overflow-y-auto max-h-[480px] divide-y divide-[#1a1a1a]">
             {todosSlotsDia.map((slot) => {
+              // agendamentos que COMEÇAM neste slot (renderiza os cards aqui)
               const agsNoSlot = agsDia.filter((a) => a.horario === slot && a.status !== "cancelado");
+              // quantos barbeiros estão ocupados NESTE slot considerando a duração dos agendamentos
+              const ocupacaoNoSlot = ocupacaoPorSlot.get(slot) ?? 0;
               const bloqueado = slotsBloqueados.includes(slot);
-              const totalBarbeiros = barbeiros.length || 1;
-              const cheio = !bloqueado && agsNoSlot.length >= totalBarbeiros;
-              const livre = agsNoSlot.length === 0 && !bloqueado;
+              const cheio = !bloqueado && ocupacaoNoSlot >= totalBarbeiros;
+              const livre = ocupacaoNoSlot === 0 && !bloqueado;
+              // ocupado por duração de um agendamento que começou ANTES (não neste slot)
+              const ocupadoPorAnterior = agsNoSlot.length === 0 && ocupacaoNoSlot > 0;
               return (
                 <div key={slot} className={`flex gap-3 px-3 sm:px-4 py-3 transition-colors ${bloqueado ? "bg-[#0A0A0A]/60" : cheio ? "bg-red-950/[0.07]" : livre ? "hover:bg-white/[0.015]" : ""}`}>
                   {/* coluna do horário — chip alinhado ao topo */}
                   <div className="flex-shrink-0 w-14 flex flex-col items-center pt-0.5">
                     <span className={`text-sm font-bold tabular-nums ${livre && !slotPassou(slot) ? "text-[#F5E6C8]" : "text-gray-500"}`}>{slot}</span>
                     {!bloqueado && (
-                      <span className={`text-[10px] mt-1 px-1.5 py-0.5 rounded-full border tabular-nums ${cheio ? "border-red-800/50 text-red-400/80 bg-red-950/30" : agsNoSlot.length > 0 ? "border-[#2d2d2d] text-gray-500" : "border-transparent text-gray-700"}`}>
-                        {agsNoSlot.length}/{totalBarbeiros}
+                      <span className={`text-[10px] mt-1 px-1.5 py-0.5 rounded-full border tabular-nums ${cheio ? "border-red-800/50 text-red-400/80 bg-red-950/30" : ocupacaoNoSlot > 0 ? "border-[#2d2d2d] text-gray-500" : "border-transparent text-gray-700"}`}>
+                        {ocupacaoNoSlot}/{totalBarbeiros}
                       </span>
                     )}
                   </div>
@@ -1691,6 +1750,11 @@ export default function AgendamentosAdminPage() {
                       <div className="flex items-center justify-between gap-2 py-1">
                         <span className="text-sm text-gray-500 flex items-center gap-1.5"><IconBan size={13} className="text-red-500/70" /> Bloqueado</span>
                         {!caixaFechado && <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition shrink-0"><IconLockOpen size={12} /> Desbloquear</button>}
+                      </div>
+                    ) : ocupadoPorAnterior && !cheio ? (
+                      // slot dentro da duração de um agendamento que começou antes
+                      <div className="flex items-center gap-1.5 py-1">
+                        <span className="text-xs text-gray-600 flex items-center gap-1.5"><IconClock size={12} className="text-gray-700" /> Em atendimento</span>
                       </div>
                     ) : livre ? (
                       <div className="flex items-center justify-between gap-2 py-1">

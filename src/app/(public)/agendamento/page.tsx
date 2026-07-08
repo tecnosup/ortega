@@ -8,7 +8,7 @@ import type { Item } from "@/lib/admin-items";
 import { type Agendamento, resolverDuracaoMin, parsePriceNum } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import { toDateKey } from "@/lib/date-utils";
-import { gerarSlotsDia, servicoCabeNoDia, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, CARENCIA_DEFAULT, type GradeConfig } from "@/lib/grade";
+import { gerarSlotsDia, calcularSlotsLivres, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, CARENCIA_DEFAULT, type GradeConfig } from "@/lib/grade";
 
 const MESES =["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["D","S","T","Q","Q","S","S"];
@@ -156,28 +156,17 @@ export default function AgendamentoPage() {
     });
   }, []);
 
-  // busca slots ocupados quando muda de data ou barbeiro
+  // busca slots ocupados do barbeiro escolhido quando muda de data/barbeiro.
+  // A API /api/slots já expande a duração de cada agendamento do barbeiro.
   const buscarSlots = useCallback(async (dateKey: string, barbeiroId: string | null) => {
-    const cacheKey = barbeiroId ? `${dateKey}__${barbeiroId}` : dateKey;
+    if (!barbeiroId) return; // barbeiro é obrigatório — sem ele não há o que buscar
+    const cacheKey = `${dateKey}__${barbeiroId}`;
     if (slotsOcupados[cacheKey] !== undefined) return;
     setCarregandoSlots(true);
     try {
-      if (barbeiroId) {
-        // API de slots já filtra horários ocupados do barbeiro específico
-        const res = await fetch(`/api/slots?data=${dateKey}&barbeiroId=${encodeURIComponent(barbeiroId)}`);
-        const { bloqueados } = await res.json();
-        setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: bloqueados ?? [] }));
-      } else {
-        // "qualquer": combina bloqueios globais + todos os agendamentos do dia
-        const [slotsRes, agendRes] = await Promise.all([
-          fetch(`/api/slots?data=${dateKey}`),
-          fetch(`/api/agendamentos?data=${dateKey}`),
-        ]);
-        const { bloqueados } = await slotsRes.json();
-        const agendData = await agendRes.json();
-        const agendados = Array.isArray(agendData) ? agendData.map((a: Agendamento) => a.horario) : [];
-        setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: Array.from(new Set([...bloqueados, ...agendados])) }));
-      }
+      const res = await fetch(`/api/slots?data=${dateKey}&barbeiroId=${encodeURIComponent(barbeiroId)}`);
+      const { bloqueados } = await res.json();
+      setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: bloqueados ?? [] }));
     } finally {
       setCarregandoSlots(false);
     }
@@ -223,28 +212,18 @@ export default function AgendamentoPage() {
   }, [mesAtual]);
 
   function getSlotsDisponiveis(dateKey: string, diaSemana: number): string[] {
-    const todos = gerarSlotsDia(grade[diaSemana], passoMin);
-    if (todos.length === 0) return [];
     const cacheKey = selecao.barbeiroId ? `${dateKey}__${selecao.barbeiroId}` : dateKey;
     const ocupados = new Set(slotsOcupados[cacheKey] ?? []);
     const agora = new Date();
     const hojeKey = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}-${String(agora.getDate()).padStart(2, "0")}`;
-    const minutosAgora = agora.getHours() * 60 + agora.getMinutes();
-    // duração do serviço escolhido (fallback = 1 passo, comportamento antigo)
-    const dur = selecao.duracaoMin > 0 ? selecao.duracaoMin : passoMin;
-    const dia = grade[diaSemana];
-    const fmt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
-    return todos.filter((s) => {
-      const [h, m] = s.split(":").map(Number);
-      const ini = h * 60 + m;
-      if (dateKey === hojeKey && ini <= minutosAgora) return false;
-      // cabe no expediente (fim + carência) e não atravessa o almoço
-      if (!servicoCabeNoDia(s, dur, dia, carenciaMin)) return false;
-      // não colide com nenhum agendamento existente no intervalo [ini, ini+dur)
-      for (let t = ini; t < ini + dur; t += passoMin) {
-        if (ocupados.has(fmt(t))) return false;
-      }
-      return true;
+    // FONTE DA VERDADE: reserva o intervalo pela duração do serviço, respeita passo/carência/almoço
+    return calcularSlotsLivres({
+      dia: grade[diaSemana],
+      passoMin,
+      carenciaMin,
+      duracaoMin: selecao.duracaoMin > 0 ? selecao.duracaoMin : passoMin,
+      ocupados,
+      agoraMin: dateKey === hojeKey ? agora.getHours() * 60 + agora.getMinutes() : undefined,
     });
   }
 
@@ -335,18 +314,10 @@ export default function AgendamentoPage() {
       setSelecao((s) => ({ ...s, nome, telefone }));
       setAgendamentoId(data.id);
       setStatusAtual("pendente");
-      // invalida cache do slot que acabou de ser ocupado
+      // invalida o cache do slot que acabou de ser ocupado (barbeiro escolhido)
       setSlotsOcupados((prev) => {
         const prev2 = { ...prev };
-        delete prev2[dataKey];
-        if (selecao.barbeiroId) {
-          delete prev2[`${dataKey}__${selecao.barbeiroId}`];
-        } else {
-          // "qualquer": slot pode ter sido atribuído a qualquer barbeiro — invalida todos os caches deste dia
-          for (const key of Object.keys(prev2)) {
-            if (key.startsWith(`${dataKey}__`)) delete prev2[key];
-          }
-        }
+        if (selecao.barbeiroId) delete prev2[`${dataKey}__${selecao.barbeiroId}`];
         return prev2;
       });
       setStep("confirmado");
@@ -458,29 +429,12 @@ export default function AgendamentoPage() {
             <StepIndicator atual={2} />
             <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 2 de 4</span>
             <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Escolha o barbeiro</h1>
-            <p className="text-gray-500 text-sm mt-1">Ou deixe em branco para qualquer disponível</p>
           </div>
 
           <div className="flex flex-col gap-3">
-            {/* opção "qualquer" */}
-            <button
-              onClick={() => {
-                setSelecao((s) => ({ ...s, barbeiroId: null, barbeiroNome: null }));
-                setStep("calendario");
-              }}
-              className={`text-left border rounded-xl p-4 sm:p-5 transition-all duration-200 active:scale-[0.98] hover:border-[#b8944a] hover:bg-[#b8944a]/5 group ${
-                selecao.barbeiroId === null ? "border-[#b8944a] bg-[#b8944a]/5" : "border-[#2d2d2d] bg-[#111]"
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-[#2d2d2d] flex items-center justify-center text-xl shrink-0">✂️</div>
-                <div>
-                  <p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition">Qualquer disponível</p>
-                  <p className="text-xs text-gray-500 mt-0.5">O próximo barbeiro livre atende você</p>
-                </div>
-              </div>
-            </button>
-
+            {barbeiros.length === 0 && (
+              <p className="text-center text-gray-500 text-sm py-10">Nenhum barbeiro disponível no momento.</p>
+            )}
             {barbeiros.map((b) => (
               <button
                 key={b.id}
@@ -628,26 +582,30 @@ export default function AgendamentoPage() {
                   ) : slotsDisponiveis.length === 0 ? (
                     <p className="text-sm text-gray-500 py-4 text-center">Sem horários disponíveis.<br />Escolha outra data.</p>
                   ) : (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-2 gap-2">
-                      {slotsDisponiveis.map((slot) => (
-                        <button
-                          key={slot}
-                          onClick={() => {
-                            setSelecao((s) => ({ ...s, horario: slot }));
-                            // rola até o botão "Continuar" (que só aparece agora)
-                            setTimeout(() => {
-                              continuarRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-                            }, 100);
-                          }}
-                          className={`py-2.5 text-sm rounded-lg transition-all border font-medium active:scale-95 ${
-                            selecao.horario === slot
-                              ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]"
-                              : "border-[#2d2d2d] text-[#F5E6C8] hover:border-[#b8944a] hover:text-[#b8944a]"
-                          }`}
-                        >
-                          {slot}
-                        </button>
-                      ))}
+                    // scroll interno: com passo pequeno (ex: 5 min) a lista fica enorme;
+                    // limita a altura e rola dentro da div em vez de esticar a página no mobile
+                    <div className="max-h-[280px] sm:max-h-[320px] overflow-y-auto nice-scroll -mr-1 pr-1">
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-2 gap-2">
+                        {slotsDisponiveis.map((slot) => (
+                          <button
+                            key={slot}
+                            onClick={() => {
+                              setSelecao((s) => ({ ...s, horario: slot }));
+                              // rola até o botão "Continuar" (que só aparece agora)
+                              setTimeout(() => {
+                                continuarRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                              }, 100);
+                            }}
+                            className={`py-2.5 text-sm rounded-lg transition-all border font-medium active:scale-95 ${
+                              selecao.horario === slot
+                                ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]"
+                                : "border-[#2d2d2d] text-[#F5E6C8] hover:border-[#b8944a] hover:text-[#b8944a]"
+                            }`}
+                          >
+                            {slot}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
