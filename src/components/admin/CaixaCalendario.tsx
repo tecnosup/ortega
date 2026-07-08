@@ -32,18 +32,55 @@ const FORMAS_PAG: { nome: string; icon: Icon }[] = [
   { nome: "Dinheiro", icon: IconCashBanknote },
 ];
 
-// ── Modal de confirmação genérico ───────────────────────────────────────────────
-function ModalConfirm({ open = true, titulo, mensagem, confirmLabel, confirmClass, onConfirm, onCancel }: {
-  open?: boolean; titulo: string; mensagem: string; confirmLabel: string;
-  confirmClass: string; onConfirm: () => void; onCancel: () => void;
-}) {
+// ── Overlay de sucesso reutilizável (dentro de um modal) ────────────────────────
+function SucessoOverlay({ msg, tipo = "sucesso" }: { msg: string; tipo?: "sucesso" | "info" }) {
+  const cor = tipo === "sucesso" ? "bg-green-600" : "bg-[#b8944a]";
+  const txt = tipo === "sucesso" ? "text-green-400" : "text-[#b8944a]";
   return (
-    <Modal open={open} onClose={onCancel} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl p-6 max-w-sm w-full mx-6 flex flex-col gap-4">
+    <motion.div
+      className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#141414] rounded-xl"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className={`w-16 h-16 rounded-full ${cor} flex items-center justify-center`}
+        initial={{ scale: 0 }} animate={{ scale: 1 }}
+        transition={{ type: "spring", stiffness: 300, damping: 15 }}
+      >
+        <IconCheck size={34} className="text-white" strokeWidth={3} />
+      </motion.div>
+      <motion.p className={`text-sm font-bold ${txt}`}
+        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+        {msg}
+      </motion.p>
+    </motion.div>
+  );
+}
+
+// ── Modal de confirmação genérico (com feedback de sucesso inline) ──────────────
+function ModalConfirm({ open = true, titulo, mensagem, confirmLabel, confirmClass, sucessoMsg, sucessoTipo = "sucesso", onConfirm, onCancel }: {
+  open?: boolean; titulo: string; mensagem: string; confirmLabel: string;
+  confirmClass: string; sucessoMsg?: string; sucessoTipo?: "sucesso" | "info";
+  onConfirm: () => void | boolean | Promise<void | boolean>; onCancel: () => void;
+}) {
+  const [processando, setProcessando] = useState(false);
+  const [sucesso, setSucesso] = useState(false);
+
+  async function confirmar() {
+    setProcessando(true);
+    const r = await onConfirm();
+    setProcessando(false);
+    // mostra o overlay de sucesso, exceto se o handler sinalizou falha (retornou false)
+    if (sucessoMsg && r !== false) setSucesso(true);
+  }
+
+  return (
+    <Modal open={open} onClose={sucesso ? () => {} : onCancel} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl p-6 max-w-sm w-full mx-6 flex flex-col gap-4">
+      <AnimatePresence>{sucesso && sucessoMsg && <SucessoOverlay msg={sucessoMsg} tipo={sucessoTipo} />}</AnimatePresence>
       <h3 className="font-bold text-[#F5E6C8]">{titulo}</h3>
       <p className="text-sm text-gray-400 leading-relaxed">{mensagem}</p>
       <div className="flex gap-2 justify-end">
-        <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
-        <button onClick={onConfirm} className={`px-4 py-2 text-sm rounded transition ${confirmClass}`}>{confirmLabel}</button>
+        <button onClick={onCancel} disabled={processando || sucesso} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition disabled:opacity-50">Cancelar</button>
+        <button onClick={confirmar} disabled={processando || sucesso} className={`px-4 py-2 text-sm rounded transition disabled:opacity-50 ${confirmClass}`}>{processando ? "..." : confirmLabel}</button>
       </div>
     </Modal>
   );
@@ -469,7 +506,9 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
   const ehFuturo = diaSel > hoje;
   const ehHoje = diaSel === hoje;
 
-  async function fecharCaixa() {
+  // Fecha o caixa. Se houver comanda aberta, o modal fecha e mostra o erro inline
+  // (não pode mostrar sucesso). Retorna se deu certo, para o overlay do ModalConfirm.
+  async function fecharCaixa(): Promise<boolean> {
     setFechando(true); setErroFechar("");
     try {
       const res = await fetch("/api/fechamento", {
@@ -480,19 +519,24 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         setErroFechar(j.error ?? "Erro ao fechar o caixa");
-      } else { toast.sucesso("Caixa fechado!"); onAtualizar(); }
+        setModalFechar(false);
+        return false;
+      }
+      // dá tempo do overlay de sucesso aparecer antes de recarregar/desmontar
+      setTimeout(() => { setModalFechar(false); onAtualizar(); }, 1200);
+      return true;
     } finally { setFechando(false); }
   }
 
   async function reabrirCaixa() {
     if (!fechDia) return;
     await fetch(`/api/fechamento/${fechDia.id}`, { method: "DELETE", credentials: "include" });
-    setModalReabrir(false); toast.info("Caixa reaberto"); onAtualizar();
+    setTimeout(() => { setModalReabrir(false); onAtualizar(); }, 1200);
   }
 
   async function cancelarComanda(id: string) {
     await fetch(`/api/comandas/${id}/cancelar`, { method: "POST", credentials: "include" });
-    setModalCancelar(null); toast.info("Comanda cancelada"); onAtualizar();
+    setTimeout(() => { setModalCancelar(null); onAtualizar(); }, 1200);
   }
 
   async function reabrirComanda(id: string) {
@@ -537,19 +581,22 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
         <ModalConfirm open={cancelarMount.open} titulo="Cancelar comanda?"
           mensagem={`A comanda de ${cancelarMount.value.clienteNome} será cancelada e não entrará no caixa.`}
           confirmLabel="Cancelar comanda" confirmClass="bg-red-900/60 text-red-300 border border-red-800/60 hover:bg-red-900/80"
+          sucessoMsg="Comanda cancelada" sucessoTipo="info"
           onConfirm={() => cancelarMount.value && cancelarComanda(cancelarMount.value.id)} onCancel={() => setModalCancelar(null)} />
       )}
       {reabrirMount.mounted && (
         <ModalConfirm open={reabrirMount.open} titulo="Reabrir caixa?"
           mensagem="O fechamento será excluído e as comandas voltarão ao estado editável."
           confirmLabel="Reabrir" confirmClass="bg-red-900/60 text-red-300 border border-red-800/60 hover:bg-red-900/80"
+          sucessoMsg="Caixa reaberto" sucessoTipo="info"
           onConfirm={reabrirCaixa} onCancel={() => setModalReabrir(false)} />
       )}
       {fecharMount.mounted && (
         <ModalConfirm open={fecharMount.open} titulo="Fechar o caixa?"
           mensagem={`Os atendimentos de ${new Date(diaSel + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })} serão consolidados. Você ainda poderá reabrir caso precise corrigir algo.`}
           confirmLabel={fechando ? "Fechando..." : "Fechar caixa"} confirmClass="bg-[#b8944a] text-[#0A0A0A] font-bold hover:bg-[#c9a84c]"
-          onConfirm={() => { setModalFechar(false); fecharCaixa(); }} onCancel={() => setModalFechar(false)} />
+          sucessoMsg="Caixa fechado!"
+          onConfirm={fecharCaixa} onCancel={() => setModalFechar(false)} />
       )}
 
       <div className="bg-[#111] border border-[#2d2d2d] rounded-xl overflow-hidden">
