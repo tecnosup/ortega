@@ -5,13 +5,14 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ASSINATURAS_ATIVAS, REVIEWS_ATIVOS } from "@/lib/flags";
 
 const NAV_LINKS = [
   { href: "#sobre", label: "Sobre" },
   { href: "#servicos", label: "Serviços" },
   { href: "#produtos", label: "Produtos" },
-  { href: "#assinaturas", label: "Assinaturas" },
-  { href: "#depoimentos", label: "Depoimentos" },
+  ...(ASSINATURAS_ATIVAS ? [{ href: "#assinaturas", label: "Assinaturas" }] : []),
+  ...(REVIEWS_ATIVOS ? [{ href: "#depoimentos", label: "Depoimentos" }] : []),
 ];
 
 export default function Navbar() {
@@ -62,12 +63,14 @@ export default function Navbar() {
 
         {/* cta desktop */}
         <div className="hidden md:flex items-center gap-3">
-          <Link
-            href="/cliente/login"
-            className="inline-flex items-center px-4 py-2.5 text-[#C9A84C]/70 text-sm font-medium tracking-wider uppercase hover:text-[#C9A84C] transition-colors duration-200"
-          >
-            Área do cliente
-          </Link>
+          {ASSINATURAS_ATIVAS && (
+            <Link
+              href="/cliente/login"
+              className="inline-flex items-center px-4 py-2.5 text-[#C9A84C]/70 text-sm font-medium tracking-wider uppercase hover:text-[#C9A84C] transition-colors duration-200"
+            >
+              Área do cliente
+            </Link>
+          )}
           <Link
             href="/agendamento"
             className="inline-flex items-center px-5 py-2.5 border border-[#C9A84C] text-[#C9A84C] text-sm font-medium tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] transition-all duration-300"
@@ -116,19 +119,21 @@ export default function Navbar() {
                 </Link>
               </motion.div>
             ))}
-            <motion.div
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.2, delay: NAV_LINKS.length * 0.05 }}
-            >
-              <Link
-                href="/cliente/login"
-                onClick={() => setOpen(false)}
-                className="block py-3.5 text-base text-[#C9A84C]/80 hover:text-[#C9A84C] transition-colors tracking-wide"
+            {ASSINATURAS_ATIVAS && (
+              <motion.div
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.2, delay: NAV_LINKS.length * 0.05 }}
               >
-                Área do cliente →
-              </Link>
-            </motion.div>
+                <Link
+                  href="/cliente/login"
+                  onClick={() => setOpen(false)}
+                  className="block py-3.5 text-base text-[#C9A84C]/80 hover:text-[#C9A84C] transition-colors tracking-wide"
+                >
+                  Área do cliente →
+                </Link>
+              </motion.div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

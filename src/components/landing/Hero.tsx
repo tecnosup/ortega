@@ -187,7 +187,7 @@ export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, i
               <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A]/70 via-transparent to-transparent" />
             </div>
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-[#0A0A0A]/90 border border-[#C9A84C]/30 px-5 py-3 text-center whitespace-nowrap">
-              <p className="text-[#C9A84C] text-xs tracking-[0.3em] uppercase font-medium">Desde 2018</p>
+              <p className="text-[#C9A84C] text-xs tracking-[0.3em] uppercase font-medium">Desde 2026</p>
             </div>
             <div className="absolute -bottom-3 -right-3 w-12 h-12 border-r-2 border-b-2 border-[#C9A84C]/50" />
             <div className="absolute -top-3 -left-3 w-12 h-12 border-l-2 border-t-2 border-[#C9A84C]/50" />
