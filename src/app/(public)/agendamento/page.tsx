@@ -6,7 +6,7 @@ import type { Item } from "@/lib/admin-items";
 import { type Agendamento, resolverDuracaoMin, parsePriceNum } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import { toDateKey } from "@/lib/date-utils";
-import { gerarSlotsDia, servicoCabeNoDia, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, CARENCIA_DEFAULT, type GradeConfig } from "@/lib/grade";
+import { gerarSlotsDia, calcularSlotsLivres, ocupacaoDeAgendamentos, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, CARENCIA_DEFAULT, type GradeConfig } from "@/lib/grade";
 
 const MESES =["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["D","S","T","Q","Q","S","S"];
@@ -173,13 +173,15 @@ export default function AgendamentoPage() {
         ]);
         const { bloqueados } = await slotsRes.json();
         const agendData = await agendRes.json();
-        const agendados = Array.isArray(agendData) ? agendData.map((a: Agendamento) => a.horario) : [];
+        // expande cada agendamento pela sua duração (reserva o intervalo inteiro),
+        // não só o horário de início — mesma regra do branch por-barbeiro (/api/slots)
+        const agendados = Array.isArray(agendData) ? Array.from(ocupacaoDeAgendamentos(agendData, passoMin)) : [];
         setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: Array.from(new Set([...bloqueados, ...agendados])) }));
       }
     } finally {
       setCarregandoSlots(false);
     }
-  }, [slotsOcupados]);
+  }, [slotsOcupados, passoMin]);
 
   useEffect(() => {
     if (selecao.data) {
@@ -221,28 +223,18 @@ export default function AgendamentoPage() {
   }, [mesAtual]);
 
   function getSlotsDisponiveis(dateKey: string, diaSemana: number): string[] {
-    const todos = gerarSlotsDia(grade[diaSemana], passoMin);
-    if (todos.length === 0) return [];
     const cacheKey = selecao.barbeiroId ? `${dateKey}__${selecao.barbeiroId}` : dateKey;
     const ocupados = new Set(slotsOcupados[cacheKey] ?? []);
     const agora = new Date();
     const hojeKey = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}-${String(agora.getDate()).padStart(2, "0")}`;
-    const minutosAgora = agora.getHours() * 60 + agora.getMinutes();
-    // duração do serviço escolhido (fallback = 1 passo, comportamento antigo)
-    const dur = selecao.duracaoMin > 0 ? selecao.duracaoMin : passoMin;
-    const dia = grade[diaSemana];
-    const fmt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
-    return todos.filter((s) => {
-      const [h, m] = s.split(":").map(Number);
-      const ini = h * 60 + m;
-      if (dateKey === hojeKey && ini <= minutosAgora) return false;
-      // cabe no expediente (fim + carência) e não atravessa o almoço
-      if (!servicoCabeNoDia(s, dur, dia, carenciaMin)) return false;
-      // não colide com nenhum agendamento existente no intervalo [ini, ini+dur)
-      for (let t = ini; t < ini + dur; t += passoMin) {
-        if (ocupados.has(fmt(t))) return false;
-      }
-      return true;
+    // FONTE DA VERDADE: reserva o intervalo pela duração do serviço, respeita passo/carência/almoço
+    return calcularSlotsLivres({
+      dia: grade[diaSemana],
+      passoMin,
+      carenciaMin,
+      duracaoMin: selecao.duracaoMin > 0 ? selecao.duracaoMin : passoMin,
+      ocupados,
+      agoraMin: dateKey === hojeKey ? agora.getHours() * 60 + agora.getMinutes() : undefined,
     });
   }
 
