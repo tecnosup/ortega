@@ -90,7 +90,7 @@ export default function Sobre({ texto, imagem }: SobreProps) {
 
           <a
             href="#servicos"
-            className="self-start inline-flex items-center px-6 py-3 border border-[#C9A84C] text-[#C9A84C] text-sm font-medium tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] transition-all duration-300"
+            className="self-center sm:self-start inline-flex items-center px-6 py-3 border border-[#C9A84C] text-[#C9A84C] text-sm font-medium tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] transition-all duration-300"
           >
             Ver serviços
           </a>
