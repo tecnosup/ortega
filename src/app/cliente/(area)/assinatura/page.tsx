@@ -1,16 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Scissors, Calendar, CheckCircle, XCircle, AlertCircle, Loader2 } from "lucide-react";
+import {
+  IconAlertCircle, IconCalendar, IconCircleCheck, IconCircleX, IconLoader2, IconScissors,
+} from "@tabler/icons-react";
 import { PLANOS_PUBLICOS } from "@/lib/stripe-tipos";
 import type { Assinatura } from "@/lib/assinaturas";
 import Modal from "@/components/ui/Modal";
 
 const STATUS_INFO: Record<string, { label: string; cor: string; bg: string; icone: React.ReactNode }> = {
-  ativa:        { label: "Ativa",        cor: "text-green-400",  bg: "bg-green-950 border-green-800",  icone: <CheckCircle size={14} /> },
-  inadimplente: { label: "Inadimplente", cor: "text-red-400",    bg: "bg-red-950 border-red-800",      icone: <XCircle size={14} /> },
-  cancelada:    { label: "Cancelada",    cor: "text-gray-400",   bg: "bg-[#1a1a1a] border-[#2d2d2d]", icone: <XCircle size={14} /> },
-  pausada:      { label: "Pausada",      cor: "text-yellow-400", bg: "bg-yellow-950 border-yellow-800",icone: <AlertCircle size={14} /> },
+  ativa:        { label: "Ativa",        cor: "text-green-400",  bg: "bg-green-950 border-green-800",  icone: <IconCircleCheck size={14} /> },
+  inadimplente: { label: "Inadimplente", cor: "text-red-400",    bg: "bg-red-950 border-red-800",      icone: <IconCircleX size={14} /> },
+  cancelada:    { label: "Cancelada",    cor: "text-gray-400",   bg: "bg-[#1a1a1a] border-[#2d2d2d]", icone: <IconCircleX size={14} /> },
+  pausada:      { label: "Pausada",      cor: "text-yellow-400", bg: "bg-yellow-950 border-yellow-800",icone: <IconAlertCircle size={14} /> },
 };
 
 function formatarData(ts: number) {
@@ -52,7 +54,7 @@ export default function ClienteAssinaturaPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 size={24} className="animate-spin text-[#b8944a]" />
+        <IconLoader2 size={24} className="animate-spin text-[#b8944a]" />
       </div>
     );
   }
@@ -76,7 +78,7 @@ export default function ClienteAssinaturaPage() {
                 disabled={cancelando}
                 className="flex-1 py-2.5 bg-red-700 text-white text-sm font-semibold rounded-lg hover:bg-red-600 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
-                {cancelando ? <Loader2 size={14} className="animate-spin" /> : null}
+                {cancelando ? <IconLoader2 size={14} className="animate-spin" /> : null}
                 {cancelando ? "Cancelando..." : "Confirmar"}
               </button>
             </div>
@@ -103,7 +105,7 @@ export default function ClienteAssinaturaPage() {
             <div className="p-5 border-b border-[#1a1a1a] flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <Scissors size={14} className="text-[#b8944a]" /> Créditos de corte
+                  <IconScissors size={14} className="text-[#b8944a]" /> Créditos de corte
                 </div>
                 <span className="text-sm font-bold text-[#F5E6C8]">
                   {assinatura.cortesRestantes}
@@ -119,7 +121,7 @@ export default function ClienteAssinaturaPage() {
             </div>
 
             <div className="p-5 border-b border-[#1a1a1a] flex items-center gap-3">
-              <Calendar size={16} className="text-gray-600 shrink-0" />
+              <IconCalendar size={16} className="text-gray-600 shrink-0" />
               <div>
                 <p className="text-xs text-gray-500">Próxima cobrança</p>
                 <p className="text-sm font-medium text-[#F5E6C8]">{formatarData(assinatura.proximoVencimento)}</p>

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import {
+  IconLoader2,
+} from "@tabler/icons-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { Loader2 } from "lucide-react";
 
 function LoginConteudo() {
   const router = useRouter();
@@ -123,7 +125,7 @@ function LoginConteudo() {
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2 text-gray-500">
-                  <Loader2 size={16} className="animate-spin" /> Verificando...
+                  <IconLoader2 size={16} className="animate-spin" /> Verificando...
                 </span>
               ) : "Entrar"}
             </button>
@@ -149,7 +151,7 @@ export default function ClienteLoginPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-        <Loader2 size={28} className="animate-spin text-[#b8944a]" />
+        <IconLoader2 size={28} className="animate-spin text-[#b8944a]" />
       </div>
     }>
       <LoginConteudo />

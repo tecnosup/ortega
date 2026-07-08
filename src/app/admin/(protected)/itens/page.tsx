@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Scissors, Plus, Edit2, Trash2, X, Check, Loader2,
-  Tag, ChevronDown, ChevronUp, GripVertical,
-} from "lucide-react";
+  IconCheck, IconChevronDown, IconChevronUp, IconEdit, IconGripVertical, IconLoader2, IconPlus, IconScissors, IconTag, IconTrash, IconX,
+} from "@tabler/icons-react";
 import type { Item } from "@/lib/admin-items";
 import { resolverDuracaoMin } from "@/lib/agendamentos-types";
 import type { CategoriaServico } from "@/lib/admin-categorias-servicos";
@@ -43,7 +42,7 @@ function SortableItemRow({ item, expanded, deletingId, onToggleExpand, onEdit, o
     <div ref={setNodeRef} style={style} className="bg-[#111] border-b border-[#1a1a1a] last:border-0 overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3">
         <button {...attributes} {...listeners} className="text-gray-700 hover:text-gray-400 transition cursor-grab active:cursor-grabbing shrink-0 touch-none">
-          <GripVertical size={16} />
+          <IconGripVertical size={16} />
         </button>
         {item.imagem && (
           <img src={item.imagem} alt={item.titulo} className="w-10 h-10 object-cover rounded-lg border border-[#2d2d2d] shrink-0" loading="lazy" />
@@ -67,7 +66,7 @@ function SortableItemRow({ item, expanded, deletingId, onToggleExpand, onEdit, o
           className="p-1.5 rounded-lg border border-[#2d2d2d] text-gray-500 hover:text-[#b8944a] hover:border-[#b8944a] transition shrink-0"
           title="Editar"
         >
-          <Edit2 size={14} />
+          <IconEdit size={14} />
         </button>
         <button
           onClick={onDelete}
@@ -75,10 +74,10 @@ function SortableItemRow({ item, expanded, deletingId, onToggleExpand, onEdit, o
           className="p-1.5 rounded-lg border border-[#2d2d2d] text-gray-500 hover:text-red-400 hover:border-red-500 transition shrink-0 disabled:opacity-50"
           title="Remover"
         >
-          {deletingId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+          {deletingId === item.id ? <IconLoader2 size={14} className="animate-spin" /> : <IconTrash size={14} />}
         </button>
         <button onClick={onToggleExpand} className="p-1.5 rounded-lg border border-[#2d2d2d] text-gray-500 hover:text-white hover:border-[#444] transition shrink-0">
-          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {expanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
         </button>
       </div>
 
@@ -295,14 +294,14 @@ export default function ServicosPage() {
     <div className="max-w-4xl mx-auto flex flex-col gap-6 px-2 sm:px-0">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Scissors size={22} className="text-[#b8944a]" />
+          <IconScissors size={22} className="text-[#b8944a]" />
           <h1 className="text-2xl font-bold text-[#F5E6C8]">Serviços</h1>
         </div>
         <button
           onClick={openNew}
           className="flex items-center gap-2 px-4 py-2 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded hover:bg-[#c9a84c] transition"
         >
-          <Plus size={15} /> Novo serviço
+          <IconPlus size={15} /> Novo serviço
         </button>
       </div>
 
@@ -312,7 +311,7 @@ export default function ServicosPage() {
             onClick={() => setCatOpen((v) => !v)}
             className={`flex items-center gap-1.5 px-3 py-1 text-xs rounded-full border transition ${catOpen ? "border-[#b8944a] text-[#b8944a] bg-[#b8944a]/10" : "border-dashed border-[#3d3d3d] text-gray-500 hover:border-[#b8944a] hover:text-[#b8944a]"}`}
           >
-            <Tag size={11} /> Gerenciar categorias
+            <IconTag size={11} /> Gerenciar categorias
           </button>
           <div className="w-px h-4 bg-[#2d2d2d]" />
           {(["todos", "published", "draft"] as const).map((s) => (
@@ -343,7 +342,7 @@ export default function ServicosPage() {
                 disabled={catSaving}
                 className="px-4 py-2 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded hover:bg-[#c9a84c] transition disabled:opacity-50 shrink-0"
               >
-                {catSaving ? <Loader2 size={14} className="animate-spin" /> : "Adicionar"}
+                {catSaving ? <IconLoader2 size={14} className="animate-spin" /> : "Adicionar"}
               </button>
             </div>
             {catErro && <p className="text-red-400 text-xs">{catErro}</p>}
@@ -362,19 +361,19 @@ export default function ServicosPage() {
                           className="flex-1 bg-transparent text-sm text-[#F5E6C8] focus:outline-none"
                           autoFocus spellCheck={false}
                         />
-                        <button onClick={handleSalvarCatEdit} className="text-green-400 hover:text-green-300 transition"><Check size={14} /></button>
-                        <button onClick={() => setCatEditId(null)} className="text-gray-500 hover:text-white transition"><X size={14} /></button>
+                        <button onClick={handleSalvarCatEdit} className="text-green-400 hover:text-green-300 transition"><IconCheck size={14} /></button>
+                        <button onClick={() => setCatEditId(null)} className="text-gray-500 hover:text-white transition"><IconX size={14} /></button>
                       </>
                     ) : (
                       <>
                         <span className="flex-1 text-sm text-[#F5E6C8]">{cat.nome}</span>
-                        <button onClick={() => { setCatEditId(cat.id); setCatEditNome(cat.nome); }} className="text-gray-500 hover:text-[#b8944a] transition"><Edit2 size={13} /></button>
+                        <button onClick={() => { setCatEditId(cat.id); setCatEditNome(cat.nome); }} className="text-gray-500 hover:text-[#b8944a] transition"><IconEdit size={13} /></button>
                         <button
                           onClick={() => handleDeleteCat(cat.id)}
                           disabled={catDeletingId === cat.id}
                           className="text-gray-500 hover:text-red-400 transition disabled:opacity-50"
                         >
-                          {catDeletingId === cat.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                          {catDeletingId === cat.id ? <IconLoader2 size={13} className="animate-spin" /> : <IconTrash size={13} />}
                         </button>
                       </>
                     )}
@@ -387,7 +386,7 @@ export default function ServicosPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 text-gray-500 text-sm"><Loader2 size={16} className="animate-spin" /> Carregando…</div>
+        <div className="flex items-center gap-2 text-gray-500 text-sm"><IconLoader2 size={16} className="animate-spin" /> Carregando…</div>
       ) : itensFiltrados.length === 0 ? (
         <p className="text-gray-500 text-sm">Nenhum serviço encontrado.</p>
       ) : (() => {
@@ -518,7 +517,7 @@ export default function ServicosPage() {
                 onClick={handleSave} disabled={saving}
                 className="flex items-center gap-2 px-4 py-2 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded hover:bg-[#c9a84c] transition disabled:opacity-50"
               >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                {saving ? <IconLoader2 size={14} className="animate-spin" /> : <IconCheck size={14} />}
                 {modal.editing ? "Salvar" : "Criar"}
               </button>
             </div>

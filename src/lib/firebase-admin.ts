@@ -8,8 +8,16 @@ function parsePrivateKey(raw: string | undefined): string | undefined {
   return raw.replace(/\\n/g, "\n").replace(/\\\\n/g, "\n");
 }
 
+// Quando as vars de emulador estão presentes, o Admin SDK fala com o emulador
+// local — não precisa (nem deve usar) credencial de serviço real.
+const USE_EMULATOR = !!process.env.FIRESTORE_EMULATOR_HOST || !!process.env.FIREBASE_AUTH_EMULATOR_HOST;
+
 function getAdminApp(): App {
   if (getApps().length) return getApps()[0];
+  if (USE_EMULATOR) {
+    // No emulador o projectId precisa bater com o "aud" dos tokens emitidos.
+    return initializeApp({ projectId: "demo-ortega" });
+  }
   return initializeApp({
     credential: cert({
       projectId: process.env.FIREBASE_ADMIN_PROJECT_ID!,

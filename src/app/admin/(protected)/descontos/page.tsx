@@ -1,6 +1,8 @@
 import { getDescontos } from "@/lib/admin-descontos";
+import {
+  IconEdit, IconPlus, IconTag,
+} from "@tabler/icons-react";
 import Link from "next/link";
-import { Plus, Edit2, Tag } from "lucide-react";
 import DeleteDescontoButton from "./DeleteDescontoButton";
 
 export const dynamic = "force-dynamic";
@@ -24,14 +26,14 @@ export default async function DescontosPage() {
     <div className="max-w-4xl mx-auto flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Tag size={22} className="text-[#b8944a]" />
+          <IconTag size={22} className="text-[#b8944a]" />
           <h1 className="text-2xl font-bold text-[#F5E6C8]">Descontos</h1>
         </div>
         <Link
           href="/admin/descontos/novo"
           className="flex items-center gap-2 px-4 py-2 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded hover:bg-[#c9a84c] transition"
         >
-          <Plus size={16} /> Novo desconto
+          <IconPlus size={16} /> Novo desconto
         </Link>
       </div>
 
@@ -63,7 +65,7 @@ export default async function DescontosPage() {
                     href={`/admin/descontos/${d.id}/editar`}
                     className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2d2d2d] text-gray-400 text-xs rounded hover:border-[#b8944a] hover:text-[#b8944a] transition"
                   >
-                    <Edit2 size={12} /> Editar
+                    <IconEdit size={12} /> Editar
                   </Link>
                   <DeleteDescontoButton id={d.id} />
                 </div>

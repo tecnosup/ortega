@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { CalendarCheck, ChevronLeft, ChevronRight, Loader2, Clock, User } from "lucide-react";
+import {
+  IconCalendarCheck, IconChevronLeft, IconChevronRight, IconClock, IconLoader2, IconUser,
+} from "@tabler/icons-react";
 import { toDateKey } from "@/lib/date-utils";
 
 interface Agendamento {
@@ -57,7 +59,7 @@ export default function BarbeiroAgendaPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
-        <CalendarCheck size={22} className="text-[#b8944a]" />
+        <IconCalendarCheck size={22} className="text-[#b8944a]" />
         <h1 className="text-2xl font-bold text-[#F5E6C8]">Minha Agenda</h1>
       </div>
 
@@ -67,7 +69,7 @@ export default function BarbeiroAgendaPage() {
           onClick={() => setDataSel((d) => addDias(d, -1))}
           className="p-2 rounded-lg border border-[#2d2d2d] text-gray-400 hover:text-white hover:border-[#b8944a] transition"
         >
-          <ChevronLeft size={16} />
+          <IconChevronLeft size={16} />
         </button>
 
         <div className="flex-1 text-center">
@@ -79,7 +81,7 @@ export default function BarbeiroAgendaPage() {
           onClick={() => setDataSel((d) => addDias(d, 1))}
           className="p-2 rounded-lg border border-[#2d2d2d] text-gray-400 hover:text-white hover:border-[#b8944a] transition"
         >
-          <ChevronRight size={16} />
+          <IconChevronRight size={16} />
         </button>
       </div>
 
@@ -98,7 +100,7 @@ export default function BarbeiroAgendaPage() {
       {/* Lista */}
       {loading ? (
         <div className="flex items-center gap-2 text-gray-500 text-sm">
-          <Loader2 size={16} className="animate-spin" /> Carregando…
+          <IconLoader2 size={16} className="animate-spin" /> Carregando…
         </div>
       ) : agendamentos.length === 0 ? (
         <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-8 text-center">
@@ -117,7 +119,7 @@ export default function BarbeiroAgendaPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-[#b8944a] font-bold">
-                      <Clock size={14} />
+                      <IconClock size={14} />
                       <span>{ag.horario}</span>
                     </div>
                     <span className={`text-xs px-2 py-0.5 rounded-full border ${st.cor}`}>
@@ -127,7 +129,7 @@ export default function BarbeiroAgendaPage() {
 
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
-                      <User size={13} className="text-gray-500 shrink-0" />
+                      <IconUser size={13} className="text-gray-500 shrink-0" />
                       <p className="text-sm font-medium text-[#F5E6C8]">{ag.cliente}</p>
                     </div>
                     <p className="text-xs text-gray-400 pl-5">{ag.servico}</p>

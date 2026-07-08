@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Check } from "lucide-react";
+import {
+  IconCheck, IconChevronLeft, IconChevronRight,
+} from "@tabler/icons-react";
 import type { Item } from "@/lib/admin-items";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import { toDateKey } from "@/lib/date-utils";
 import type { Agendamento } from "@/lib/agendamentos-types";
-import { gerarSlotsDia, mesclarGrade, GRADE_DEFAULT, type GradeConfig } from "@/lib/grade";
+import { resolverDuracaoMin } from "@/lib/agendamentos-types";
+import { gerarSlotsDia, calcularSlotsLivres, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, CARENCIA_DEFAULT, type GradeConfig } from "@/lib/grade";
 
 const MESES =["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["D","S","T","Q","Q","S","S"];
@@ -16,6 +19,7 @@ type Step = "servico" | "barbeiro" | "calendario" | "confirmado";
 interface Selecao {
   servico: string;
   preco: string;
+  duracaoMin: number;
   data: Date | null;
   horario: string;
   barbeiroId: string | null;
@@ -32,7 +36,7 @@ function StepIndicator({ atual }: { atual: 1 | 2 | 3 }) {
             n === atual ? "bg-[#b8944a]/20 border border-[#b8944a] text-[#b8944a]" :
             "bg-[#1a1a1a] border border-[#2d2d2d] text-gray-600"
           }`}>
-            {n < atual ? <Check size={12} /> : n}
+            {n < atual ? <IconCheck size={12} /> : n}
           </div>
           {n < 3 && <div className={`w-6 h-px ${n < atual ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`} />}
         </div>
@@ -49,7 +53,7 @@ export default function ClienteAgendarPage() {
   const [servicos, setServicos] = useState<Item[]>([]);
   const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
   const [perfil, setPerfil] = useState<{ nome: string; telefone: string } | null>(null);
-  const [selecao, setSelecao] = useState<Selecao>({ servico: "", preco: "", data: null, horario: "", barbeiroId: null, barbeiroNome: null });
+  const [selecao, setSelecao] = useState<Selecao>({ servico: "", preco: "", duracaoMin: 0, data: null, horario: "", barbeiroId: null, barbeiroNome: null });
   const [mesAtual, setMesAtual] = useState(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
   const [slotsOcupados, setSlotsOcupados] = useState<Record<string, string[]>>({});
   const [carregandoSlots, setCarregandoSlots] = useState(false);
@@ -57,11 +61,17 @@ export default function ClienteAgendarPage() {
   const [agendamentoId, setAgendamentoId] = useState<string | null>(null);
   const [erro, setErro] = useState("");
   const [grade, setGrade] = useState<GradeConfig>(GRADE_DEFAULT);
+  const [passoMin, setPassoMin] = useState<number>(PASSO_DEFAULT);
+  const [carenciaMin, setCarenciaMin] = useState<number>(CARENCIA_DEFAULT);
 
   useEffect(() => {
     fetch("/api/publico/servicos").then((r) => r.json()).then((d) => setServicos(d.items ?? []));
     fetch("/api/publico/barbeiros").then((r) => r.json()).then((d) => setBarbeiros(d.barbeiros ?? []));
-    fetch("/api/grade").then((r) => r.json()).then((d) => { if (d.grade) setGrade(mesclarGrade(d.grade)); }).catch(() => {});
+    fetch("/api/grade").then((r) => r.json()).then((d) => {
+      if (d.grade) setGrade(mesclarGrade(d.grade));
+      if (d.passoMin) setPassoMin(d.passoMin);
+      if (d.carenciaMin !== undefined) setCarenciaMin(d.carenciaMin);
+    }).catch(() => {});
     fetch("/api/cliente/perfil").then((r) => r.json()).then((d) => {
       if (d.assinatura) {
         setPerfil({ nome: d.assinatura.clienteNome, telefone: d.assinatura.clienteTelefone ?? "" });
@@ -70,24 +80,15 @@ export default function ClienteAgendarPage() {
   }, []);
 
   const buscarSlots = useCallback(async (dateKey: string, barbeiroId: string | null) => {
-    const cacheKey = barbeiroId ? `${dateKey}__${barbeiroId}` : dateKey;
+    if (!barbeiroId) return; // barbeiro é obrigatório
+    const cacheKey = `${dateKey}__${barbeiroId}`;
     if (slotsOcupados[cacheKey] !== undefined) return;
     setCarregandoSlots(true);
     try {
-      if (barbeiroId) {
-        const res = await fetch(`/api/slots?data=${dateKey}&barbeiroId=${encodeURIComponent(barbeiroId)}`);
-        const { bloqueados } = await res.json();
-        setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: bloqueados ?? [] }));
-      } else {
-        const [slotsRes, agendRes] = await Promise.all([
-          fetch(`/api/slots?data=${dateKey}`),
-          fetch(`/api/agendamentos?data=${dateKey}`),
-        ]);
-        const { bloqueados } = await slotsRes.json();
-        const agendData = await agendRes.json();
-        const agendados = Array.isArray(agendData) ? agendData.map((a: Agendamento) => a.horario) : [];
-        setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: Array.from(new Set([...bloqueados, ...agendados])) }));
-      }
+      // /api/slots já expande a duração de cada agendamento do barbeiro
+      const res = await fetch(`/api/slots?data=${dateKey}&barbeiroId=${encodeURIComponent(barbeiroId)}`);
+      const { bloqueados } = await res.json();
+      setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: bloqueados ?? [] }));
     } finally { setCarregandoSlots(false); }
   }, [slotsOcupados]);
 
@@ -118,25 +119,23 @@ export default function ClienteAgendarPage() {
   }, [mesAtual]);
 
   function getSlotsDisponiveis(dateKey: string, diaSemana: number): string[] {
-    const todos = gerarSlotsDia(grade[diaSemana]);
-    if (todos.length === 0) return [];
     const cacheKey = selecao.barbeiroId ? `${dateKey}__${selecao.barbeiroId}` : dateKey;
-    const ocupados = slotsOcupados[cacheKey] ?? [];
+    const ocupados = new Set(slotsOcupados[cacheKey] ?? []);
     const agora = new Date();
     const hojeKey = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}-${String(agora.getDate()).padStart(2, "0")}`;
-    const minutosAgora = agora.getHours() * 60 + agora.getMinutes();
-    return todos.filter((s) => {
-      if (ocupados.includes(s)) return false;
-      if (dateKey === hojeKey) {
-        const [h, m] = s.split(":").map(Number);
-        if (h * 60 + m <= minutosAgora) return false;
-      }
-      return true;
+    // FONTE DA VERDADE: reserva o intervalo pela duração do serviço, respeita passo/carência/almoço
+    return calcularSlotsLivres({
+      dia: grade[diaSemana],
+      passoMin,
+      carenciaMin,
+      duracaoMin: selecao.duracaoMin > 0 ? selecao.duracaoMin : passoMin,
+      ocupados,
+      agoraMin: dateKey === hojeKey ? agora.getHours() * 60 + agora.getMinutes() : undefined,
     });
   }
 
   function getDisponibilidade(dateKey: string, diaSemana: number): "livre" | "parcial" | "lotado" | "fechado" {
-    const todos = gerarSlotsDia(grade[diaSemana]);
+    const todos = gerarSlotsDia(grade[diaSemana], passoMin);
     if (todos.length === 0) return "fechado";
     const disponiveis = getSlotsDisponiveis(dateKey, diaSemana);
     if (disponiveis.length === 0) return "lotado";
@@ -159,6 +158,7 @@ export default function ClienteAgendarPage() {
         preco: selecao.preco,
         data: dataKey,
         horario: selecao.horario,
+        duracaoMin: selecao.duracaoMin || undefined,
         barbeiroId: selecao.barbeiroId ?? undefined,
         barbeiroNome: selecao.barbeiroNome ?? undefined,
         email: undefined, // será verificado internamente pelo telefone
@@ -193,7 +193,7 @@ export default function ClienteAgendarPage() {
             {servicos.map((s) => (
               <button
                 key={s.id}
-                onClick={() => { setSelecao((sel) => ({ ...sel, servico: s.titulo, preco: s.preco })); setStep("barbeiro"); }}
+                onClick={() => { setSelecao((sel) => ({ ...sel, servico: s.titulo, preco: s.preco, duracaoMin: resolverDuracaoMin(s, passoMin) })); setStep("barbeiro"); }}
                 className="text-left border border-[#2d2d2d] bg-[#111] p-4 rounded-xl hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition-all group"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -224,18 +224,9 @@ export default function ClienteAgendarPage() {
           <h1 className="text-xl font-bold text-[#F5E6C8] mt-1">Escolha o barbeiro</h1>
         </div>
         <div className="flex flex-col gap-3">
-          <button
-            onClick={() => { setSelecao((s) => ({ ...s, barbeiroId: null, barbeiroNome: null })); setStep("calendario"); }}
-            className="text-left border border-[#2d2d2d] bg-[#111] p-4 rounded-xl hover:border-[#b8944a] transition group"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-[#2d2d2d] flex items-center justify-center text-xl shrink-0">✂️</div>
-              <div>
-                <p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition">Qualquer disponível</p>
-                <p className="text-xs text-gray-500 mt-0.5">O próximo barbeiro livre atende você</p>
-              </div>
-            </div>
-          </button>
+          {barbeiros.length === 0 && (
+            <p className="text-center text-gray-500 text-sm py-8">Nenhum barbeiro disponível no momento.</p>
+          )}
           {barbeiros.map((b) => (
             <button
               key={b.id}
@@ -286,11 +277,11 @@ export default function ClienteAgendarPage() {
         <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
           <div className="flex items-center justify-between mb-4">
             <button onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1, 1))} className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-[#b8944a] rounded-lg transition">
-              <ChevronLeft size={18} />
+              <IconChevronLeft size={18} />
             </button>
             <h2 className="text-sm font-bold text-[#F5E6C8]">{MESES[mesAtual.getMonth()]} <span className="text-gray-500 font-normal">{mesAtual.getFullYear()}</span></h2>
             <button onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1, 1))} className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-[#b8944a] rounded-lg transition">
-              <ChevronRight size={18} />
+              <IconChevronRight size={18} />
             </button>
           </div>
           <div className="grid grid-cols-7 mb-1">
@@ -336,7 +327,8 @@ export default function ClienteAgendarPage() {
             ) : slotsDisponiveis.length === 0 ? (
               <p className="text-sm text-gray-500 py-3 text-center">Sem horários. Escolha outra data.</p>
             ) : (
-              <div className="grid grid-cols-4 gap-2">
+              // scroll interno: com passo pequeno a lista fica enorme no mobile
+              <div className="grid grid-cols-4 gap-2 max-h-[260px] overflow-y-auto nice-scroll -mr-1 pr-1">
                 {slotsDisponiveis.map((slot) => (
                   <button
                     key={slot}
@@ -395,7 +387,7 @@ export default function ClienteAgendarPage() {
           Ver meus agendamentos
         </a>
         <button
-          onClick={() => { setStep("servico"); setSelecao({ servico: "", preco: "", data: null, horario: "", barbeiroId: null, barbeiroNome: null }); setAgendamentoId(null); }}
+          onClick={() => { setStep("servico"); setSelecao({ servico: "", preco: "", duracaoMin: 0, data: null, horario: "", barbeiroId: null, barbeiroNome: null }); setAgendamentoId(null); }}
           className="text-sm text-gray-600 hover:text-[#b8944a] transition"
         >
           Fazer outro agendamento

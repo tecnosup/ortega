@@ -3,22 +3,22 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState, useCallback } from "react";
+import {
+  IconAlertTriangle, IconBell, IconBellOff, IconCalendarMonth, IconCheck, IconChevronDown, IconEdit, IconPlus, IconReceipt, IconSettings, IconToggleLeft, IconToggleRight, IconTrash,
+} from "@tabler/icons-react";
 import Link from "next/link";
 import { useAdminNotificacoes, type VencimentoItem } from "@/hooks/useAdminNotificacoes";
-import {
-  Receipt, Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Settings, Check, Bell, BellOff, CalendarDays, ChevronDown, AlertTriangle,
-} from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import type { FechamentoDia, AtendimentoAvulso } from "@/lib/agendamentos-types";
+import type { FechamentoDia } from "@/lib/agendamentos-types";
 import type { Gasto, CategoriaGasto, FrequenciaGasto, CategoriaGastoCustom } from "@/lib/gastos-tipos";
 import type { GastoDia } from "@/lib/gastos-dia-tipos";
-import CaixaCalendario from "@/components/admin/CaixaCalendario";
 import { CATEGORIA_LABEL, FREQUENCIA_LABEL, gastoMensalEquivalente } from "@/lib/gastos-tipos";
 import Modal from "@/components/ui/Modal";
 import { useModalMount } from "@/components/ui/useModalMount";
+import { useToast } from "@/components/ui/Toast";
 import AdminFab from "@/components/admin/AdminFab";
 
 function brl(v: number) { return `R$ ${v.toFixed(2).replace(".", ",")}` }
@@ -121,6 +121,7 @@ function ModalCategorias({ open = true, categorias, onFechar, onChanged }: {
   onFechar: () => void;
   onChanged: () => void;
 }) {
+  const toast = useToast();
   const [editando, setEditando] = useState<CategoriaGastoCustom | null>(null);
   const [novoNome, setNovoNome] = useState("");
   const [novaCor, setNovaCor] = useState(PALETTE[0]);
@@ -152,12 +153,13 @@ function ModalCategorias({ open = true, categorias, onFechar, onChanged }: {
         body: JSON.stringify({ nome: novoNome.trim(), cor: novaCor }),
       });
     }
-    setSalvando(false); fecharForm(); onChanged();
+    setSalvando(false); toast.sucesso(editando ? "Categoria atualizada!" : "Categoria criada!"); fecharForm(); onChanged();
   }
 
   async function excluir(id: string) {
     if (!confirm("Excluir esta categoria? Gastos vinculados não serão afetados.")) return;
     await fetch(`/api/gastos/categorias/${id}`, { method: "DELETE", credentials: "include" });
+    toast.info("Categoria excluída");
     onChanged();
   }
 
@@ -172,8 +174,8 @@ function ModalCategorias({ open = true, categorias, onFechar, onChanged }: {
               <div key={c.id} className="flex items-center gap-3 px-3 py-3">
                 <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: c.cor }} />
                 <span className="flex-1 text-sm text-[#F5E6C8]">{c.nome}</span>
-                <button onClick={() => abrirEditar(c)} className="text-gray-600 hover:text-gray-300 transition p-1"><Edit2 size={13} /></button>
-                <button onClick={() => excluir(c.id)} className="text-gray-600 hover:text-red-400 transition p-1"><Trash2 size={13} /></button>
+                <button onClick={() => abrirEditar(c)} className="text-gray-600 hover:text-gray-300 transition p-1"><IconEdit size={13} /></button>
+                <button onClick={() => excluir(c.id)} className="text-gray-600 hover:text-red-400 transition p-1"><IconTrash size={13} /></button>
               </div>
             ))}
             {categorias.length === 0 && <p className="text-xs text-gray-600 px-3 py-4 text-center">Nenhuma categoria ainda.</p>}
@@ -311,7 +313,7 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs transition ${categoriaId === c.id ? "border-white/40 bg-white/5 text-[#F5E6C8]" : "border-[#2d2d2d] text-gray-500 hover:border-[#444]"}`}>
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.cor }} />
                     {c.nome}
-                    {categoriaId === c.id && <Check size={10} className="text-[#b8944a]" />}
+                    {categoriaId === c.id && <IconCheck size={10} className="text-[#b8944a]" />}
                   </button>
                 ))}
               </div>
@@ -331,14 +333,14 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
               <div className="relative mt-0.5">
                 <input type="checkbox" checked={lembrarRenovacao} onChange={(e) => setLembrarRenovacao(e.target.checked)} className="sr-only" />
                 <div className={`w-4 h-4 rounded border flex items-center justify-center transition ${lembrarRenovacao ? "bg-[#b8944a] border-[#b8944a]" : "border-[#3d3d3d]"}`}>
-                  {lembrarRenovacao && <Check size={10} className="text-[#0A0A0A]" />}
+                  {lembrarRenovacao && <IconCheck size={10} className="text-[#0A0A0A]" />}
                 </div>
               </div>
               <div>
                 <p className="text-xs font-semibold text-[#F5E6C8]">Lembrar renovação</p>
                 <p className="text-[10px] text-gray-500 mt-0.5">Avisar 10 dias, 3 dias antes e no dia do vencimento</p>
               </div>
-              {lembrarRenovacao ? <Bell size={14} className="text-[#b8944a] shrink-0 ml-auto mt-0.5" /> : <BellOff size={14} className="text-gray-600 shrink-0 ml-auto mt-0.5" />}
+              {lembrarRenovacao ? <IconBell size={14} className="text-[#b8944a] shrink-0 ml-auto mt-0.5" /> : <IconBellOff size={14} className="text-gray-600 shrink-0 ml-auto mt-0.5" />}
             </label>
           )}
 
@@ -359,10 +361,10 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
 }
 
 export default function FinanceiroPage() {
+  const toast = useToast();
   const [fechamentos, setFechamentos] = useState<FechamentoDia[]>([]);
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [gastosDia, setGastosDia] = useState<GastoDia[]>([]);
-  const [avulsos, setAvulsos] = useState<AtendimentoAvulso[]>([]);
   const [categorias, setCategorias] = useState<CategoriaGastoCustom[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [periodo, setPeriodo] = useState<Periodo>("mes_atual");
@@ -400,22 +402,21 @@ export default function FinanceiroPage() {
     });
     setPagando(false);
     setPagarModal(null);
+    toast.sucesso("Pagamento registrado!");
     carregar();
   }
   const [gastoExpandido, setGastoExpandido] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
-    const [resFech, resGastos, resGastosDia, resAvulsos, resCats] = await Promise.all([
+    const [resFech, resGastos, resGastosDia, resCats] = await Promise.all([
       fetch("/api/fechamento", { credentials: "include" }),
       fetch("/api/gastos", { credentials: "include" }),
       fetch("/api/gastos-dia", { credentials: "include" }),
-      fetch("/api/atendimentos-avulsos", { credentials: "include" }),
       fetch("/api/gastos/categorias", { credentials: "include" }),
     ]);
     if (resFech.ok) setFechamentos(await resFech.json());
     if (resGastos.ok) setGastos(await resGastos.json());
     if (resGastosDia.ok) setGastosDia(await resGastosDia.json());
-    if (resAvulsos.ok) setAvulsos(await resAvulsos.json());
     if (resCats.ok) setCategorias(await resCats.json());
     setCarregando(false);
   }, []);
@@ -424,6 +425,7 @@ export default function FinanceiroPage() {
 
   async function salvarGasto(data: Partial<Gasto>) {
     setSalvandoGasto(true);
+    const editando = !!editandoGasto;
     if (editandoGasto) {
       await fetch(`/api/gastos/${editandoGasto.id}`, { credentials: "include", method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
       setEditandoGasto(null);
@@ -432,17 +434,20 @@ export default function FinanceiroPage() {
       setMostraFormGasto(false);
     }
     setSalvandoGasto(false);
+    toast.sucesso(editando ? "Gasto atualizado!" : "Gasto cadastrado!");
     carregar();
   }
 
   async function toggleGasto(g: Gasto) {
     await fetch(`/api/gastos/${g.id}`, { credentials: "include", method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ativo: !g.ativo }) });
+    toast.info(g.ativo ? "Gasto desativado" : "Gasto ativado");
     carregar();
   }
 
   async function excluirGasto(id: string) {
     if (!confirm("Excluir este gasto?")) return;
     await fetch(`/api/gastos/${id}`, { credentials: "include", method: "DELETE" });
+    toast.info("Gasto excluído");
     carregar();
   }
 
@@ -574,12 +579,12 @@ export default function FinanceiroPage() {
         <div className="flex flex-col gap-1.5">
           {notif.caixasAbertos > 0 && (
             <div className="bg-red-950/40 border border-red-800/50 rounded-lg px-3.5 py-2.5 flex items-center gap-2 flex-wrap">
-              <AlertTriangle size={13} className="text-red-400 shrink-0" />
+              <IconAlertTriangle size={13} className="text-red-400 shrink-0" />
               <span className="text-xs font-semibold text-red-300 shrink-0">
                 {notif.caixasAbertos} caixa{notif.caixasAbertos > 1 ? "s" : ""} retroativo{notif.caixasAbertos > 1 ? "s" : ""} em aberto
               </span>
               {notif.caixasAbertosLista.map((data) => (
-                <Link key={data} href={`/admin/financeiro?dia=${data}#caixa`}
+                <Link key={data} href={`/admin/caixa?dia=${data}#caixa`}
                   className="text-[10px] font-medium text-red-300/80 border border-red-800/40 rounded px-2 py-0.5 hover:border-red-500/60 hover:text-red-300 transition capitalize">
                   {new Date(data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}
                 </Link>
@@ -589,7 +594,7 @@ export default function FinanceiroPage() {
           {notif.vencimentos > 0 && (
             <div className="bg-amber-950/30 border border-amber-700/40 rounded-lg p-3.5 flex flex-col gap-2.5">
               <div className="flex items-center gap-2">
-                <Bell size={13} className="text-amber-400 shrink-0" />
+                <IconBell size={13} className="text-amber-400 shrink-0" />
                 <span className="text-xs font-semibold text-amber-300">
                   {notif.vencimentos} vencimento{notif.vencimentos > 1 ? "s" : ""} próximo{notif.vencimentos > 1 ? "s" : ""}
                 </span>
@@ -763,11 +768,6 @@ export default function FinanceiroPage() {
         </div>
       )}
 
-      {/* ── Agenda / Caixa ── */}
-      <div id="caixa">
-        <CaixaCalendario fechamentos={fechamentos} gastosDia={gastosDia} avulsos={avulsos} onAtualizar={carregar} />
-      </div>
-
       {/* ── Gráfico de pizza + Fechamentos ── */}
       <div className="grid md:grid-cols-2 gap-4">
         <div className={`${card} p-4 flex flex-col`}>
@@ -824,16 +824,16 @@ export default function FinanceiroPage() {
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-sm font-bold text-[#b8944a]">{brl(f.totalServicos)}</span>
-                          <ChevronDown size={13} className={`text-gray-600 transition-transform ${expandido ? "rotate-180" : ""}`} />
+                          <IconChevronDown size={13} className={`text-gray-600 transition-transform ${expandido ? "rotate-180" : ""}`} />
                         </div>
                       </button>
                       {expandido && (
                         <div className="px-1 pb-2.5">
                           <Link
-                            href={`/admin/financeiro?dia=${f.data}#caixa`}
+                            href={`/admin/caixa?dia=${f.data}#caixa`}
                             className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-gray-500 hover:text-[#b8944a] border border-[#2d2d2d] hover:border-[#b8944a]/40 rounded px-2.5 py-1.5 transition"
                           >
-                            <CalendarDays size={11} />
+                            <IconCalendarMonth size={11} />
                             Ver na agenda
                           </Link>
                         </div>
@@ -874,17 +874,17 @@ export default function FinanceiroPage() {
           <div className="flex items-center gap-2">
             <button onClick={() => setModalCategorias(true)} title="Gerenciar categorias"
               className="p-1.5 text-gray-500 hover:text-gray-300 border border-[#2d2d2d] rounded hover:border-[#444] transition">
-              <Settings size={13} />
+              <IconSettings size={13} />
             </button>
             <button onClick={() => { setEditandoGasto(null); setMostraFormGasto(true); }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#b8944a] text-[#0A0A0A] text-xs font-bold rounded hover:bg-[#c9a84c] transition">
-              <Plus size={13} /> Novo gasto
+              <IconPlus size={13} /> Novo gasto
             </button>
           </div>
         </div>
 
         {gastos.length === 0 ? (
-          <div className="py-8 text-center"><Receipt size={24} className="text-gray-600 mx-auto mb-2" /><p className="text-sm text-gray-500">Nenhum gasto cadastrado.</p></div>
+          <div className="py-8 text-center"><IconReceipt size={24} className="text-gray-600 mx-auto mb-2" /><p className="text-sm text-gray-500">Nenhum gasto cadastrado.</p></div>
         ) : (
           <div className="flex flex-col divide-y divide-[#1a1a1a] overflow-y-auto max-h-80">
             {gastos.map((g) => {
@@ -905,7 +905,7 @@ export default function FinanceiroPage() {
                       <span className="text-xs px-1.5 py-0.5 bg-blue-900/20 text-blue-400 rounded-full">
                         {g.frequencia === "personalizado" && g.frequenciaCustom ? g.frequenciaCustom : FREQUENCIA_LABEL[g.frequencia]}
                       </span>
-                      {g.lembrarRenovacao && <Bell size={11} className="text-[#b8944a]/60" />}
+                      {g.lembrarRenovacao && <IconBell size={11} className="text-[#b8944a]/60" />}
                       {!g.ativo && <span className="text-xs px-1.5 py-0.5 bg-[#1a1a1a] text-gray-600 rounded-full">inativo</span>}
                     </div>
                     {g.proximoVencimento && (
@@ -920,9 +920,9 @@ export default function FinanceiroPage() {
                     {g.frequencia !== "mensal" && g.frequencia !== "unico" && g.ativo && <p className="text-xs text-gray-500">{brl(gastoMensalEquivalente(g))}/mês</p>}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <button onClick={() => toggleGasto(g)} className={`p-1.5 rounded transition ${g.ativo ? "text-green-400 hover:text-green-300" : "text-gray-600 hover:text-gray-400"}`}>{g.ativo ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}</button>
-                    <button onClick={() => { setMostraFormGasto(false); setEditandoGasto(g); }} className="p-1.5 text-gray-500 hover:text-gray-300 rounded transition"><Edit2 size={13} /></button>
-                    <button onClick={() => excluirGasto(g.id)} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition"><Trash2 size={13} /></button>
+                    <button onClick={() => toggleGasto(g)} className={`p-1.5 rounded transition ${g.ativo ? "text-green-400 hover:text-green-300" : "text-gray-600 hover:text-gray-400"}`}>{g.ativo ? <IconToggleRight size={16} /> : <IconToggleLeft size={16} />}</button>
+                    <button onClick={() => { setMostraFormGasto(false); setEditandoGasto(g); }} className="p-1.5 text-gray-500 hover:text-gray-300 rounded transition"><IconEdit size={13} /></button>
+                    <button onClick={() => excluirGasto(g.id)} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition"><IconTrash size={13} /></button>
                   </div>
                 </div>
               );
@@ -961,16 +961,16 @@ export default function FinanceiroPage() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-sm font-bold text-red-400">−{brl(g.valor)}</span>
-                        <ChevronDown size={13} className={`text-gray-600 transition-transform ${expandido ? "rotate-180" : ""}`} />
+                        <IconChevronDown size={13} className={`text-gray-600 transition-transform ${expandido ? "rotate-180" : ""}`} />
                       </div>
                     </button>
                     {expandido && (
                       <div className="px-1 pb-2.5">
                         <Link
-                          href={`/admin/financeiro?dia=${g.data}#caixa`}
+                          href={`/admin/caixa?dia=${g.data}#caixa`}
                           className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-gray-500 hover:text-[#b8944a] border border-[#2d2d2d] hover:border-[#b8944a]/40 rounded px-2.5 py-1.5 transition"
                         >
-                          <CalendarDays size={11} />
+                          <IconCalendarMonth size={11} />
                           Ver na agenda
                         </Link>
                       </div>

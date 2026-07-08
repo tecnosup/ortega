@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Tag, Plus, Edit2, Trash2, Check, X, Loader2 } from "lucide-react";
+import {
+  IconCheck, IconEdit, IconLoader2, IconPlus, IconTag, IconTrash, IconX,
+} from "@tabler/icons-react";
 import type { Categoria } from "@/lib/admin-categorias";
+import { useToast } from "@/components/ui/Toast";
 
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] transition w-full";
 
 export default function CategoriasInline({ categorias: initial }: { categorias: Categoria[] }) {
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [categorias, setCategorias] = useState(initial);
   const [novoNome, setNovoNome] = useState("");
@@ -28,6 +32,7 @@ export default function CategoriasInline({ categorias: initial }: { categorias: 
     const data = await res.json();
     setCategorias((prev) => [...prev, { id: data.id, nome: novoNome.trim(), order: prev.length, createdAt: Date.now() }]);
     setNovoNome("");
+    toast.sucesso("Categoria criada!");
   }
 
   async function handleSalvarEdit() {
@@ -38,6 +43,7 @@ export default function CategoriasInline({ categorias: initial }: { categorias: 
     });
     setCategorias((prev) => prev.map((c) => c.id === editId ? { ...c, nome: editNome.trim() } : c));
     setEditId(null);
+    toast.sucesso("Categoria atualizada!");
   }
 
   async function handleDelete(id: string) {
@@ -46,6 +52,7 @@ export default function CategoriasInline({ categorias: initial }: { categorias: 
     await fetch(`/api/admin/categorias/${id}`, { method: "DELETE", credentials: "include" });
     setCategorias((prev) => prev.filter((c) => c.id !== id));
     setDeletingId(null);
+    toast.info("Categoria removida");
   }
 
   return (
@@ -54,7 +61,7 @@ export default function CategoriasInline({ categorias: initial }: { categorias: 
         onClick={() => setOpen((v) => !v)}
         className={`self-start flex items-center gap-1.5 px-3 py-1 text-xs rounded-full border transition ${open ? "border-[#b8944a] text-[#b8944a] bg-[#b8944a]/10" : "border-dashed border-[#3d3d3d] text-gray-500 hover:border-[#b8944a] hover:text-[#b8944a]"}`}
       >
-        <Tag size={11} /> Gerenciar categorias
+        <IconTag size={11} /> Gerenciar categorias
       </button>
 
       {open && (
@@ -74,7 +81,7 @@ export default function CategoriasInline({ categorias: initial }: { categorias: 
               disabled={saving}
               className="px-4 py-2 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded hover:bg-[#c9a84c] transition disabled:opacity-50 shrink-0"
             >
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              {saving ? <IconLoader2 size={14} className="animate-spin" /> : <IconPlus size={14} />}
             </button>
           </div>
           {erro && <p className="text-red-400 text-xs">{erro}</p>}
@@ -94,19 +101,19 @@ export default function CategoriasInline({ categorias: initial }: { categorias: 
                         className="flex-1 bg-transparent text-sm text-[#F5E6C8] focus:outline-none"
                         autoFocus
                       />
-                      <button onClick={handleSalvarEdit} className="text-green-400 hover:text-green-300 transition"><Check size={14} /></button>
-                      <button onClick={() => setEditId(null)} className="text-gray-500 hover:text-white transition"><X size={14} /></button>
+                      <button onClick={handleSalvarEdit} className="text-green-400 hover:text-green-300 transition"><IconCheck size={14} /></button>
+                      <button onClick={() => setEditId(null)} className="text-gray-500 hover:text-white transition"><IconX size={14} /></button>
                     </>
                   ) : (
                     <>
                       <span className="flex-1 text-sm text-[#F5E6C8]">{cat.nome}</span>
-                      <button onClick={() => { setEditId(cat.id); setEditNome(cat.nome); }} className="text-gray-500 hover:text-[#b8944a] transition"><Edit2 size={13} /></button>
+                      <button onClick={() => { setEditId(cat.id); setEditNome(cat.nome); }} className="text-gray-500 hover:text-[#b8944a] transition"><IconEdit size={13} /></button>
                       <button
                         onClick={() => handleDelete(cat.id)}
                         disabled={deletingId === cat.id}
                         className="text-gray-500 hover:text-red-400 transition disabled:opacity-50"
                       >
-                        {deletingId === cat.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                        {deletingId === cat.id ? <IconLoader2 size={13} className="animate-spin" /> : <IconTrash size={13} />}
                       </button>
                     </>
                   )}

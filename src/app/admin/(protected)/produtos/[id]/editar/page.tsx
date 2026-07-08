@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
+import {
+  IconArrowLeft,
+} from "@tabler/icons-react";
 import { getProdutoById } from "@/lib/admin-produtos";
 import { getCategorias } from "@/lib/admin-categorias";
 import { updateProdutoAction } from "../../actions";
 import ProdutoForm from "../../ProdutoForm";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +23,7 @@ export default async function EditarProdutoPage({ params }: { params: Promise<{ 
     <div className="max-w-xl mx-auto flex flex-col gap-6">
       <div className="flex items-center gap-3">
         <Link href="/admin/produtos" className="p-1.5 text-gray-500 hover:text-[#b8944a] transition">
-          <ArrowLeft size={18} />
+          <IconArrowLeft size={18} />
         </Link>
         <h1 className="text-2xl font-bold text-[#F5E6C8]">Editar produto</h1>
       </div>
