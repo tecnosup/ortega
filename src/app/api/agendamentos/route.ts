@@ -7,7 +7,7 @@ import { pushNovoAgendamento } from "@/lib/push-messages";
 import { getAssinaturaPorTelefone, getAssinaturaPorEmail, consumirCredito } from "@/lib/assinaturas";
 import { getLandingSettings } from "@/lib/admin-settings";
 import { criarComanda } from "@/lib/comandas";
-import { parsePriceNum } from "@/lib/agendamentos-types";
+import { parsePriceNum, sanitizarDuracaoMin } from "@/lib/agendamentos-types";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { nome, telefone, servico, preco, data, horario, cupom, desconto, barbeiroId, barbeiroNome, email, assinaturaId: assinaturaIdExplicito, cobertoPorAssinatura: cobertoPorAssinaturaExplicito } = body;
+  const { nome, telefone, servico, preco, data, horario, duracaoMin, cupom, desconto, barbeiroId, barbeiroNome, email, assinaturaId: assinaturaIdExplicito, cobertoPorAssinatura: cobertoPorAssinaturaExplicito } = body;
 
   if (!nome || !telefone || !servico || !data || !horario) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
   };
   if (cupom) payload.cupom = cupom;
   if (desconto !== undefined && desconto !== null) payload.desconto = desconto;
+  // duração usada para reservar o intervalo na agenda (sanitizada; ignora valor inválido)
+  const dm = sanitizarDuracaoMin(duracaoMin);
+  if (dm) payload.duracaoMin = dm;
   if (barbeiroId) payload.barbeiroId = String(barbeiroId).slice(0, 64);
   if (barbeiroNome) payload.barbeiroNome = String(barbeiroNome).slice(0, 80);
 

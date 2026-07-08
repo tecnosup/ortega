@@ -5,10 +5,10 @@ import {
   IconCheck, IconChevronLeft, IconChevronRight, IconTag,
 } from "@tabler/icons-react";
 import type { Item } from "@/lib/admin-items";
-import type { Agendamento } from "@/lib/agendamentos-types";
+import { type Agendamento, resolverDuracaoMin, parsePriceNum } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import { toDateKey } from "@/lib/date-utils";
-import { gerarSlotsDia, mesclarGrade, GRADE_DEFAULT, type GradeConfig } from "@/lib/grade";
+import { gerarSlotsDia, servicoCabeNoDia, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, CARENCIA_DEFAULT, type GradeConfig } from "@/lib/grade";
 
 const MESES =["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["D","S","T","Q","Q","S","S"];
@@ -41,6 +41,7 @@ type Step = "servico" | "barbeiro" | "calendario" | "dados" | "confirmado";
 interface Selecao {
   servico: string;
   preco: string;
+  duracaoMin: number;
   data: Date | null;
   horario: string;
   nome: string;
@@ -87,9 +88,29 @@ export default function AgendamentoPage() {
   const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
   const [whatsappNumber, setWhatsappNumber] = useState("5511999999999");
   const [selecao, setSelecao] = useState<Selecao>({
-    servico: "", preco: "", data: null, horario: "", nome: "", telefone: "",
+    servico: "", preco: "", duracaoMin: 0, data: null, horario: "", nome: "", telefone: "",
     barbeiroId: null, barbeiroNome: null,
   });
+  // Parte D: múltiplos serviços (mesmo barbeiro, durações/preços somados)
+  const [servicosSel, setServicosSel] = useState<Item[]>([]);
+
+  function toggleServico(s: Item) {
+    setServicosSel((prev) =>
+      prev.some((x) => x.id === s.id) ? prev.filter((x) => x.id !== s.id) : [...prev, s]
+    );
+  }
+
+  // deriva servico/preco/duracaoMin somados a partir da lista e avança
+  function confirmarServicos() {
+    if (servicosSel.length === 0) return;
+    const nomes = servicosSel.map((s) => s.titulo).join(" + ");
+    const precoTotal = servicosSel.reduce((acc, s) => acc + parsePriceNum(s.preco), 0);
+    const duracaoTotal = servicosSel.reduce((acc, s) => acc + resolverDuracaoMin(s, passoMin), 0);
+    // formata preço no padrão brasileiro "70,00" (se algum serviço tinha preço)
+    const precoStr = precoTotal > 0 ? precoTotal.toFixed(2).replace(".", ",") : "";
+    setSelecao((sel) => ({ ...sel, servico: nomes, preco: precoStr, duracaoMin: duracaoTotal, horario: "" }));
+    setStep("barbeiro");
+  }
   const [mesAtual, setMesAtual] = useState(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -103,6 +124,8 @@ export default function AgendamentoPage() {
   const [slotsOcupados, setSlotsOcupados] = useState<Record<string, string[]>>({});
   const [carregandoSlots, setCarregandoSlots] = useState(false);
   const [grade, setGrade] = useState<GradeConfig>(GRADE_DEFAULT);
+  const [passoMin, setPassoMin] = useState<number>(PASSO_DEFAULT);
+  const [carenciaMin, setCarenciaMin] = useState<number>(CARENCIA_DEFAULT);
 
   // ref da seção de horários — usado para rolar até ela ao escolher o dia
   const horariosRef = useRef<HTMLDivElement>(null);
@@ -127,6 +150,8 @@ export default function AgendamentoPage() {
       setBarbeiros(dBarbeiros.barbeiros ?? []);
       if (dSettings.whatsappNumber) setWhatsappNumber(dSettings.whatsappNumber);
       if (dGrade.grade) setGrade(mesclarGrade(dGrade.grade));
+      if (dGrade.passoMin) setPassoMin(dGrade.passoMin);
+      if (dGrade.carenciaMin !== undefined) setCarenciaMin(dGrade.carenciaMin);
       setCarregandoDados(false);
     });
   }, []);
@@ -198,25 +223,33 @@ export default function AgendamentoPage() {
   }, [mesAtual]);
 
   function getSlotsDisponiveis(dateKey: string, diaSemana: number): string[] {
-    const todos = gerarSlotsDia(grade[diaSemana]);
+    const todos = gerarSlotsDia(grade[diaSemana], passoMin);
     if (todos.length === 0) return [];
     const cacheKey = selecao.barbeiroId ? `${dateKey}__${selecao.barbeiroId}` : dateKey;
-    const ocupados = slotsOcupados[cacheKey] ?? [];
+    const ocupados = new Set(slotsOcupados[cacheKey] ?? []);
     const agora = new Date();
     const hojeKey = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}-${String(agora.getDate()).padStart(2, "0")}`;
     const minutosAgora = agora.getHours() * 60 + agora.getMinutes();
+    // duração do serviço escolhido (fallback = 1 passo, comportamento antigo)
+    const dur = selecao.duracaoMin > 0 ? selecao.duracaoMin : passoMin;
+    const dia = grade[diaSemana];
+    const fmt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
     return todos.filter((s) => {
-      if (ocupados.includes(s)) return false;
-      if (dateKey === hojeKey) {
-        const [h, m] = s.split(":").map(Number);
-        if (h * 60 + m <= minutosAgora) return false;
+      const [h, m] = s.split(":").map(Number);
+      const ini = h * 60 + m;
+      if (dateKey === hojeKey && ini <= minutosAgora) return false;
+      // cabe no expediente (fim + carência) e não atravessa o almoço
+      if (!servicoCabeNoDia(s, dur, dia, carenciaMin)) return false;
+      // não colide com nenhum agendamento existente no intervalo [ini, ini+dur)
+      for (let t = ini; t < ini + dur; t += passoMin) {
+        if (ocupados.has(fmt(t))) return false;
       }
       return true;
     });
   }
 
   function getDisponibilidade(dateKey: string, diaSemana: number): "livre" | "parcial" | "lotado" | "fechado" {
-    const todos = gerarSlotsDia(grade[diaSemana]);
+    const todos = gerarSlotsDia(grade[diaSemana], passoMin);
     if (todos.length === 0) return "fechado";
     const disponiveis = getSlotsDisponiveis(dateKey, diaSemana);
     if (disponiveis.length === 0) return "lotado";
@@ -287,6 +320,7 @@ export default function AgendamentoPage() {
           cupom: cupomAplicado?.codigo ?? null,
           data: dataKey,
           horario: selecao.horario,
+          duracaoMin: selecao.duracaoMin || undefined,
           barbeiroId: selecao.barbeiroId ?? undefined,
           barbeiroNome: selecao.barbeiroNome ?? undefined,
         }),
@@ -345,31 +379,70 @@ export default function AgendamentoPage() {
             <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 1 de 4</span>
             <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Escolha o serviço</h1>
           </div>
+          <p className="text-center text-gray-500 text-xs mb-4 -mt-4">Você pode escolher mais de um serviço.</p>
           {carregandoDados ? (
             <p className="text-center text-gray-500 text-sm py-10">Carregando serviços...</p>
           ) : servicos.length === 0 ? (
             <p className="text-center text-gray-500 text-sm py-10">Nenhum serviço disponível no momento.</p>
           ) : (
-            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3 sm:gap-4">
-              {servicos.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => { setSelecao((sel) => ({ ...sel, servico: s.titulo, preco: s.preco })); setStep("barbeiro"); }}
-                  className="text-left border border-[#2d2d2d] bg-[#111] p-4 sm:p-5 rounded-xl active:scale-[0.98] hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition-all duration-200 group"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition">{s.titulo}</p>
-                      <p className="text-sm text-gray-500 mt-1 leading-relaxed line-clamp-2">{s.descricao}</p>
+            <>
+              <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3 sm:gap-4 pb-28">
+                {servicos.map((s) => {
+                  const marcado = servicosSel.some((x) => x.id === s.id);
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => toggleServico(s)}
+                      className={`text-left border p-4 sm:p-5 rounded-xl active:scale-[0.98] transition-all duration-200 group ${
+                        marcado
+                          ? "border-[#b8944a] bg-[#b8944a]/10"
+                          : "border-[#2d2d2d] bg-[#111] hover:border-[#b8944a] hover:bg-[#b8944a]/5"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition ${
+                            marcado ? "bg-[#b8944a] border-[#b8944a]" : "border-[#3d3d3d]"
+                          }`}>
+                            {marcado && <IconCheck size={13} className="text-[#0A0A0A]" />}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition">{s.titulo}</p>
+                            <p className="text-sm text-gray-500 mt-1 leading-relaxed line-clamp-2">{s.descricao}</p>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          {s.preco && <p className="text-[#b8944a] font-bold text-sm">R$ {s.preco}</p>}
+                          {(s.duracaoMin || s.duracao) && <p className="text-xs text-gray-600 mt-0.5">{resolverDuracaoMin(s, passoMin)} min</p>}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* barra fixa de resumo + continuar */}
+              {servicosSel.length > 0 && (
+                <div className="fixed bottom-0 left-0 right-0 bg-[#111] border-t border-[#2d2d2d] px-4 py-3 z-20">
+                  <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+                    <div className="text-sm">
+                      <p className="text-[#F5E6C8] font-medium">
+                        {servicosSel.length} serviço{servicosSel.length > 1 ? "s" : ""} • {servicosSel.reduce((a, s) => a + resolverDuracaoMin(s, passoMin), 0)} min
+                      </p>
+                      <p className="text-xs text-[#b8944a]">
+                        R$ {servicosSel.reduce((a, s) => a + parsePriceNum(s.preco), 0).toFixed(2).replace(".", ",")}
+                      </p>
                     </div>
-                    <div className="text-right shrink-0">
-                      {s.preco && <p className="text-[#b8944a] font-bold text-sm">R$ {s.preco}</p>}
-                      {s.duracao && <p className="text-xs text-gray-600 mt-0.5">{s.duracao}</p>}
-                    </div>
+                    <button
+                      onClick={confirmarServicos}
+                      className="px-6 py-3 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-xl hover:bg-[#c9a84c] transition active:scale-[0.98]"
+                    >
+                      Continuar →
+                    </button>
                   </div>
-                </button>
-              ))}
-            </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
@@ -764,7 +837,8 @@ export default function AgendamentoPage() {
           <button
             onClick={() => {
               setStep("servico");
-              setSelecao({ servico: "", preco: "", data: null, horario: "", nome: "", telefone: "", barbeiroId: null, barbeiroNome: null });
+              setSelecao({ servico: "", preco: "", duracaoMin: 0, data: null, horario: "", nome: "", telefone: "", barbeiroId: null, barbeiroNome: null });
+              setServicosSel([]);
               setNome("");
               setTelefone("");
               setAgendamentoId(null);

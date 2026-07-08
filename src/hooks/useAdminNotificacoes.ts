@@ -6,7 +6,9 @@ import { playNovoAgendamento, playAtencao, playCritico } from "./useAdminSounds"
 
 type Urgencia = "normal" | "atencao" | "critico";
 
-const INTERVALO_POLLING_MS = 120_000;
+// 90s em vez de 30s: corta ~3x as leituras do Firestore (proteção de cota).
+// Notificação de novo agendamento chega em até 90s — imperceptível na operação.
+const INTERVALO_POLLING_MS = 90_000;
 const JANELA_LEMBRETE_MIN_MS = 30 * 60_000;
 const JANELA_LEMBRETE_MAX_MS = 60 * 60_000;
 

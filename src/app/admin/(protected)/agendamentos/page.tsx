@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   IconAdjustments, IconAlertCircle, IconAlertTriangle, IconArrowBackUp, IconBan, IconBell, IconCalendar, IconCalendarCheck, IconCalendarPlus, IconCalendarX, IconCheck, IconChevronDown, IconChevronLeft, IconChevronRight, IconCircleCheck, IconCircleX, IconClock, IconCoffee, IconLayoutGrid, IconList, IconLock, IconLockOpen, IconMessageCircle, IconPencil, IconPlus, IconRefresh, IconTag, IconTrash, IconTrendingUp, IconX,
 } from "@tabler/icons-react";
@@ -15,7 +15,7 @@ import { parsePriceNum } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import type { Item } from "@/lib/admin-items";
 import { toDateKey } from "@/lib/date-utils";
-import { gerarSlotsData, mesclarGrade, GRADE_DEFAULT, DIAS_SEMANA, type GradeConfig, type DiaGrade } from "@/lib/grade";
+import { gerarSlotsData, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, PASSO_MIN, PASSO_MAX, CARENCIA_DEFAULT, CARENCIA_MAX, DIAS_SEMANA, type GradeConfig, type DiaGrade } from "@/lib/grade";
 import AnimatedModal from "@/components/ui/Modal";
 
 function parseDuracaoMin(duracao: string): number {
@@ -46,10 +46,6 @@ const STATUS_LABEL: Record<AgendamentoStatus, string> = {
   concluido: "Concluído",
   nao_compareceu: "Não compareceu",
 };
-
-const SERVICOS_LISTA = [
-  "Corte Clássico", "Barba Completa", "Combo Corte + Barba", "Coloração e Luzes", "Sobrancelha",
-];
 
 // ─── Calendário mensal rico ───────────────────────────────────────────────────
 
@@ -611,14 +607,43 @@ function ReagendarModal({ open, ag, dataSelecionada, slotsLivres, grade, onConfi
 type ModalState = { tipo: "concluir" | "excluir" | "fechar_caixa" | "bloquear" | "fechar_dia" | "fechar_dia_2" | "liberar_dia" | "caixa_fechado_retro"; id?: string; horario?: string } | null;
 
 // Modal de configuração da grade — horários padrão por dia da semana + almoço.
-function ConfigGradeModal({ open, grade, salvando, onSave, onClose }: {
-  open: boolean; grade: GradeConfig; salvando: boolean; onSave: (g: GradeConfig) => void; onClose: () => void;
+function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, onSave, onClose }: {
+  open: boolean; grade: GradeConfig; passoMin: number; carenciaMin: number; salvando: boolean; onSave: (g: GradeConfig, passo: number, carencia: number) => void; onClose: () => void;
 }) {
   const [draft, setDraft] = useState<GradeConfig>(grade);
+  // passo e carência controlados como string (edição livre); validados no salvar
+  const [passoStr, setPassoStr] = useState<string>(String(passoMin));
+  const [passoErro, setPassoErro] = useState(false);
+  const [carenciaStr, setCarenciaStr] = useState<string>(String(carenciaMin));
+  const [carenciaErro, setCarenciaErro] = useState(false);
+  const passoRef = useRef<HTMLInputElement>(null);
+  const carenciaRef = useRef<HTMLInputElement>(null);
   // Horário padrão: aplica abre/fecha/almoço a um conjunto de dias de uma vez.
   const [padrao, setPadrao] = useState({ inicio: "09:00", fim: "18:00", almocoInicio: "12:00", almocoFim: "13:00" });
   const [diasSel, setDiasSel] = useState<Set<number>>(new Set([1, 2, 3, 4, 5]));
-  useEffect(() => { if (open) setDraft(grade); }, [open, grade]);
+  useEffect(() => { if (open) { setDraft(grade); setPassoStr(String(passoMin)); setCarenciaStr(String(carenciaMin)); setPassoErro(false); setCarenciaErro(false); } }, [open, grade, passoMin, carenciaMin]);
+
+  const passoNum = parseInt(passoStr, 10);
+  const passoValido = Number.isFinite(passoNum) && passoNum >= PASSO_MIN && passoNum <= PASSO_MAX;
+  const carenciaNum = carenciaStr === "" ? 0 : parseInt(carenciaStr, 10);
+  const carenciaValida = Number.isFinite(carenciaNum) && carenciaNum >= 0 && carenciaNum <= CARENCIA_MAX;
+
+  // valida antes de salvar; se inválido, foca o campo problemático, dispara shake e não salva
+  function handleSalvar() {
+    if (!passoValido) {
+      setPassoErro(true);
+      passoRef.current?.focus();
+      setTimeout(() => setPassoErro(false), 600);
+      return;
+    }
+    if (!carenciaValida) {
+      setCarenciaErro(true);
+      carenciaRef.current?.focus();
+      setTimeout(() => setCarenciaErro(false), 600);
+      return;
+    }
+    onSave(draft, passoNum, carenciaNum);
+  }
 
   function upd(dow: number, patch: Partial<DiaGrade>) {
     setDraft((prev) => ({ ...prev, [dow]: { ...prev[dow], ...patch } }));
@@ -650,68 +675,164 @@ function ConfigGradeModal({ open, grade, salvando, onSave, onClose }: {
         <p className="text-xs text-gray-500 mt-0.5">Reflete na grade e no site do cliente.</p>
       </div>
 
-      {/* Horário padrão: define abre/fecha/almoço e aplica a vários dias de uma vez */}
-      <div className="px-5 py-4 border-b border-[#1e1e1e] flex flex-col gap-2.5">
-        <div className="rounded-lg border border-[#b8944a]/30 bg-[#b8944a]/5 p-3.5 flex flex-col gap-3">
-          <p className="text-[11px] font-bold text-[#b8944a] uppercase tracking-wide flex items-center gap-1.5"><IconClock size={13} /> Horário padrão</p>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-gray-400">
-            <label className="flex items-center gap-1.5">Abre <input type="time" value={padrao.inicio} onChange={(e) => setPadrao((p) => ({ ...p, inicio: e.target.value }))} className={time} /></label>
-            <label className="flex items-center gap-1.5">Fecha <input type="time" value={padrao.fim} onChange={(e) => setPadrao((p) => ({ ...p, fim: e.target.value }))} className={time} /></label>
-            <span className="flex items-center gap-1 text-gray-500"><IconCoffee size={12} /> Almoço</span>
-            <input type="time" value={padrao.almocoInicio} onChange={(e) => setPadrao((p) => ({ ...p, almocoInicio: e.target.value }))} className={time} />
-            <span>—</span>
-            <input type="time" value={padrao.almocoFim} onChange={(e) => setPadrao((p) => ({ ...p, almocoFim: e.target.value }))} className={time} />
+      {/* ── SEÇÃO: aplicar horário a vários dias de uma vez ─────────────────── */}
+      <div className="px-5 py-4 border-b border-[#1e1e1e] flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold text-[#b8944a] uppercase tracking-widest">Aplicar a vários dias</span>
+          <span className="h-px flex-1 bg-[#1e1e1e]" />
+        </div>
+
+        <div className="rounded-xl border border-[#b8944a]/25 bg-[#b8944a]/[0.06] p-4 flex flex-col gap-4">
+          {/* horários abre / fecha / almoço em grid alinhado */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wide">Abre</span>
+              <input type="time" value={padrao.inicio} onChange={(e) => setPadrao((p) => ({ ...p, inicio: e.target.value }))} className={time} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wide">Fecha</span>
+              <input type="time" value={padrao.fim} onChange={(e) => setPadrao((p) => ({ ...p, fim: e.target.value }))} className={time} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wide flex items-center gap-1"><IconCoffee size={11} /> Almoço início</span>
+              <input type="time" value={padrao.almocoInicio} onChange={(e) => setPadrao((p) => ({ ...p, almocoInicio: e.target.value }))} className={time} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wide">Almoço fim</span>
+              <input type="time" value={padrao.almocoFim} onChange={(e) => setPadrao((p) => ({ ...p, almocoFim: e.target.value }))} className={time} />
+            </label>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {DIAS_SEMANA.map(({ dow, curto }) => {
-              const sel = diasSel.has(dow);
-              return (
-                <button key={dow} type="button" onClick={() => toggleDiaSel(dow)}
-                  className={`px-2.5 py-1 text-xs rounded-md border transition ${sel ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-medium" : "bg-[#0A0A0A] text-gray-400 border-[#2d2d2d] hover:border-[#b8944a]"}`}>{curto}</button>
-              );
-            })}
-            <button type="button" onClick={() => setDiasSel(new Set([1, 2, 3, 4, 5]))} className="text-[10px] text-[#b8944a] hover:underline ml-1">Seg–Sex</button>
-            <button type="button" onClick={() => setDiasSel(new Set([0, 1, 2, 3, 4, 5, 6]))} className="text-[10px] text-[#b8944a] hover:underline">Todos</button>
+
+          {/* seletor de dias */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wide">Dias</span>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setDiasSel(new Set([1, 2, 3, 4, 5]))} className="text-[10px] text-[#b8944a] hover:underline">Seg–Sex</button>
+                <button type="button" onClick={() => setDiasSel(new Set([0, 1, 2, 3, 4, 5, 6]))} className="text-[10px] text-[#b8944a] hover:underline">Todos</button>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {DIAS_SEMANA.map(({ dow, curto }) => {
+                const sel = diasSel.has(dow);
+                return (
+                  <button key={dow} type="button" onClick={() => toggleDiaSel(dow)}
+                    className={`w-10 py-1.5 text-xs rounded-md border transition ${sel ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-semibold" : "bg-[#0A0A0A] text-gray-400 border-[#2d2d2d] hover:border-[#b8944a]"}`}>{curto}</button>
+                );
+              })}
+            </div>
           </div>
+
           <button type="button" onClick={aplicarPadrao} disabled={diasSel.size === 0}
-            className="self-start px-3 py-1.5 text-xs bg-[#b8944a] text-[#0A0A0A] rounded font-medium hover:bg-[#c9a84c] transition disabled:opacity-40">
-            Aplicar aos {diasSel.size} dia(s)
+            className="w-full py-2 text-xs bg-[#b8944a] text-[#0A0A0A] rounded-lg font-semibold hover:bg-[#c9a84c] transition disabled:opacity-40">
+            Aplicar aos {diasSel.size} dia{diasSel.size !== 1 ? "s" : ""} selecionado{diasSel.size !== 1 ? "s" : ""}
           </button>
         </div>
-        <p className="text-[10px] text-gray-600">Marque os dias, ajuste os horários e clique em aplicar. Depois dá pra refinar cada dia abaixo.</p>
       </div>
 
-      <div className="flex flex-col divide-y divide-[#1a1a1a]">
-        {DIAS_SEMANA.map(({ dow, nome }) => {
-          const d = draft[dow];
-          return (
-            <div key={dow} className="px-5 py-3 flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className={`text-sm font-medium ${d.ativo ? "text-[#F5E6C8]" : "text-gray-600"}`}>{nome}</span>
-                <button type="button" onClick={() => upd(dow, { ativo: !d.ativo })}
-                  className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${d.ativo ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`}>
-                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${d.ativo ? "left-5" : "left-0.5"}`} />
-                </button>
-              </div>
-              {d.ativo ? (
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-gray-400">
-                  <label className="flex items-center gap-1.5">Abre <input type="time" value={d.inicio} onChange={(e) => upd(dow, { inicio: e.target.value })} className={time} /></label>
-                  <label className="flex items-center gap-1.5">Fecha <input type="time" value={d.fim} onChange={(e) => upd(dow, { fim: e.target.value })} className={time} /></label>
-                  <span className="flex items-center gap-1 text-gray-500"><IconCoffee size={12} /> Almoço</span>
-                  <input type="time" value={d.almocoInicio ?? ""} onChange={(e) => upd(dow, { almocoInicio: e.target.value || null })} className={time} />
-                  <span>—</span>
-                  <input type="time" value={d.almocoFim ?? ""} onChange={(e) => upd(dow, { almocoFim: e.target.value || null })} className={time} />
+      {/* ── SEÇÃO: regras de agendamento (intervalo — carência entra no Bloco F) ── */}
+      <div className="px-5 py-4 border-b border-[#1e1e1e] flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold text-[#b8944a] uppercase tracking-widest">Regras de agendamento</span>
+          <span className="h-px flex-1 bg-[#1e1e1e]" />
+        </div>
+
+        <div className="rounded-xl border border-[#2d2d2d] bg-[#0A0A0A] p-4 flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-[#F5E6C8] flex items-center gap-1.5"><IconClock size={13} className="text-[#b8944a]" /> Intervalo entre horários</span>
+          <div className="flex items-center gap-2 mt-1">
+            <motion.input
+              ref={passoRef}
+              type="text" inputMode="numeric"
+              value={passoStr}
+              onChange={(e) => { setPassoStr(e.target.value.replace(/\D/g, "").slice(0, 3)); setPassoErro(false); }}
+              animate={passoErro ? { x: [0, -6, 6, -4, 4, 0] } : { x: 0 }}
+              transition={{ duration: 0.4 }}
+              className={`w-16 text-center bg-[#111] border rounded-lg px-2 py-2 text-sm text-[#F5E6C8] focus:outline-none transition-colors ${
+                passoErro ? "border-red-500 text-red-400" : passoValido ? "border-[#2d2d2d] focus:border-[#b8944a]" : "border-red-500/60"
+              }`}
+            />
+            <span className="text-xs text-gray-500">minutos</span>
+          </div>
+          <p className={`text-[10px] ${passoErro ? "text-red-400" : "text-gray-600"}`}>
+            {passoErro
+              ? `Digite um valor entre ${PASSO_MIN} e ${PASSO_MAX} minutos.`
+              : `De quanto em quanto tempo os horários aparecem ao cliente. Entre ${PASSO_MIN} e ${PASSO_MAX} min (ex: 13 → 9:00, 9:13, 9:26…).`}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[#2d2d2d] bg-[#0A0A0A] p-4 flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-[#F5E6C8] flex items-center gap-1.5"><IconClock size={13} className="text-[#b8944a]" /> Tolerância de fechamento</span>
+          <div className="flex items-center gap-2 mt-1">
+            <motion.input
+              ref={carenciaRef}
+              type="text" inputMode="numeric"
+              value={carenciaStr}
+              onChange={(e) => { setCarenciaStr(e.target.value.replace(/\D/g, "").slice(0, 3)); setCarenciaErro(false); }}
+              animate={carenciaErro ? { x: [0, -6, 6, -4, 4, 0] } : { x: 0 }}
+              transition={{ duration: 0.4 }}
+              className={`w-16 text-center bg-[#111] border rounded-lg px-2 py-2 text-sm text-[#F5E6C8] focus:outline-none transition-colors ${
+                carenciaErro ? "border-red-500 text-red-400" : carenciaValida ? "border-[#2d2d2d] focus:border-[#b8944a]" : "border-red-500/60"
+              }`}
+            />
+            <span className="text-xs text-gray-500">minutos</span>
+          </div>
+          <p className={`text-[10px] ${carenciaErro ? "text-red-400" : "text-gray-600"}`}>
+            {carenciaErro
+              ? `Digite um valor entre 0 e ${CARENCIA_MAX} minutos.`
+              : `Quanto um serviço pode passar do horário de fechamento. Ex: fecha 19:00, tolerância 30 → um corte de 45 min pode começar às 18:30 (termina 19:15). Use 0 para desativar.`}
+          </p>
+        </div>
+      </div>
+
+      {/* ── SEÇÃO: refinar cada dia individualmente ─────────────────────────── */}
+      <div className="px-5 py-4 flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold text-[#b8944a] uppercase tracking-widest">Horário por dia</span>
+          <span className="h-px flex-1 bg-[#1e1e1e]" />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {DIAS_SEMANA.map(({ dow, nome }) => {
+            const d = draft[dow];
+            return (
+              <div key={dow} className={`rounded-xl border p-3.5 flex flex-col gap-3 transition-colors ${d.ativo ? "border-[#2d2d2d] bg-[#0A0A0A]" : "border-[#1a1a1a] bg-[#0A0A0A]/40"}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm font-semibold ${d.ativo ? "text-[#F5E6C8]" : "text-gray-600"}`}>{nome}</span>
+                  <button type="button" onClick={() => upd(dow, { ativo: !d.ativo })}
+                    className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${d.ativo ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`}>
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${d.ativo ? "left-5" : "left-0.5"}`} />
+                  </button>
                 </div>
-              ) : (
-                <span className="text-xs text-gray-600">Fechado</span>
-              )}
-            </div>
-          );
-        })}
+                {d.ativo ? (
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wide">Abre</span>
+                      <input type="time" value={d.inicio} onChange={(e) => upd(dow, { inicio: e.target.value })} className={time} />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wide">Fecha</span>
+                      <input type="time" value={d.fim} onChange={(e) => upd(dow, { fim: e.target.value })} className={time} />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wide flex items-center gap-1"><IconCoffee size={11} /> Almoço início</span>
+                      <input type="time" value={d.almocoInicio ?? ""} onChange={(e) => upd(dow, { almocoInicio: e.target.value || null })} className={time} />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wide">Almoço fim</span>
+                      <input type="time" value={d.almocoFim ?? ""} onChange={(e) => upd(dow, { almocoFim: e.target.value || null })} className={time} />
+                    </label>
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-600">Fechado neste dia</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
       <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2 justify-end shrink-0">
         <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
-        <button onClick={() => onSave(draft)} disabled={salvando} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">{salvando ? "Salvando..." : "Salvar grade"}</button>
+        <button onClick={handleSalvar} disabled={salvando} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">{salvando ? "Salvando..." : "Salvar grade"}</button>
       </div>
     </AnimatedModal>
   );
@@ -760,6 +881,8 @@ export default function AgendamentosAdminPage() {
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
   const [alertasExpandidos, setAlertasExpandidos] = useState<Set<string>>(new Set());
   const [grade, setGrade] = useState<GradeConfig>(GRADE_DEFAULT);
+  const [passoMin, setPassoMin] = useState<number>(PASSO_DEFAULT);
+  const [carenciaMin, setCarenciaMin] = useState<number>(CARENCIA_DEFAULT);
   const [configGradeOpen, setConfigGradeOpen] = useState(false);
   const [salvandoGrade, setSalvandoGrade] = useState(false);
   const [pendencias, setPendencias] = useState<Agendamento[] | null>(null);
@@ -884,22 +1007,27 @@ export default function AgendamentosAdminPage() {
   useEffect(() => { carregar(); }, [carregar]);
 
   useEffect(() => {
-    fetch("/api/admin/barbeiros", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => setBarbeiros(d.barbeiros ?? []));
-    fetch("/api/publico/servicos")
-      .then((r) => r.json())
-      .then((d) => setServicos(d.items ?? []));
-    fetch("/api/grade")
-      .then((r) => r.json())
-      .then((d) => { if (d.grade) setGrade(mesclarGrade(d.grade)); })
-      .catch(() => {});
+    // helper: só faz .json() se a resposta veio OK e com corpo — evita
+    // "Unexpected end of JSON input" quando a API retorna 401/500 vazio
+    const getJson = async (url: string) => {
+      try {
+        const r = await fetch(url, { credentials: "include" });
+        if (!r.ok) return null;
+        const txt = await r.text();
+        return txt ? JSON.parse(txt) : null;
+      } catch {
+        return null;
+      }
+    };
+    getJson("/api/admin/barbeiros").then((d) => setBarbeiros(d?.barbeiros ?? []));
+    getJson("/api/publico/servicos").then((d) => setServicos(d?.items ?? []));
+    getJson("/api/grade").then((d) => { if (d?.grade) setGrade(mesclarGrade(d.grade)); if (d?.passoMin) setPassoMin(d.passoMin); if (d?.carenciaMin !== undefined) setCarenciaMin(d.carenciaMin); });
   }, []);
 
   const agsDia = agendamentos.filter((a) => a.data === dataSelecionada).sort((a, b) => a.horario.localeCompare(b.horario));
   const concluidos = agsDia.filter((a) => a.status === "concluido");
   const totalDia = concluidos.reduce((s, a) => s + parsePriceNum(a.preco), 0);
-  const todosSlotsDia = gerarSlotsData(dataSelecionada, grade);
+  const todosSlotsDia = gerarSlotsData(dataSelecionada, grade, passoMin);
   const horariosOcupados = new Set(agsDia.map((a) => a.horario));
   const slotsLivresDia = todosSlotsDia.filter((s) => !horariosOcupados.has(s) && !slotsBloqueados.includes(s));
 
@@ -1038,11 +1166,13 @@ export default function AgendamentosAdminPage() {
     mostrarSucesso(`Dia liberado — ${qtd} horário(s) disponível(is) de novo`);
   }
 
-  async function salvarGrade(nova: GradeConfig) {
+  async function salvarGrade(nova: GradeConfig, novoPasso: number, novaCarencia: number) {
     setSalvandoGrade(true);
     try {
-      await fetch("/api/grade", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grade: nova }) });
+      await fetch("/api/grade", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grade: nova, passoMin: novoPasso, carenciaMin: novaCarencia }) });
       setGrade(nova);
+      setPassoMin(novoPasso);
+      setCarenciaMin(novaCarencia);
       setConfigGradeOpen(false);
       mostrarSucesso("Grade salva!");
     } finally {
@@ -1117,7 +1247,7 @@ export default function AgendamentosAdminPage() {
       <SucessoModal open={!!sucesso} mensagem={sucesso ?? ""} onClose={() => setSucesso(null)} />
 
       <Modal open={!!modal} {...(modal ? modalConfig[modal.tipo] : modalConfigVazio)} onConfirm={confirmarModal} onCancel={() => setModal(null)} />
-      <ConfigGradeModal open={configGradeOpen} grade={grade} salvando={salvandoGrade} onSave={salvarGrade} onClose={() => setConfigGradeOpen(false)} />
+      <ConfigGradeModal open={configGradeOpen} grade={grade} passoMin={passoMin} carenciaMin={carenciaMin} salvando={salvandoGrade} onSave={salvarGrade} onClose={() => setConfigGradeOpen(false)} />
 
       {/* Modal de pendências: aparece ao fechar o dia que tinha agendamentos.
           Renderizado ANTES do ReagendarModal pra que este fique por cima ao reagendar. */}
@@ -1366,7 +1496,7 @@ export default function AgendamentosAdminPage() {
                     {ehFuturo ? "Nenhum agendamento para este dia ainda." : "Nenhum agendamento neste dia."}
                   </div>
                 ) : (
-                  <div className="divide-y divide-[#1a1a1a]">
+                  <div className="flex flex-col gap-2 p-3">
                     {agsDia.map((ag) => {
                       const editando = editandoId === ag.id;
                       const ocupado = processando === ag.id;
@@ -1386,10 +1516,11 @@ export default function AgendamentosAdminPage() {
                       const horarioFim = `${String(Math.floor(fimMin / 60)).padStart(2, "0")}:${String(fimMin % 60).padStart(2, "0")}`;
 
                       return (
-                        <div key={ag.id} id={`ag-${ag.id}`} className={`px-4 py-4 transition rounded-lg ${finalizado && !ehConcluido ? "opacity-50" : ""}`}>
+                        <div key={ag.id} id={`ag-${ag.id}`} className={`bg-[#0d0d0d] border rounded-xl px-3 sm:px-4 py-3.5 transition ${ehConcluido ? "border-green-900/40" : ag.status === "nao_compareceu" || ag.status === "cancelado" ? "border-[#242424] opacity-60" : "border-[#242424]"}`}>
                           <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 w-20 pt-0.5">
-                              <p className="text-sm font-bold text-[#F5E6C8]">{ag.horario} – {horarioFim}</p>
+                            <div className="flex-shrink-0 w-[52px] flex flex-col items-center pt-0.5">
+                              <span className="text-sm font-bold text-[#F5E6C8] tabular-nums leading-tight">{ag.horario}</span>
+                              <span className="text-[10px] text-gray-600 tabular-nums leading-tight mt-0.5">{horarioFim}</span>
                             </div>
                             <div className="flex-1 min-w-0 flex gap-2">
                               <div className="flex-1 min-w-0">
@@ -1397,14 +1528,14 @@ export default function AgendamentosAdminPage() {
                                 <div className="mt-2 flex flex-col gap-2">
                                   {editLinhas.map((linha, idx) => (
                                     <div key={idx} className="flex gap-2 items-center flex-wrap">
-                                      <select value={linha.servico} onChange={(e) => setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, servico: e.target.value } : l))} className={inp}>{SERVICOS_LISTA.map((s) => <option key={s}>{s}</option>)}</select>
+                                      <select value={linha.servico} onChange={(e) => { const nome = e.target.value; const svc = servicos.find((s) => s.titulo === nome); setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, servico: nome, preco: svc?.preco ?? l.preco } : l)); }} className={inp}>{servicos.map((s) => <option key={s.id}>{s.titulo}</option>)}</select>
                                       <input value={linha.preco} onChange={(e) => setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, preco: e.target.value } : l))} placeholder="Preço" className={`${inp} w-24`} />
                                       {editLinhas.length > 1 && <button onClick={() => setEditLinhas((prev) => prev.filter((_, i) => i !== idx))} className="p-1 text-red-400 hover:text-red-300 rounded transition"><IconX size={13} /></button>}
                                     </div>
                                   ))}
                                   {editLinhas.length > 1 && <p className="text-xs text-[#b8944a] font-medium">Total: R$ {editLinhas.reduce((s, l) => s + parsePriceNum(l.preco), 0).toFixed(2).replace(".", ",")}</p>}
                                   <div className="flex gap-2 flex-wrap">
-                                    <button onClick={() => setEditLinhas((prev) => [...prev, { servico: SERVICOS_LISTA[0], preco: "" }])} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><IconPlus size={11} /> Serviço</button>
+                                    <button onClick={() => setEditLinhas((prev) => [...prev, { servico: servicos[0]?.titulo ?? "", preco: servicos[0]?.preco ?? "" }])} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><IconPlus size={11} /> Serviço</button>
                                     <button onClick={() => salvarEdicao(ag.id)} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 bg-green-900/30 text-green-400 border border-green-700/50 rounded text-xs hover:bg-green-900/50 transition"><IconCheck size={12} /> Salvar</button>
                                     <button onClick={() => setEditandoId(null)} className="flex items-center gap-1 px-2 py-1 border border-[#2d2d2d] text-gray-400 rounded text-xs hover:border-[#b8944a] transition"><IconX size={12} /> Cancelar</button>
                                   </div>
@@ -1447,26 +1578,28 @@ export default function AgendamentosAdminPage() {
                                     </div>
                                   )}
                                   {!caixaFechado && (
-                                    <div className="flex items-center gap-1 flex-wrap mt-3">
+                                    <div className="flex items-center gap-1.5 flex-wrap mt-3 pt-3 border-t border-[#1a1a1a]">
                                       {ag.status === "pendente" && (
-                                        <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1 text-xs text-blue-400 border border-blue-700/40 rounded-lg hover:bg-blue-900/20 transition"><IconCheck size={11} /> Confirmar</button>
+                                        <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-400 border border-blue-700/40 rounded-lg hover:bg-blue-900/20 transition"><IconCheck size={12} /> Confirmar</button>
                                       )}
                                       {(ag.status === "confirmado" || ag.status === "pendente") && (
-                                        <button onClick={() => setModal({ tipo: "concluir", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1 text-xs text-green-400 border border-green-700/40 rounded-lg hover:bg-green-900/20 transition"><IconCircleCheck size={11} /> Concluir</button>
+                                        <button onClick={() => setModal({ tipo: "concluir", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-green-400 border border-green-700/40 rounded-lg hover:bg-green-900/20 transition"><IconCircleCheck size={12} /> Concluir</button>
                                       )}
                                       {!finalizado && (
-                                        <button onClick={() => setReagendarAg(ag)} className="flex items-center gap-1 px-2.5 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><IconCalendarPlus size={11} /> Reagendar</button>
+                                        <button onClick={() => setReagendarAg(ag)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><IconCalendarPlus size={12} /> Reagendar</button>
                                       )}
                                       {(ag.status === "confirmado" || ag.status === "pendente") && (
-                                        <button onClick={() => atualizarStatus(ag.id, "nao_compareceu")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconClock size={11} /> Não compareceu</button>
+                                        <button onClick={() => atualizarStatus(ag.id, "nao_compareceu")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconClock size={12} /> Não compareceu</button>
                                       )}
                                       {(ehConcluido || ag.status === "nao_compareceu") && (
-                                        <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconArrowBackUp size={11} /> Desfazer</button>
+                                        <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconArrowBackUp size={12} /> Desfazer</button>
                                       )}
-                                      {!finalizado && (
-                                        <button onClick={() => { setEditandoId(ag.id); const srvs = ag.servico.split(" + "); const precos = ag.preco.split(" + "); setEditLinhas(srvs.map((s, i) => ({ servico: s.trim(), preco: precos[i]?.trim() ?? "" }))); }} className="p-1.5 text-gray-500 hover:text-gray-300 rounded-lg transition"><IconPencil size={13} /></button>
-                                      )}
-                                      <button onClick={() => setModal({ tipo: "excluir", id: ag.id })} className="p-1.5 text-red-500/50 hover:text-red-400 rounded-lg transition"><IconTrash size={13} /></button>
+                                      <div className="flex items-center gap-1 ml-auto">
+                                        {!finalizado && (
+                                          <button onClick={() => { setEditandoId(ag.id); const srvs = ag.servico.split(" + "); const precos = ag.preco.split(" + "); setEditLinhas(srvs.map((s, i) => ({ servico: s.trim(), preco: precos[i]?.trim() ?? "" }))); }} className="p-1.5 text-gray-500 hover:text-gray-300 border border-transparent hover:border-[#2d2d2d] rounded-lg transition" title="Editar"><IconPencil size={13} /></button>
+                                        )}
+                                        <button onClick={() => setModal({ tipo: "excluir", id: ag.id })} className="p-1.5 text-red-500/50 hover:text-red-400 border border-transparent hover:border-red-900/40 rounded-lg transition" title="Excluir"><IconTrash size={13} /></button>
+                                      </div>
                                     </div>
                                   )}
                                 </>
@@ -1543,41 +1676,41 @@ export default function AgendamentosAdminPage() {
               const cheio = !bloqueado && agsNoSlot.length >= totalBarbeiros;
               const livre = agsNoSlot.length === 0 && !bloqueado;
               return (
-                <div key={slot} className={`flex gap-3 px-4 py-3 ${bloqueado ? "bg-[#0A0A0A]" : cheio ? "bg-red-950/10" : ""}`}>
-                  <div className="flex-shrink-0 w-12 pt-1">
-                    <span className="text-sm font-bold text-gray-500">{slot}</span>
+                <div key={slot} className={`flex gap-3 px-3 sm:px-4 py-3 transition-colors ${bloqueado ? "bg-[#0A0A0A]/60" : cheio ? "bg-red-950/[0.07]" : livre ? "hover:bg-white/[0.015]" : ""}`}>
+                  {/* coluna do horário — chip alinhado ao topo */}
+                  <div className="flex-shrink-0 w-14 flex flex-col items-center pt-0.5">
+                    <span className={`text-sm font-bold tabular-nums ${livre && !slotPassou(slot) ? "text-[#F5E6C8]" : "text-gray-500"}`}>{slot}</span>
                     {!bloqueado && (
-                      <p className="text-[10px] text-gray-600 mt-0.5">
+                      <span className={`text-[10px] mt-1 px-1.5 py-0.5 rounded-full border tabular-nums ${cheio ? "border-red-800/50 text-red-400/80 bg-red-950/30" : agsNoSlot.length > 0 ? "border-[#2d2d2d] text-gray-500" : "border-transparent text-gray-700"}`}>
                         {agsNoSlot.length}/{totalBarbeiros}
-                        {cheio && <span className="text-red-500/80 ml-1">cheio</span>}
-                      </p>
+                      </span>
                     )}
                   </div>
                   <div className="flex-1 flex flex-col gap-2 min-w-0">
                     {bloqueado ? (
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2 py-1">
                         <span className="text-sm text-gray-500 flex items-center gap-1.5"><IconBan size={13} className="text-red-500/70" /> Bloqueado</span>
-                        {!caixaFechado && <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition"><IconLockOpen size={12} /> Desbloquear</button>}
+                        {!caixaFechado && <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition shrink-0"><IconLockOpen size={12} /> Desbloquear</button>}
                       </div>
                     ) : livre ? (
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2 py-1">
                         {slotPassou(slot) ? (
-                          <span className="text-sm text-gray-500 font-medium flex items-center gap-1.5"><IconClock size={13} className="text-gray-600" /> Horário passado</span>
+                          <span className="text-sm text-gray-500 flex items-center gap-1.5"><IconClock size={13} className="text-gray-600" /> Horário passado</span>
                         ) : (
-                          <span className="text-sm text-green-500/80 font-medium">Disponível</span>
+                          <span className="text-sm text-green-500/70 font-medium flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500/70" /> Disponível</span>
                         )}
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 shrink-0">
                           {slotPassou(slot) ? (
                             // Retroativo: sempre visível. Com caixa fechado, avisa (regra de rastreabilidade).
                             <button onClick={() => caixaFechado ? setModal({ tipo: "caixa_fechado_retro", horario: slot }) : abrirAgendar({ data: dataSelecionada, horario: slot })}
                               title="Registrar atendimento retroativo (cliente que veio e não foi lançado)"
-                              className="flex items-center gap-1 px-2 py-1 text-xs rounded transition border text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]">
-                              <IconCalendarPlus size={12} /> Registrar retroativo
+                              className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg transition border text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]">
+                              <IconCalendarPlus size={12} /> <span className="hidden sm:inline">Registrar retroativo</span><span className="sm:hidden">Retroativo</span>
                             </button>
                           ) : !caixaFechado ? (
                             <>
-                              <button onClick={() => abrirAgendar({ data: dataSelecionada, horario: slot })} className="flex items-center gap-1 px-2 py-1 text-xs rounded transition border text-[#b8944a] border-[#b8944a]/30 hover:bg-[#b8944a]/10"><IconCalendarPlus size={12} /> Agendar</button>
-                              <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition" title="Bloquear"><IconBan size={13} /></button>
+                              <button onClick={() => abrirAgendar({ data: dataSelecionada, horario: slot })} className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg transition border text-[#b8944a] border-[#b8944a]/30 hover:bg-[#b8944a]/10"><IconCalendarPlus size={12} /> Agendar</button>
+                              <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="p-1.5 text-gray-500 hover:text-red-400 border border-transparent hover:border-red-900/40 rounded-lg transition" title="Bloquear"><IconBan size={13} /></button>
                             </>
                           ) : null}
                         </div>
@@ -1590,21 +1723,21 @@ export default function AgendamentosAdminPage() {
                           const ehConcluido = ag.status === "concluido";
                           const finalizado = ehConcluido || ag.status === "nao_compareceu" || ag.status === "cancelado";
                           return (
-                            <div key={ag.id} className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg p-3 flex flex-col gap-2">
+                            <div key={ag.id} className={`bg-[#0d0d0d] border rounded-lg p-3 flex flex-col gap-2.5 ${ehConcluido ? "border-green-900/40" : ag.status === "nao_compareceu" ? "border-[#2a2a2a] opacity-70" : "border-[#2a2a2a]"}`}>
                               <div className="flex items-start gap-2">
                                 <div className="flex-1 min-w-0">
                                   {editando ? (
                                     <div className="flex flex-col gap-2">
                                       {editLinhas.map((linha, idx) => (
                                         <div key={idx} className="flex gap-2 items-center flex-wrap">
-                                          <select value={linha.servico} onChange={(e) => setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, servico: e.target.value } : l))} className={inp}>{SERVICOS_LISTA.map((s) => <option key={s}>{s}</option>)}</select>
+                                          <select value={linha.servico} onChange={(e) => { const nome = e.target.value; const svc = servicos.find((s) => s.titulo === nome); setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, servico: nome, preco: svc?.preco ?? l.preco } : l)); }} className={inp}>{servicos.map((s) => <option key={s.id}>{s.titulo}</option>)}</select>
                                           <input value={linha.preco} onChange={(e) => setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, preco: e.target.value } : l))} placeholder="Preço" className={`${inp} w-24`} />
                                           {editLinhas.length > 1 && <button onClick={() => setEditLinhas((prev) => prev.filter((_, i) => i !== idx))} className="p-1 text-red-400 hover:text-red-300 rounded transition"><IconX size={13} /></button>}
                                         </div>
                                       ))}
                                       {editLinhas.length > 1 && <p className="text-xs text-[#b8944a]">Total: R$ {editLinhas.reduce((s, l) => s + parsePriceNum(l.preco), 0).toFixed(2).replace(".", ",")}</p>}
                                       <div className="flex gap-2 flex-wrap">
-                                        <button onClick={() => setEditLinhas((prev) => [...prev, { servico: SERVICOS_LISTA[0], preco: "" }])} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><IconPlus size={11} /> Serviço</button>
+                                        <button onClick={() => setEditLinhas((prev) => [...prev, { servico: servicos[0]?.titulo ?? "", preco: servicos[0]?.preco ?? "" }])} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><IconPlus size={11} /> Serviço</button>
                                         <button onClick={() => salvarEdicao(ag.id)} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 bg-green-900/30 text-green-400 border border-green-700/50 rounded text-xs hover:bg-green-900/50 transition"><IconCheck size={12} /> Salvar</button>
                                         <button onClick={() => setEditandoId(null)} className="flex items-center gap-1 px-2 py-1 border border-[#2d2d2d] text-gray-400 rounded text-xs hover:border-[#b8944a] transition"><IconX size={12} /> Cancelar</button>
                                       </div>
@@ -1612,9 +1745,9 @@ export default function AgendamentosAdminPage() {
                                   ) : (
                                     <>
                                       <p className="text-sm font-semibold text-[#F5E6C8] truncate">{ag.nome}</p>
-                                      <p className="text-xs text-gray-500 truncate">✂️ {ag.servico}{ag.barbeiroNome ? ` · ${ag.barbeiroNome}` : ""}</p>
+                                      <p className="text-xs text-gray-500 truncate mt-0.5">✂️ {ag.servico}{ag.barbeiroNome ? ` · ${ag.barbeiroNome}` : ""}</p>
                                       {ag.telefone && ag.telefone !== "00000000000" && (
-                                        <a href={`https://wa.me/55${ag.telefone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-600 hover:text-green-400 transition truncate block">{ag.telefone}</a>
+                                        <a href={`https://wa.me/55${ag.telefone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-600 hover:text-green-400 transition truncate block mt-0.5">{ag.telefone}</a>
                                       )}
                                     </>
                                   )}
@@ -1627,14 +1760,16 @@ export default function AgendamentosAdminPage() {
                                 )}
                               </div>
                               {!caixaFechado && !editando && (
-                                <div className="flex items-center gap-1 flex-wrap pt-1 border-t border-[#1a1a1a]">
-                                  {ag.status === "pendente" && <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 text-xs text-blue-400 border border-blue-700/40 rounded-lg hover:bg-blue-900/20 transition"><IconCheck size={11} /> Confirmar</button>}
-                                  {(ag.status === "confirmado" || ag.status === "pendente") && <button onClick={() => setModal({ tipo: "concluir", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 text-xs text-green-400 border border-green-700/40 rounded-lg hover:bg-green-900/20 transition"><IconCircleCheck size={11} /> Concluir</button>}
-                                  {!finalizado && <button onClick={() => setReagendarAg(ag)} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><IconCalendarPlus size={11} /> Reagendar</button>}
-                                  {(ag.status === "confirmado" || ag.status === "pendente") && <button onClick={() => atualizarStatus(ag.id, "nao_compareceu")} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconClock size={11} /> Não compareceu</button>}
-                                  {(ehConcluido || ag.status === "nao_compareceu") && <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconArrowBackUp size={11} /> Desfazer</button>}
-                                  {!finalizado && <button onClick={() => { setEditandoId(ag.id); const srvs = ag.servico.split(" + "); const precos = ag.preco.split(" + "); setEditLinhas(srvs.map((s, i) => ({ servico: s.trim(), preco: precos[i]?.trim() ?? "" }))); }} className="p-1.5 text-gray-500 hover:text-gray-300 rounded-lg transition"><IconPencil size={13} /></button>}
-                                  <button onClick={() => setModal({ tipo: "excluir", id: ag.id })} className="p-1.5 text-red-500/50 hover:text-red-400 rounded-lg transition ml-auto"><IconTrash size={13} /></button>
+                                <div className="flex items-center gap-1.5 flex-wrap pt-2.5 border-t border-[#1a1a1a]">
+                                  {ag.status === "pendente" && <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-400 border border-blue-700/40 rounded-lg hover:bg-blue-900/20 transition"><IconCheck size={12} /> Confirmar</button>}
+                                  {(ag.status === "confirmado" || ag.status === "pendente") && <button onClick={() => setModal({ tipo: "concluir", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-green-400 border border-green-700/40 rounded-lg hover:bg-green-900/20 transition"><IconCircleCheck size={12} /> Concluir</button>}
+                                  {!finalizado && <button onClick={() => setReagendarAg(ag)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><IconCalendarPlus size={12} /> Reagendar</button>}
+                                  {(ag.status === "confirmado" || ag.status === "pendente") && <button onClick={() => atualizarStatus(ag.id, "nao_compareceu")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconClock size={12} /> Não compareceu</button>}
+                                  {(ehConcluido || ag.status === "nao_compareceu") && <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconArrowBackUp size={12} /> Desfazer</button>}
+                                  <div className="flex items-center gap-1 ml-auto">
+                                    {!finalizado && <button onClick={() => { setEditandoId(ag.id); const srvs = ag.servico.split(" + "); const precos = ag.preco.split(" + "); setEditLinhas(srvs.map((s, i) => ({ servico: s.trim(), preco: precos[i]?.trim() ?? "" }))); }} className="p-1.5 text-gray-500 hover:text-gray-300 border border-transparent hover:border-[#2d2d2d] rounded-lg transition" title="Editar"><IconPencil size={13} /></button>}
+                                    <button onClick={() => setModal({ tipo: "excluir", id: ag.id })} className="p-1.5 text-red-500/50 hover:text-red-400 border border-transparent hover:border-red-900/40 rounded-lg transition" title="Excluir"><IconTrash size={13} /></button>
+                                  </div>
                                 </div>
                               )}
                             </div>

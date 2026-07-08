@@ -14,6 +14,7 @@ import { getActiveDescontos } from "@/lib/admin-descontos";
 import { getCategorias } from "@/lib/admin-categorias";
 import { getCategoriasServicos } from "@/lib/admin-categorias-servicos";
 import type { Desconto } from "@/lib/admin-descontos";
+import { ASSINATURAS_ATIVAS, REVIEWS_ATIVOS } from "@/lib/flags";
 
 export const revalidate = 60;
 
@@ -52,8 +53,8 @@ export default async function HomePage() {
       <Sobre texto={settings.sobreTexto} imagem={settings.sobreImagem} />
       <Servicos items={items} descontos={descontos} categorias={categoriasServicos} />
       <Produtos produtos={produtos} descontos={descontos} whatsappNumber={settings.whatsappNumber} categorias={categorias} />
-      <Assinaturas />
-      <Depoimentos />
+      {ASSINATURAS_ATIVAS && <Assinaturas />}
+      {REVIEWS_ATIVOS && <Depoimentos />}
       <Localizacao enderecoTexto={settings.enderecoTexto} enderecoEmbed={settings.enderecoEmbed} />
       <CtaFinal />
       <CtaMobileFloat whatsappNumber={settings.whatsappNumber} />

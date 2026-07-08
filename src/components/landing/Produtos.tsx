@@ -233,21 +233,30 @@ export default function Produtos({ produtos, descontos, whatsappNumber, categori
                   )}
                   <div className="relative overflow-hidden bg-[#1a1a1a]" style={{ aspectRatio: "3/4" }}>
                     {produto.imagem ? (
-                      <img src={produto.imagem} alt={produto.titulo} className="w-full h-full object-cover" loading="lazy" />
+                      <>
+                        <img src={produto.imagem} alt={produto.titulo} className="w-full h-full object-cover" loading="lazy" />
+                        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#141414] to-transparent" />
+                        <div className="absolute inset-x-0 bottom-0 p-3">
+                          <p className="font-semibold text-[#F5E6C8] text-xs leading-tight">{produto.titulo}</p>
+                          {precoOriginal && (
+                            <p className="text-[#C9A84C] text-xs font-bold mt-0.5">
+                              {precoFinal ? `R$ ${precoFinal}` : precoOriginal.startsWith("A") ? precoOriginal : `R$ ${precoOriginal}`}
+                            </p>
+                          )}
+                        </div>
+                      </>
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-[#C9A84C]/15">
-                        <IconShoppingBag size={32} />
+                      // sem imagem: layout sólido e legível (ícone em cima, nome/preço embaixo)
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-3 text-center">
+                        <IconShoppingBag size={30} className="text-[#C9A84C]/25" />
+                        <p className="font-semibold text-[#F5E6C8] text-xs leading-tight line-clamp-2">{produto.titulo}</p>
+                        {precoOriginal && (
+                          <p className="text-[#C9A84C] text-xs font-bold">
+                            {precoFinal ? `R$ ${precoFinal}` : precoOriginal.startsWith("A") ? precoOriginal : `R$ ${precoOriginal}`}
+                          </p>
+                        )}
                       </div>
                     )}
-                    <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#141414] to-transparent" />
-                    <div className="absolute inset-x-0 bottom-0 p-3">
-                      <p className="font-semibold text-[#F5E6C8] text-xs leading-tight">{produto.titulo}</p>
-                      {precoOriginal && (
-                        <p className="text-[#C9A84C] text-xs font-bold mt-0.5">
-                          {precoFinal ? `R$ ${precoFinal}` : precoOriginal.startsWith("A") ? precoOriginal : `R$ ${precoOriginal}`}
-                        </p>
-                      )}
-                    </div>
                   </div>
                   <div className="py-2.5 bg-[#C9A84C] text-[#0A0A0A] text-[10px] font-black tracking-widest uppercase text-center">
                     Ver produto
