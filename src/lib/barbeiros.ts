@@ -12,8 +12,12 @@ export async function listBarbeiros(): Promise<Barbeiro[]> {
 
 export async function listBarbeirosAtivos(): Promise<Barbeiro[]> {
   const db = getAdminDb();
-  const snap = await db.collection("barbeiros").where("ativo", "==", true).orderBy("nome").get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Barbeiro));
+  // where + orderBy em campos diferentes exigiria índice composto; ordena in-memory
+  // (padrão do projeto — poucos barbeiros, custo desprezível)
+  const snap = await db.collection("barbeiros").where("ativo", "==", true).get();
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as Barbeiro))
+    .sort((a, b) => a.nome.localeCompare(b.nome));
 }
 
 export async function getBarbeiro(id: string): Promise<Barbeiro | null> {

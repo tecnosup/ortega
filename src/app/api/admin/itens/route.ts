@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/firebase-admin";
 import { getItems, createItem } from "@/lib/admin-items";
+import { sanitizarDuracaoMin } from "@/lib/agendamentos-types";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest) {
     imagem: body.imagem ? String(body.imagem).trim() : "",
     preco: String(body.preco ?? "").trim(),
     duracao: String(body.duracao ?? "").trim(),
+    duracaoMin: sanitizarDuracaoMin(body.duracaoMin),
     categoriaId: body.categoriaId ? String(body.categoriaId).trim() : undefined,
     status: body.status === "draft" ? "draft" : "published",
     order: Number(body.order) || 0,

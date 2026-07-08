@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   CheckCircle, XCircle, Clock, RefreshCw, MessageCircle,
   Pencil, Trash2, Check, X, ChevronLeft, ChevronRight, Lock, Undo2,
@@ -18,7 +18,7 @@ import { parsePriceNum } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import type { Item } from "@/lib/admin-items";
 import { toDateKey } from "@/lib/date-utils";
-import { gerarSlotsData, mesclarGrade, GRADE_DEFAULT, DIAS_SEMANA, type GradeConfig, type DiaGrade } from "@/lib/grade";
+import { gerarSlotsData, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, PASSO_MIN, PASSO_MAX, CARENCIA_DEFAULT, CARENCIA_MAX, DIAS_SEMANA, type GradeConfig, type DiaGrade } from "@/lib/grade";
 import AnimatedModal from "@/components/ui/Modal";
 
 function parseDuracaoMin(duracao: string): number {
@@ -614,14 +614,43 @@ function ReagendarModal({ open, ag, dataSelecionada, slotsLivres, grade, onConfi
 type ModalState = { tipo: "concluir" | "excluir" | "fechar_caixa" | "bloquear" | "fechar_dia" | "fechar_dia_2" | "liberar_dia" | "caixa_fechado_retro"; id?: string; horario?: string } | null;
 
 // Modal de configuração da grade — horários padrão por dia da semana + almoço.
-function ConfigGradeModal({ open, grade, salvando, onSave, onClose }: {
-  open: boolean; grade: GradeConfig; salvando: boolean; onSave: (g: GradeConfig) => void; onClose: () => void;
+function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, onSave, onClose }: {
+  open: boolean; grade: GradeConfig; passoMin: number; carenciaMin: number; salvando: boolean; onSave: (g: GradeConfig, passo: number, carencia: number) => void; onClose: () => void;
 }) {
   const [draft, setDraft] = useState<GradeConfig>(grade);
+  // passo e carência controlados como string (edição livre); validados no salvar
+  const [passoStr, setPassoStr] = useState<string>(String(passoMin));
+  const [passoErro, setPassoErro] = useState(false);
+  const [carenciaStr, setCarenciaStr] = useState<string>(String(carenciaMin));
+  const [carenciaErro, setCarenciaErro] = useState(false);
+  const passoRef = useRef<HTMLInputElement>(null);
+  const carenciaRef = useRef<HTMLInputElement>(null);
   // Horário padrão: aplica abre/fecha/almoço a um conjunto de dias de uma vez.
   const [padrao, setPadrao] = useState({ inicio: "09:00", fim: "18:00", almocoInicio: "12:00", almocoFim: "13:00" });
   const [diasSel, setDiasSel] = useState<Set<number>>(new Set([1, 2, 3, 4, 5]));
-  useEffect(() => { if (open) setDraft(grade); }, [open, grade]);
+  useEffect(() => { if (open) { setDraft(grade); setPassoStr(String(passoMin)); setCarenciaStr(String(carenciaMin)); setPassoErro(false); setCarenciaErro(false); } }, [open, grade, passoMin, carenciaMin]);
+
+  const passoNum = parseInt(passoStr, 10);
+  const passoValido = Number.isFinite(passoNum) && passoNum >= PASSO_MIN && passoNum <= PASSO_MAX;
+  const carenciaNum = carenciaStr === "" ? 0 : parseInt(carenciaStr, 10);
+  const carenciaValida = Number.isFinite(carenciaNum) && carenciaNum >= 0 && carenciaNum <= CARENCIA_MAX;
+
+  // valida antes de salvar; se inválido, foca o campo problemático, dispara shake e não salva
+  function handleSalvar() {
+    if (!passoValido) {
+      setPassoErro(true);
+      passoRef.current?.focus();
+      setTimeout(() => setPassoErro(false), 600);
+      return;
+    }
+    if (!carenciaValida) {
+      setCarenciaErro(true);
+      carenciaRef.current?.focus();
+      setTimeout(() => setCarenciaErro(false), 600);
+      return;
+    }
+    onSave(draft, passoNum, carenciaNum);
+  }
 
   function upd(dow: number, patch: Partial<DiaGrade>) {
     setDraft((prev) => ({ ...prev, [dow]: { ...prev[dow], ...patch } }));
@@ -653,68 +682,164 @@ function ConfigGradeModal({ open, grade, salvando, onSave, onClose }: {
         <p className="text-xs text-gray-500 mt-0.5">Reflete na grade e no site do cliente.</p>
       </div>
 
-      {/* Horário padrão: define abre/fecha/almoço e aplica a vários dias de uma vez */}
-      <div className="px-5 py-4 border-b border-[#1e1e1e] flex flex-col gap-2.5">
-        <div className="rounded-lg border border-[#b8944a]/30 bg-[#b8944a]/5 p-3.5 flex flex-col gap-3">
-          <p className="text-[11px] font-bold text-[#b8944a] uppercase tracking-wide flex items-center gap-1.5"><Clock size={13} /> Horário padrão</p>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-gray-400">
-            <label className="flex items-center gap-1.5">Abre <input type="time" value={padrao.inicio} onChange={(e) => setPadrao((p) => ({ ...p, inicio: e.target.value }))} className={time} /></label>
-            <label className="flex items-center gap-1.5">Fecha <input type="time" value={padrao.fim} onChange={(e) => setPadrao((p) => ({ ...p, fim: e.target.value }))} className={time} /></label>
-            <span className="flex items-center gap-1 text-gray-500"><Coffee size={12} /> Almoço</span>
-            <input type="time" value={padrao.almocoInicio} onChange={(e) => setPadrao((p) => ({ ...p, almocoInicio: e.target.value }))} className={time} />
-            <span>—</span>
-            <input type="time" value={padrao.almocoFim} onChange={(e) => setPadrao((p) => ({ ...p, almocoFim: e.target.value }))} className={time} />
+      {/* ── SEÇÃO: aplicar horário a vários dias de uma vez ─────────────────── */}
+      <div className="px-5 py-4 border-b border-[#1e1e1e] flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold text-[#b8944a] uppercase tracking-widest">Aplicar a vários dias</span>
+          <span className="h-px flex-1 bg-[#1e1e1e]" />
+        </div>
+
+        <div className="rounded-xl border border-[#b8944a]/25 bg-[#b8944a]/[0.06] p-4 flex flex-col gap-4">
+          {/* horários abre / fecha / almoço em grid alinhado */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wide">Abre</span>
+              <input type="time" value={padrao.inicio} onChange={(e) => setPadrao((p) => ({ ...p, inicio: e.target.value }))} className={time} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wide">Fecha</span>
+              <input type="time" value={padrao.fim} onChange={(e) => setPadrao((p) => ({ ...p, fim: e.target.value }))} className={time} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wide flex items-center gap-1"><Coffee size={11} /> Almoço início</span>
+              <input type="time" value={padrao.almocoInicio} onChange={(e) => setPadrao((p) => ({ ...p, almocoInicio: e.target.value }))} className={time} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wide">Almoço fim</span>
+              <input type="time" value={padrao.almocoFim} onChange={(e) => setPadrao((p) => ({ ...p, almocoFim: e.target.value }))} className={time} />
+            </label>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {DIAS_SEMANA.map(({ dow, curto }) => {
-              const sel = diasSel.has(dow);
-              return (
-                <button key={dow} type="button" onClick={() => toggleDiaSel(dow)}
-                  className={`px-2.5 py-1 text-xs rounded-md border transition ${sel ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-medium" : "bg-[#0A0A0A] text-gray-400 border-[#2d2d2d] hover:border-[#b8944a]"}`}>{curto}</button>
-              );
-            })}
-            <button type="button" onClick={() => setDiasSel(new Set([1, 2, 3, 4, 5]))} className="text-[10px] text-[#b8944a] hover:underline ml-1">Seg–Sex</button>
-            <button type="button" onClick={() => setDiasSel(new Set([0, 1, 2, 3, 4, 5, 6]))} className="text-[10px] text-[#b8944a] hover:underline">Todos</button>
+
+          {/* seletor de dias */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wide">Dias</span>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setDiasSel(new Set([1, 2, 3, 4, 5]))} className="text-[10px] text-[#b8944a] hover:underline">Seg–Sex</button>
+                <button type="button" onClick={() => setDiasSel(new Set([0, 1, 2, 3, 4, 5, 6]))} className="text-[10px] text-[#b8944a] hover:underline">Todos</button>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {DIAS_SEMANA.map(({ dow, curto }) => {
+                const sel = diasSel.has(dow);
+                return (
+                  <button key={dow} type="button" onClick={() => toggleDiaSel(dow)}
+                    className={`w-10 py-1.5 text-xs rounded-md border transition ${sel ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-semibold" : "bg-[#0A0A0A] text-gray-400 border-[#2d2d2d] hover:border-[#b8944a]"}`}>{curto}</button>
+                );
+              })}
+            </div>
           </div>
+
           <button type="button" onClick={aplicarPadrao} disabled={diasSel.size === 0}
-            className="self-start px-3 py-1.5 text-xs bg-[#b8944a] text-[#0A0A0A] rounded font-medium hover:bg-[#c9a84c] transition disabled:opacity-40">
-            Aplicar aos {diasSel.size} dia(s)
+            className="w-full py-2 text-xs bg-[#b8944a] text-[#0A0A0A] rounded-lg font-semibold hover:bg-[#c9a84c] transition disabled:opacity-40">
+            Aplicar aos {diasSel.size} dia{diasSel.size !== 1 ? "s" : ""} selecionado{diasSel.size !== 1 ? "s" : ""}
           </button>
         </div>
-        <p className="text-[10px] text-gray-600">Marque os dias, ajuste os horários e clique em aplicar. Depois dá pra refinar cada dia abaixo.</p>
       </div>
 
-      <div className="flex flex-col divide-y divide-[#1a1a1a]">
-        {DIAS_SEMANA.map(({ dow, nome }) => {
-          const d = draft[dow];
-          return (
-            <div key={dow} className="px-5 py-3 flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className={`text-sm font-medium ${d.ativo ? "text-[#F5E6C8]" : "text-gray-600"}`}>{nome}</span>
-                <button type="button" onClick={() => upd(dow, { ativo: !d.ativo })}
-                  className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${d.ativo ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`}>
-                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${d.ativo ? "left-5" : "left-0.5"}`} />
-                </button>
-              </div>
-              {d.ativo ? (
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-gray-400">
-                  <label className="flex items-center gap-1.5">Abre <input type="time" value={d.inicio} onChange={(e) => upd(dow, { inicio: e.target.value })} className={time} /></label>
-                  <label className="flex items-center gap-1.5">Fecha <input type="time" value={d.fim} onChange={(e) => upd(dow, { fim: e.target.value })} className={time} /></label>
-                  <span className="flex items-center gap-1 text-gray-500"><Coffee size={12} /> Almoço</span>
-                  <input type="time" value={d.almocoInicio ?? ""} onChange={(e) => upd(dow, { almocoInicio: e.target.value || null })} className={time} />
-                  <span>—</span>
-                  <input type="time" value={d.almocoFim ?? ""} onChange={(e) => upd(dow, { almocoFim: e.target.value || null })} className={time} />
+      {/* ── SEÇÃO: regras de agendamento (intervalo — carência entra no Bloco F) ── */}
+      <div className="px-5 py-4 border-b border-[#1e1e1e] flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold text-[#b8944a] uppercase tracking-widest">Regras de agendamento</span>
+          <span className="h-px flex-1 bg-[#1e1e1e]" />
+        </div>
+
+        <div className="rounded-xl border border-[#2d2d2d] bg-[#0A0A0A] p-4 flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-[#F5E6C8] flex items-center gap-1.5"><Clock size={13} className="text-[#b8944a]" /> Intervalo entre horários</span>
+          <div className="flex items-center gap-2 mt-1">
+            <motion.input
+              ref={passoRef}
+              type="text" inputMode="numeric"
+              value={passoStr}
+              onChange={(e) => { setPassoStr(e.target.value.replace(/\D/g, "").slice(0, 3)); setPassoErro(false); }}
+              animate={passoErro ? { x: [0, -6, 6, -4, 4, 0] } : { x: 0 }}
+              transition={{ duration: 0.4 }}
+              className={`w-16 text-center bg-[#111] border rounded-lg px-2 py-2 text-sm text-[#F5E6C8] focus:outline-none transition-colors ${
+                passoErro ? "border-red-500 text-red-400" : passoValido ? "border-[#2d2d2d] focus:border-[#b8944a]" : "border-red-500/60"
+              }`}
+            />
+            <span className="text-xs text-gray-500">minutos</span>
+          </div>
+          <p className={`text-[10px] ${passoErro ? "text-red-400" : "text-gray-600"}`}>
+            {passoErro
+              ? `Digite um valor entre ${PASSO_MIN} e ${PASSO_MAX} minutos.`
+              : `De quanto em quanto tempo os horários aparecem ao cliente. Entre ${PASSO_MIN} e ${PASSO_MAX} min (ex: 13 → 9:00, 9:13, 9:26…).`}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[#2d2d2d] bg-[#0A0A0A] p-4 flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-[#F5E6C8] flex items-center gap-1.5"><Clock size={13} className="text-[#b8944a]" /> Tolerância de fechamento</span>
+          <div className="flex items-center gap-2 mt-1">
+            <motion.input
+              ref={carenciaRef}
+              type="text" inputMode="numeric"
+              value={carenciaStr}
+              onChange={(e) => { setCarenciaStr(e.target.value.replace(/\D/g, "").slice(0, 3)); setCarenciaErro(false); }}
+              animate={carenciaErro ? { x: [0, -6, 6, -4, 4, 0] } : { x: 0 }}
+              transition={{ duration: 0.4 }}
+              className={`w-16 text-center bg-[#111] border rounded-lg px-2 py-2 text-sm text-[#F5E6C8] focus:outline-none transition-colors ${
+                carenciaErro ? "border-red-500 text-red-400" : carenciaValida ? "border-[#2d2d2d] focus:border-[#b8944a]" : "border-red-500/60"
+              }`}
+            />
+            <span className="text-xs text-gray-500">minutos</span>
+          </div>
+          <p className={`text-[10px] ${carenciaErro ? "text-red-400" : "text-gray-600"}`}>
+            {carenciaErro
+              ? `Digite um valor entre 0 e ${CARENCIA_MAX} minutos.`
+              : `Quanto um serviço pode passar do horário de fechamento. Ex: fecha 19:00, tolerância 30 → um corte de 45 min pode começar às 18:30 (termina 19:15). Use 0 para desativar.`}
+          </p>
+        </div>
+      </div>
+
+      {/* ── SEÇÃO: refinar cada dia individualmente ─────────────────────────── */}
+      <div className="px-5 py-4 flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold text-[#b8944a] uppercase tracking-widest">Horário por dia</span>
+          <span className="h-px flex-1 bg-[#1e1e1e]" />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {DIAS_SEMANA.map(({ dow, nome }) => {
+            const d = draft[dow];
+            return (
+              <div key={dow} className={`rounded-xl border p-3.5 flex flex-col gap-3 transition-colors ${d.ativo ? "border-[#2d2d2d] bg-[#0A0A0A]" : "border-[#1a1a1a] bg-[#0A0A0A]/40"}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm font-semibold ${d.ativo ? "text-[#F5E6C8]" : "text-gray-600"}`}>{nome}</span>
+                  <button type="button" onClick={() => upd(dow, { ativo: !d.ativo })}
+                    className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${d.ativo ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`}>
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${d.ativo ? "left-5" : "left-0.5"}`} />
+                  </button>
                 </div>
-              ) : (
-                <span className="text-xs text-gray-600">Fechado</span>
-              )}
-            </div>
-          );
-        })}
+                {d.ativo ? (
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wide">Abre</span>
+                      <input type="time" value={d.inicio} onChange={(e) => upd(dow, { inicio: e.target.value })} className={time} />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wide">Fecha</span>
+                      <input type="time" value={d.fim} onChange={(e) => upd(dow, { fim: e.target.value })} className={time} />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wide flex items-center gap-1"><Coffee size={11} /> Almoço início</span>
+                      <input type="time" value={d.almocoInicio ?? ""} onChange={(e) => upd(dow, { almocoInicio: e.target.value || null })} className={time} />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wide">Almoço fim</span>
+                      <input type="time" value={d.almocoFim ?? ""} onChange={(e) => upd(dow, { almocoFim: e.target.value || null })} className={time} />
+                    </label>
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-600">Fechado neste dia</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
       <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2 justify-end shrink-0">
         <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
-        <button onClick={() => onSave(draft)} disabled={salvando} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">{salvando ? "Salvando..." : "Salvar grade"}</button>
+        <button onClick={handleSalvar} disabled={salvando} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">{salvando ? "Salvando..." : "Salvar grade"}</button>
       </div>
     </AnimatedModal>
   );
@@ -763,6 +888,8 @@ export default function AgendamentosAdminPage() {
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
   const [alertasExpandidos, setAlertasExpandidos] = useState<Set<string>>(new Set());
   const [grade, setGrade] = useState<GradeConfig>(GRADE_DEFAULT);
+  const [passoMin, setPassoMin] = useState<number>(PASSO_DEFAULT);
+  const [carenciaMin, setCarenciaMin] = useState<number>(CARENCIA_DEFAULT);
   const [configGradeOpen, setConfigGradeOpen] = useState(false);
   const [salvandoGrade, setSalvandoGrade] = useState(false);
   const [pendencias, setPendencias] = useState<Agendamento[] | null>(null);
@@ -887,22 +1014,27 @@ export default function AgendamentosAdminPage() {
   useEffect(() => { carregar(); }, [carregar]);
 
   useEffect(() => {
-    fetch("/api/admin/barbeiros", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => setBarbeiros(d.barbeiros ?? []));
-    fetch("/api/publico/servicos")
-      .then((r) => r.json())
-      .then((d) => setServicos(d.items ?? []));
-    fetch("/api/grade")
-      .then((r) => r.json())
-      .then((d) => { if (d.grade) setGrade(mesclarGrade(d.grade)); })
-      .catch(() => {});
+    // helper: só faz .json() se a resposta veio OK e com corpo — evita
+    // "Unexpected end of JSON input" quando a API retorna 401/500 vazio
+    const getJson = async (url: string) => {
+      try {
+        const r = await fetch(url, { credentials: "include" });
+        if (!r.ok) return null;
+        const txt = await r.text();
+        return txt ? JSON.parse(txt) : null;
+      } catch {
+        return null;
+      }
+    };
+    getJson("/api/admin/barbeiros").then((d) => setBarbeiros(d?.barbeiros ?? []));
+    getJson("/api/publico/servicos").then((d) => setServicos(d?.items ?? []));
+    getJson("/api/grade").then((d) => { if (d?.grade) setGrade(mesclarGrade(d.grade)); if (d?.passoMin) setPassoMin(d.passoMin); if (d?.carenciaMin !== undefined) setCarenciaMin(d.carenciaMin); });
   }, []);
 
   const agsDia = agendamentos.filter((a) => a.data === dataSelecionada).sort((a, b) => a.horario.localeCompare(b.horario));
   const concluidos = agsDia.filter((a) => a.status === "concluido");
   const totalDia = concluidos.reduce((s, a) => s + parsePriceNum(a.preco), 0);
-  const todosSlotsDia = gerarSlotsData(dataSelecionada, grade);
+  const todosSlotsDia = gerarSlotsData(dataSelecionada, grade, passoMin);
   const horariosOcupados = new Set(agsDia.map((a) => a.horario));
   const slotsLivresDia = todosSlotsDia.filter((s) => !horariosOcupados.has(s) && !slotsBloqueados.includes(s));
 
@@ -1041,11 +1173,13 @@ export default function AgendamentosAdminPage() {
     mostrarSucesso(`Dia liberado — ${qtd} horário(s) disponível(is) de novo`);
   }
 
-  async function salvarGrade(nova: GradeConfig) {
+  async function salvarGrade(nova: GradeConfig, novoPasso: number, novaCarencia: number) {
     setSalvandoGrade(true);
     try {
-      await fetch("/api/grade", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grade: nova }) });
+      await fetch("/api/grade", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grade: nova, passoMin: novoPasso, carenciaMin: novaCarencia }) });
       setGrade(nova);
+      setPassoMin(novoPasso);
+      setCarenciaMin(novaCarencia);
       setConfigGradeOpen(false);
       mostrarSucesso("Grade salva!");
     } finally {
@@ -1120,7 +1254,7 @@ export default function AgendamentosAdminPage() {
       <SucessoModal open={!!sucesso} mensagem={sucesso ?? ""} onClose={() => setSucesso(null)} />
 
       <Modal open={!!modal} {...(modal ? modalConfig[modal.tipo] : modalConfigVazio)} onConfirm={confirmarModal} onCancel={() => setModal(null)} />
-      <ConfigGradeModal open={configGradeOpen} grade={grade} salvando={salvandoGrade} onSave={salvarGrade} onClose={() => setConfigGradeOpen(false)} />
+      <ConfigGradeModal open={configGradeOpen} grade={grade} passoMin={passoMin} carenciaMin={carenciaMin} salvando={salvandoGrade} onSave={salvarGrade} onClose={() => setConfigGradeOpen(false)} />
 
       {/* Modal de pendências: aparece ao fechar o dia que tinha agendamentos.
           Renderizado ANTES do ReagendarModal pra que este fique por cima ao reagendar. */}
