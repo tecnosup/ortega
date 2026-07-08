@@ -626,26 +626,30 @@ export default function AgendamentoPage() {
                   ) : slotsDisponiveis.length === 0 ? (
                     <p className="text-sm text-gray-500 py-4 text-center">Sem horários disponíveis.<br />Escolha outra data.</p>
                   ) : (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-2 gap-2">
-                      {slotsDisponiveis.map((slot) => (
-                        <button
-                          key={slot}
-                          onClick={() => {
-                            setSelecao((s) => ({ ...s, horario: slot }));
-                            // rola até o botão "Continuar" (que só aparece agora)
-                            setTimeout(() => {
-                              continuarRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-                            }, 100);
-                          }}
-                          className={`py-2.5 text-sm rounded-lg transition-all border font-medium active:scale-95 ${
-                            selecao.horario === slot
-                              ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]"
-                              : "border-[#2d2d2d] text-[#F5E6C8] hover:border-[#b8944a] hover:text-[#b8944a]"
-                          }`}
-                        >
-                          {slot}
-                        </button>
-                      ))}
+                    // scroll interno: com passo pequeno (ex: 5 min) a lista fica enorme;
+                    // limita a altura e rola dentro da div em vez de esticar a página no mobile
+                    <div className="max-h-[280px] sm:max-h-[320px] overflow-y-auto nice-scroll -mr-1 pr-1">
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-2 gap-2">
+                        {slotsDisponiveis.map((slot) => (
+                          <button
+                            key={slot}
+                            onClick={() => {
+                              setSelecao((s) => ({ ...s, horario: slot }));
+                              // rola até o botão "Continuar" (que só aparece agora)
+                              setTimeout(() => {
+                                continuarRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                              }, 100);
+                            }}
+                            className={`py-2.5 text-sm rounded-lg transition-all border font-medium active:scale-95 ${
+                              selecao.horario === slot
+                                ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]"
+                                : "border-[#2d2d2d] text-[#F5E6C8] hover:border-[#b8944a] hover:text-[#b8944a]"
+                            }`}
+                          >
+                            {slot}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

@@ -6,7 +6,8 @@ import type { Item } from "@/lib/admin-items";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import { toDateKey } from "@/lib/date-utils";
 import type { Agendamento } from "@/lib/agendamentos-types";
-import { gerarSlotsDia, mesclarGrade, GRADE_DEFAULT, type GradeConfig } from "@/lib/grade";
+import { resolverDuracaoMin } from "@/lib/agendamentos-types";
+import { gerarSlotsDia, calcularSlotsLivres, ocupacaoDeAgendamentos, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, CARENCIA_DEFAULT, type GradeConfig } from "@/lib/grade";
 
 const MESES =["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["D","S","T","Q","Q","S","S"];
@@ -16,6 +17,7 @@ type Step = "servico" | "barbeiro" | "calendario" | "confirmado";
 interface Selecao {
   servico: string;
   preco: string;
+  duracaoMin: number;
   data: Date | null;
   horario: string;
   barbeiroId: string | null;
@@ -49,7 +51,7 @@ export default function ClienteAgendarPage() {
   const [servicos, setServicos] = useState<Item[]>([]);
   const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
   const [perfil, setPerfil] = useState<{ nome: string; telefone: string } | null>(null);
-  const [selecao, setSelecao] = useState<Selecao>({ servico: "", preco: "", data: null, horario: "", barbeiroId: null, barbeiroNome: null });
+  const [selecao, setSelecao] = useState<Selecao>({ servico: "", preco: "", duracaoMin: 0, data: null, horario: "", barbeiroId: null, barbeiroNome: null });
   const [mesAtual, setMesAtual] = useState(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
   const [slotsOcupados, setSlotsOcupados] = useState<Record<string, string[]>>({});
   const [carregandoSlots, setCarregandoSlots] = useState(false);
@@ -57,11 +59,17 @@ export default function ClienteAgendarPage() {
   const [agendamentoId, setAgendamentoId] = useState<string | null>(null);
   const [erro, setErro] = useState("");
   const [grade, setGrade] = useState<GradeConfig>(GRADE_DEFAULT);
+  const [passoMin, setPassoMin] = useState<number>(PASSO_DEFAULT);
+  const [carenciaMin, setCarenciaMin] = useState<number>(CARENCIA_DEFAULT);
 
   useEffect(() => {
     fetch("/api/publico/servicos").then((r) => r.json()).then((d) => setServicos(d.items ?? []));
     fetch("/api/publico/barbeiros").then((r) => r.json()).then((d) => setBarbeiros(d.barbeiros ?? []));
-    fetch("/api/grade").then((r) => r.json()).then((d) => { if (d.grade) setGrade(mesclarGrade(d.grade)); }).catch(() => {});
+    fetch("/api/grade").then((r) => r.json()).then((d) => {
+      if (d.grade) setGrade(mesclarGrade(d.grade));
+      if (d.passoMin) setPassoMin(d.passoMin);
+      if (d.carenciaMin !== undefined) setCarenciaMin(d.carenciaMin);
+    }).catch(() => {});
     fetch("/api/cliente/perfil").then((r) => r.json()).then((d) => {
       if (d.assinatura) {
         setPerfil({ nome: d.assinatura.clienteNome, telefone: d.assinatura.clienteTelefone ?? "" });
@@ -85,11 +93,12 @@ export default function ClienteAgendarPage() {
         ]);
         const { bloqueados } = await slotsRes.json();
         const agendData = await agendRes.json();
-        const agendados = Array.isArray(agendData) ? agendData.map((a: Agendamento) => a.horario) : [];
+        // expande cada agendamento pela sua duração (reserva o intervalo inteiro)
+        const agendados = Array.isArray(agendData) ? Array.from(ocupacaoDeAgendamentos(agendData, passoMin)) : [];
         setSlotsOcupados((prev) => ({ ...prev, [cacheKey]: Array.from(new Set([...bloqueados, ...agendados])) }));
       }
     } finally { setCarregandoSlots(false); }
-  }, [slotsOcupados]);
+  }, [slotsOcupados, passoMin]);
 
   useEffect(() => {
     if (selecao.data) {
@@ -118,25 +127,23 @@ export default function ClienteAgendarPage() {
   }, [mesAtual]);
 
   function getSlotsDisponiveis(dateKey: string, diaSemana: number): string[] {
-    const todos = gerarSlotsDia(grade[diaSemana]);
-    if (todos.length === 0) return [];
     const cacheKey = selecao.barbeiroId ? `${dateKey}__${selecao.barbeiroId}` : dateKey;
-    const ocupados = slotsOcupados[cacheKey] ?? [];
+    const ocupados = new Set(slotsOcupados[cacheKey] ?? []);
     const agora = new Date();
     const hojeKey = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}-${String(agora.getDate()).padStart(2, "0")}`;
-    const minutosAgora = agora.getHours() * 60 + agora.getMinutes();
-    return todos.filter((s) => {
-      if (ocupados.includes(s)) return false;
-      if (dateKey === hojeKey) {
-        const [h, m] = s.split(":").map(Number);
-        if (h * 60 + m <= minutosAgora) return false;
-      }
-      return true;
+    // FONTE DA VERDADE: reserva o intervalo pela duração do serviço, respeita passo/carência/almoço
+    return calcularSlotsLivres({
+      dia: grade[diaSemana],
+      passoMin,
+      carenciaMin,
+      duracaoMin: selecao.duracaoMin > 0 ? selecao.duracaoMin : passoMin,
+      ocupados,
+      agoraMin: dateKey === hojeKey ? agora.getHours() * 60 + agora.getMinutes() : undefined,
     });
   }
 
   function getDisponibilidade(dateKey: string, diaSemana: number): "livre" | "parcial" | "lotado" | "fechado" {
-    const todos = gerarSlotsDia(grade[diaSemana]);
+    const todos = gerarSlotsDia(grade[diaSemana], passoMin);
     if (todos.length === 0) return "fechado";
     const disponiveis = getSlotsDisponiveis(dateKey, diaSemana);
     if (disponiveis.length === 0) return "lotado";
@@ -159,6 +166,7 @@ export default function ClienteAgendarPage() {
         preco: selecao.preco,
         data: dataKey,
         horario: selecao.horario,
+        duracaoMin: selecao.duracaoMin || undefined,
         barbeiroId: selecao.barbeiroId ?? undefined,
         barbeiroNome: selecao.barbeiroNome ?? undefined,
         email: undefined, // será verificado internamente pelo telefone
@@ -193,7 +201,7 @@ export default function ClienteAgendarPage() {
             {servicos.map((s) => (
               <button
                 key={s.id}
-                onClick={() => { setSelecao((sel) => ({ ...sel, servico: s.titulo, preco: s.preco })); setStep("barbeiro"); }}
+                onClick={() => { setSelecao((sel) => ({ ...sel, servico: s.titulo, preco: s.preco, duracaoMin: resolverDuracaoMin(s, passoMin) })); setStep("barbeiro"); }}
                 className="text-left border border-[#2d2d2d] bg-[#111] p-4 rounded-xl hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition-all group"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -336,7 +344,8 @@ export default function ClienteAgendarPage() {
             ) : slotsDisponiveis.length === 0 ? (
               <p className="text-sm text-gray-500 py-3 text-center">Sem horários. Escolha outra data.</p>
             ) : (
-              <div className="grid grid-cols-4 gap-2">
+              // scroll interno: com passo pequeno a lista fica enorme no mobile
+              <div className="grid grid-cols-4 gap-2 max-h-[260px] overflow-y-auto nice-scroll -mr-1 pr-1">
                 {slotsDisponiveis.map((slot) => (
                   <button
                     key={slot}
@@ -395,7 +404,7 @@ export default function ClienteAgendarPage() {
           Ver meus agendamentos
         </a>
         <button
-          onClick={() => { setStep("servico"); setSelecao({ servico: "", preco: "", data: null, horario: "", barbeiroId: null, barbeiroNome: null }); setAgendamentoId(null); }}
+          onClick={() => { setStep("servico"); setSelecao({ servico: "", preco: "", duracaoMin: 0, data: null, horario: "", barbeiroId: null, barbeiroNome: null }); setAgendamentoId(null); }}
           className="text-sm text-gray-600 hover:text-[#b8944a] transition"
         >
           Fazer outro agendamento
