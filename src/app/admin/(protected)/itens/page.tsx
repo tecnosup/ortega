@@ -6,6 +6,7 @@ import {
   Tag, ChevronDown, ChevronUp, GripVertical,
 } from "lucide-react";
 import type { Item } from "@/lib/admin-items";
+import { resolverDuracaoMin } from "@/lib/agendamentos-types";
 import type { CategoriaServico } from "@/lib/admin-categorias-servicos";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
@@ -18,14 +19,14 @@ type Form = {
   titulo: string;
   descricao: string;
   preco: string;
-  duracao: string;
+  duracaoMin: string;   // minutos (input numérico)
   categoriaId: string;
   status: "draft" | "published";
   imagem: string;
 };
 
 const EMPTY: Form = {
-  titulo: "", descricao: "", preco: "", duracao: "",
+  titulo: "", descricao: "", preco: "", duracaoMin: "",
   categoriaId: "", status: "published", imagem: "",
 };
 
@@ -56,26 +57,36 @@ function SortableItemRow({ item, expanded, deletingId, onToggleExpand, onEdit, o
           </div>
           <div className="flex flex-wrap gap-x-2 mt-0.5">
             {item.preco && <span className="text-xs text-gray-500">R$ {item.preco}</span>}
-            {item.duracao && <span className="text-xs text-gray-500">{item.duracao}</span>}
+            {(item.duracaoMin || item.duracao) && (
+              <span className="text-xs text-gray-500">{resolverDuracaoMin(item)} min</span>
+            )}
           </div>
         </div>
+        <button
+          onClick={onEdit}
+          className="p-1.5 rounded-lg border border-[#2d2d2d] text-gray-500 hover:text-[#b8944a] hover:border-[#b8944a] transition shrink-0"
+          title="Editar"
+        >
+          <Edit2 size={14} />
+        </button>
+        <button
+          onClick={onDelete}
+          disabled={deletingId === item.id}
+          className="p-1.5 rounded-lg border border-[#2d2d2d] text-gray-500 hover:text-red-400 hover:border-red-500 transition shrink-0 disabled:opacity-50"
+          title="Remover"
+        >
+          {deletingId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+        </button>
         <button onClick={onToggleExpand} className="p-1.5 rounded-lg border border-[#2d2d2d] text-gray-500 hover:text-white hover:border-[#444] transition shrink-0">
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
       </div>
 
       {expanded && (
-        <div className="border-t border-[#1a1a1a] px-4 py-3 flex flex-col gap-3">
-          {item.descricao && <p className="text-xs text-gray-400">{item.descricao}</p>}
-          <div className="flex flex-wrap gap-2">
-            <button onClick={onEdit} className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2d2d2d] text-gray-400 text-xs rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition">
-              <Edit2 size={12} /> Editar
-            </button>
-            <button onClick={onDelete} disabled={deletingId === item.id} className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2d2d2d] text-gray-400 text-xs rounded-lg hover:border-red-500 hover:text-red-400 transition disabled:opacity-50">
-              {deletingId === item.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-              Remover
-            </button>
-          </div>
+        <div className="border-t border-[#1a1a1a] px-4 py-3 flex flex-col gap-2">
+          {item.descricao
+            ? <p className="text-xs text-gray-400">{item.descricao}</p>
+            : <p className="text-xs text-gray-600 italic">Sem descrição.</p>}
         </div>
       )}
     </div>
@@ -159,7 +170,12 @@ export default function ServicosPage() {
       titulo: item.titulo,
       descricao: item.descricao ?? "",
       preco: item.preco ?? "",
-      duracao: item.duracao ?? "",
+      // número novo; se legado só tem texto ("45 min"), converte na abertura
+      duracaoMin: item.duracaoMin
+        ? String(item.duracaoMin)
+        : item.duracao
+        ? String(resolverDuracaoMin(item))
+        : "",
       categoriaId: item.categoriaId ?? "",
       status: item.status,
       imagem: item.imagem ?? "",
@@ -202,7 +218,9 @@ export default function ServicosPage() {
       titulo: form.titulo.trim(),
       descricao: form.descricao.trim(),
       preco: form.preco.trim(),
-      duracao: form.duracao.trim(),
+      // grava minutos; mantém `duracao` texto em sincronia p/ landing/legado
+      duracaoMin: form.duracaoMin.trim(),
+      duracao: form.duracaoMin.trim() ? `${form.duracaoMin.trim()} min` : "",
       categoriaId: form.categoriaId || undefined,
       status: form.status,
       order: modal.editing ? undefined : itens.length,
@@ -461,8 +479,17 @@ export default function ServicosPage() {
                   <input value={form.preco} onChange={(e) => setForm((f) => ({ ...f, preco: e.target.value }))} className={inp} placeholder="ex: 55,00" style={{ fontSize: 16 }} spellCheck={false} />
                 </label>
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs text-gray-400 font-medium">Duração</span>
-                  <input value={form.duracao} onChange={(e) => setForm((f) => ({ ...f, duracao: e.target.value }))} className={inp} placeholder="ex: 45 min" style={{ fontSize: 16 }} spellCheck={false} />
+                  <span className="text-xs text-gray-400 font-medium">Duração (min)</span>
+                  <input
+                    value={form.duracaoMin}
+                    onChange={(e) => setForm((f) => ({ ...f, duracaoMin: e.target.value.replace(/\D/g, "") }))}
+                    inputMode="numeric"
+                    className={inp}
+                    placeholder="ex: 45"
+                    style={{ fontSize: 16 }}
+                    spellCheck={false}
+                  />
+                  <span className="text-[10px] text-gray-600">Usado para reservar o intervalo na agenda.</span>
                 </label>
               </div>
 

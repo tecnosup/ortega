@@ -18,7 +18,7 @@ import { parsePriceNum } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import type { Item } from "@/lib/admin-items";
 import { toDateKey } from "@/lib/date-utils";
-import { gerarSlotsData, mesclarGrade, GRADE_DEFAULT, DIAS_SEMANA, type GradeConfig, type DiaGrade } from "@/lib/grade";
+import { gerarSlotsData, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, PASSOS_DISPONIVEIS, DIAS_SEMANA, type GradeConfig, type DiaGrade } from "@/lib/grade";
 import AnimatedModal from "@/components/ui/Modal";
 
 function parseDuracaoMin(duracao: string): number {
@@ -614,14 +614,15 @@ function ReagendarModal({ open, ag, dataSelecionada, slotsLivres, grade, onConfi
 type ModalState = { tipo: "concluir" | "excluir" | "fechar_caixa" | "bloquear" | "fechar_dia" | "fechar_dia_2" | "liberar_dia" | "caixa_fechado_retro"; id?: string; horario?: string } | null;
 
 // Modal de configuração da grade — horários padrão por dia da semana + almoço.
-function ConfigGradeModal({ open, grade, salvando, onSave, onClose }: {
-  open: boolean; grade: GradeConfig; salvando: boolean; onSave: (g: GradeConfig) => void; onClose: () => void;
+function ConfigGradeModal({ open, grade, passoMin, salvando, onSave, onClose }: {
+  open: boolean; grade: GradeConfig; passoMin: number; salvando: boolean; onSave: (g: GradeConfig, passo: number) => void; onClose: () => void;
 }) {
   const [draft, setDraft] = useState<GradeConfig>(grade);
+  const [draftPasso, setDraftPasso] = useState<number>(passoMin);
   // Horário padrão: aplica abre/fecha/almoço a um conjunto de dias de uma vez.
   const [padrao, setPadrao] = useState({ inicio: "09:00", fim: "18:00", almocoInicio: "12:00", almocoFim: "13:00" });
   const [diasSel, setDiasSel] = useState<Set<number>>(new Set([1, 2, 3, 4, 5]));
-  useEffect(() => { if (open) setDraft(grade); }, [open, grade]);
+  useEffect(() => { if (open) { setDraft(grade); setDraftPasso(passoMin); } }, [open, grade, passoMin]);
 
   function upd(dow: number, patch: Partial<DiaGrade>) {
     setDraft((prev) => ({ ...prev, [dow]: { ...prev[dow], ...patch } }));
@@ -682,6 +683,20 @@ function ConfigGradeModal({ open, grade, salvando, onSave, onClose }: {
           </button>
         </div>
         <p className="text-[10px] text-gray-600">Marque os dias, ajuste os horários e clique em aplicar. Depois dá pra refinar cada dia abaixo.</p>
+
+        {/* Passo da grade: intervalo entre horários oferecidos ao cliente */}
+        <div className="rounded-lg border border-[#2d2d2d] bg-[#0A0A0A] p-3.5 flex flex-col gap-2">
+          <p className="text-[11px] font-bold text-[#b8944a] uppercase tracking-wide flex items-center gap-1.5"><Clock size={13} /> Intervalo entre horários</p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {PASSOS_DISPONIVEIS.map((p) => (
+              <button key={p} type="button" onClick={() => setDraftPasso(p)}
+                className={`px-2.5 py-1 text-xs rounded-md border transition ${draftPasso === p ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-medium" : "bg-[#111] text-gray-400 border-[#2d2d2d] hover:border-[#b8944a]"}`}>
+                {p} min
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-600">Define de quanto em quanto tempo os horários aparecem para o cliente (ex: 15 min → 9:00, 9:15, 9:30…).</p>
+        </div>
       </div>
 
       <div className="flex flex-col divide-y divide-[#1a1a1a]">
@@ -714,7 +729,7 @@ function ConfigGradeModal({ open, grade, salvando, onSave, onClose }: {
       </div>
       <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2 justify-end shrink-0">
         <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
-        <button onClick={() => onSave(draft)} disabled={salvando} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">{salvando ? "Salvando..." : "Salvar grade"}</button>
+        <button onClick={() => onSave(draft, draftPasso)} disabled={salvando} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">{salvando ? "Salvando..." : "Salvar grade"}</button>
       </div>
     </AnimatedModal>
   );
@@ -763,6 +778,7 @@ export default function AgendamentosAdminPage() {
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
   const [alertasExpandidos, setAlertasExpandidos] = useState<Set<string>>(new Set());
   const [grade, setGrade] = useState<GradeConfig>(GRADE_DEFAULT);
+  const [passoMin, setPassoMin] = useState<number>(PASSO_DEFAULT);
   const [configGradeOpen, setConfigGradeOpen] = useState(false);
   const [salvandoGrade, setSalvandoGrade] = useState(false);
   const [pendencias, setPendencias] = useState<Agendamento[] | null>(null);
@@ -887,22 +903,27 @@ export default function AgendamentosAdminPage() {
   useEffect(() => { carregar(); }, [carregar]);
 
   useEffect(() => {
-    fetch("/api/admin/barbeiros", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => setBarbeiros(d.barbeiros ?? []));
-    fetch("/api/publico/servicos")
-      .then((r) => r.json())
-      .then((d) => setServicos(d.items ?? []));
-    fetch("/api/grade")
-      .then((r) => r.json())
-      .then((d) => { if (d.grade) setGrade(mesclarGrade(d.grade)); })
-      .catch(() => {});
+    // helper: só faz .json() se a resposta veio OK e com corpo — evita
+    // "Unexpected end of JSON input" quando a API retorna 401/500 vazio
+    const getJson = async (url: string) => {
+      try {
+        const r = await fetch(url, { credentials: "include" });
+        if (!r.ok) return null;
+        const txt = await r.text();
+        return txt ? JSON.parse(txt) : null;
+      } catch {
+        return null;
+      }
+    };
+    getJson("/api/admin/barbeiros").then((d) => setBarbeiros(d?.barbeiros ?? []));
+    getJson("/api/publico/servicos").then((d) => setServicos(d?.items ?? []));
+    getJson("/api/grade").then((d) => { if (d?.grade) setGrade(mesclarGrade(d.grade)); if (d?.passoMin) setPassoMin(d.passoMin); });
   }, []);
 
   const agsDia = agendamentos.filter((a) => a.data === dataSelecionada).sort((a, b) => a.horario.localeCompare(b.horario));
   const concluidos = agsDia.filter((a) => a.status === "concluido");
   const totalDia = concluidos.reduce((s, a) => s + parsePriceNum(a.preco), 0);
-  const todosSlotsDia = gerarSlotsData(dataSelecionada, grade);
+  const todosSlotsDia = gerarSlotsData(dataSelecionada, grade, passoMin);
   const horariosOcupados = new Set(agsDia.map((a) => a.horario));
   const slotsLivresDia = todosSlotsDia.filter((s) => !horariosOcupados.has(s) && !slotsBloqueados.includes(s));
 
@@ -1041,11 +1062,12 @@ export default function AgendamentosAdminPage() {
     mostrarSucesso(`Dia liberado — ${qtd} horário(s) disponível(is) de novo`);
   }
 
-  async function salvarGrade(nova: GradeConfig) {
+  async function salvarGrade(nova: GradeConfig, novoPasso: number) {
     setSalvandoGrade(true);
     try {
-      await fetch("/api/grade", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grade: nova }) });
+      await fetch("/api/grade", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grade: nova, passoMin: novoPasso }) });
       setGrade(nova);
+      setPassoMin(novoPasso);
       setConfigGradeOpen(false);
       mostrarSucesso("Grade salva!");
     } finally {
@@ -1120,7 +1142,7 @@ export default function AgendamentosAdminPage() {
       <SucessoModal open={!!sucesso} mensagem={sucesso ?? ""} onClose={() => setSucesso(null)} />
 
       <Modal open={!!modal} {...(modal ? modalConfig[modal.tipo] : modalConfigVazio)} onConfirm={confirmarModal} onCancel={() => setModal(null)} />
-      <ConfigGradeModal open={configGradeOpen} grade={grade} salvando={salvandoGrade} onSave={salvarGrade} onClose={() => setConfigGradeOpen(false)} />
+      <ConfigGradeModal open={configGradeOpen} grade={grade} passoMin={passoMin} salvando={salvandoGrade} onSave={salvarGrade} onClose={() => setConfigGradeOpen(false)} />
 
       {/* Modal de pendências: aparece ao fechar o dia que tinha agendamentos.
           Renderizado ANTES do ReagendarModal pra que este fique por cima ao reagendar. */}

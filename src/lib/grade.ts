@@ -12,6 +12,23 @@ export interface DiaGrade {
 // 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sáb
 export type GradeConfig = Record<number, DiaGrade>;
 
+// Passo (intervalo) da grade de horários, em minutos. Global para a barbearia.
+export const PASSO_DEFAULT = 30;
+export const PASSOS_DISPONIVEIS = [5, 10, 15, 20, 30, 60] as const;
+
+// Config completa persistida em settings/grade: os 7 dias + o passo.
+// Retrocompat: docs antigos só têm os dias (0..6); passoMin é lido à parte.
+export interface GradeDoc extends GradeConfig {
+  passoMin?: number;
+}
+
+export function normalizarPasso(v: unknown): number {
+  const n = typeof v === "number" ? v : parseInt(String(v ?? ""), 10);
+  if (!Number.isFinite(n) || n <= 0) return PASSO_DEFAULT;
+  // arredonda pro passo disponível mais próximo
+  return (PASSOS_DISPONIVEIS as readonly number[]).includes(n) ? n : PASSO_DEFAULT;
+}
+
 // Ordem de exibição na UI (semana começando na segunda, domingo por último)
 export const DIAS_SEMANA: { dow: number; nome: string; curto: string }[] = [
   { dow: 1, nome: "Segunda", curto: "Seg" },
@@ -43,9 +60,10 @@ function fmt(mins: number): string {
   return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 }
 
-/** Gera os slots de 30 min do dia, excluindo a janela de almoço. */
-export function gerarSlotsDia(dia: DiaGrade | undefined | null): string[] {
+/** Gera os slots do dia no passo indicado (default 30 min), excluindo o almoço. */
+export function gerarSlotsDia(dia: DiaGrade | undefined | null, passoMin: number = PASSO_DEFAULT): string[] {
   if (!dia || !dia.ativo) return [];
+  const passo = passoMin > 0 ? passoMin : PASSO_DEFAULT;
   const inicio = toMin(dia.inicio);
   const fim = toMin(dia.fim);
   const almI = dia.almocoInicio ? toMin(dia.almocoInicio) : null;
@@ -54,10 +72,11 @@ export function gerarSlotsDia(dia: DiaGrade | undefined | null): string[] {
 
   const slots: string[] = [];
   let cur = inicio;
-  while (cur + 30 <= fim) {
+  // um slot só é válido se cabe pelo menos um passo antes do fechamento
+  while (cur + passo <= fim) {
     const noAlmoco = temAlmoco && cur >= almI! && cur < almF!;
     if (!noAlmoco) slots.push(fmt(cur));
-    cur += 30;
+    cur += passo;
   }
   return slots;
 }
@@ -71,8 +90,24 @@ export function mesclarGrade(parcial?: Partial<Record<number, Partial<DiaGrade>>
   return out;
 }
 
-/** Gera os slots de uma data (YYYY-MM-DD) conforme a grade configurada. */
-export function gerarSlotsData(dateKey: string, grade: GradeConfig): string[] {
+/**
+ * Dado o horário de início ("09:00") e a duração em minutos de um agendamento,
+ * retorna TODOS os slots (no passo indicado) que ele ocupa.
+ * Ex: início 09:00, dur 45, passo 15 → ["09:00","09:15","09:30"].
+ * Se duracaoMin não vier (agendamentos antigos), ocupa apenas o slot de início.
+ */
+export function slotsOcupadosPorAgendamento(inicio: string, duracaoMin: number | undefined, passoMin: number = PASSO_DEFAULT): string[] {
+  const passo = passoMin > 0 ? passoMin : PASSO_DEFAULT;
+  const ini = toMin(inicio);
+  if (Number.isNaN(ini)) return [];
+  const dur = duracaoMin && duracaoMin > 0 ? duracaoMin : passo; // sem duração → 1 slot
+  const out: string[] = [];
+  for (let t = ini; t < ini + dur; t += passo) out.push(fmt(t));
+  return out;
+}
+
+/** Gera os slots de uma data (YYYY-MM-DD) conforme a grade e o passo configurados. */
+export function gerarSlotsData(dateKey: string, grade: GradeConfig, passoMin: number = PASSO_DEFAULT): string[] {
   const dow = new Date(dateKey + "T12:00:00").getDay();
-  return gerarSlotsDia(grade[dow]);
+  return gerarSlotsDia(grade[dow], passoMin);
 }

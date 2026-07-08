@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getItemById, updateItem, deleteItem } from "@/lib/admin-items";
 import { getSessionUser } from "@/lib/firebase-admin";
+import { sanitizarDuracaoMin } from "@/lib/agendamentos-types";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.imagem !== undefined) patch.imagem = body.imagem ? String(body.imagem).trim() : "";
   if (body.preco !== undefined) patch.preco = String(body.preco).trim();
   if (body.duracao !== undefined) patch.duracao = String(body.duracao).trim();
+  if (body.duracaoMin !== undefined) {
+    const dm = sanitizarDuracaoMin(body.duracaoMin);
+    // string vazia = admin limpou o campo → zera; senão grava o valor saneado
+    patch.duracaoMin = dm ?? 0;
+  }
   if (body.categoriaId !== undefined) patch.categoriaId = body.categoriaId ? String(body.categoriaId).trim() : null;
   if (body.status !== undefined) patch.status = body.status === "draft" ? "draft" : "published";
   if (body.order !== undefined) patch.order = Number(body.order) || 0;

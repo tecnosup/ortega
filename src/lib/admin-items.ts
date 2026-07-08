@@ -6,7 +6,8 @@ export interface Item {
   descricao: string;
   imagem: string;
   preco: string;
-  duracao: string;
+  duracao: string;         // texto livre legado (ex: "45 min") — mantido p/ compat
+  duracaoMin?: number;     // duração em minutos usada no cálculo de slots
   categoriaId?: string;
   status: "draft" | "published";
   order: number;
@@ -27,7 +28,9 @@ export async function getItemById(id: string): Promise<Item | null> {
 
 export async function createItem(data: Omit<Item, "id" | "createdAt" | "updatedAt">) {
   const now = Date.now();
-  const ref = await adminDb.collection("servicos").add({ ...data, createdAt: now, updatedAt: now });
+  // Firestore rejeita undefined — remove chaves sem valor antes de gravar
+  const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
+  const ref = await adminDb.collection("servicos").add({ ...clean, createdAt: now, updatedAt: now });
   return ref.id;
 }
 
