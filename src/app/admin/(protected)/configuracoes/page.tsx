@@ -3,16 +3,18 @@
 export const dynamic = "force-dynamic";
 
 import { useActionState, useEffect, useState } from "react";
+import {
+  IconBolt, IconClock, IconHandStop, IconSettings,
+} from "@tabler/icons-react";
 import { saveConfiguracoesAction } from "./actions";
 import type { LandingSettings } from "@/lib/admin-settings";
-import { Clock, Hand, Zap, Settings } from "lucide-react";
 
 type AutoConfirmMode = "manual" | "tempo" | "automatico";
 
-const modos: { value: AutoConfirmMode; label: string; desc: string; icon: typeof Hand }[] = [
-  { value: "manual",     label: "Manual",           desc: "Você confirma cada agendamento na mão.",                 icon: Hand },
-  { value: "tempo",      label: "Após X minutos",   desc: "Confirma sozinho se você não revisar dentro do tempo.",  icon: Clock },
-  { value: "automatico", label: "Automático total", desc: "Todo agendamento já entra confirmado, sem revisão.",     icon: Zap },
+const modos: { value: AutoConfirmMode; label: string; desc: string; icon: typeof IconHandStop }[] = [
+  { value: "manual",     label: "Manual",           desc: "Você confirma cada agendamento na mão.",                 icon: IconHandStop },
+  { value: "tempo",      label: "Após X minutos",   desc: "Confirma sozinho se você não revisar dentro do tempo.",  icon: IconClock },
+  { value: "automatico", label: "Automático total", desc: "Todo agendamento já entra confirmado, sem revisão.",     icon: IconBolt },
 ];
 
 export default function ConfiguracoesPage() {
@@ -38,7 +40,7 @@ export default function ConfiguracoesPage() {
     <div className="max-w-2xl mx-auto flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-[#F5E6C8] flex items-center gap-2">
-          <Settings size={22} className="text-[#b8944a]" /> Configurações
+          <IconSettings size={22} className="text-[#b8944a]" /> Configurações
         </h1>
         <p className="text-sm text-gray-500 mt-1">Ajustes de funcionamento do sistema.</p>
       </div>

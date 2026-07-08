@@ -6,7 +6,8 @@ import { sendPushToAll, sendPushToBarbeiro } from "@/lib/web-push";
 import { pushNovoAgendamento } from "@/lib/push-messages";
 import { getAssinaturaPorTelefone, getAssinaturaPorEmail, consumirCredito } from "@/lib/assinaturas";
 import { getLandingSettings } from "@/lib/admin-settings";
-import { sanitizarDuracaoMin } from "@/lib/agendamentos-types";
+import { criarComanda } from "@/lib/comandas";
+import { parsePriceNum, sanitizarDuracaoMin } from "@/lib/agendamentos-types";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +75,26 @@ export async function POST(req: NextRequest) {
   }
 
   const id = await criarAgendamento(payload);
+
+  // COMANDA: todo agendamento nasce como uma comanda aberta (a comanda é a fonte
+  // de verdade do caixa/estoque/financeiro). O serviço vira o primeiro item.
+  await criarComanda({
+    origem: "agendamento",
+    status: "aberta",
+    clienteNome: nomeSanitizado,
+    clienteTelefone: telefoneSanitizado,
+    data,
+    horario,
+    barbeiroId: payload.barbeiroId,
+    barbeiroNome: payload.barbeiroNome,
+    itens: [{ id: "1", tipo: "servico", descricao: servicoSanitizado, valor: parsePriceNum(preco ?? "") }],
+    total: parsePriceNum(preco ?? ""),
+    cupom: payload.cupom,
+    desconto: payload.desconto,
+    assinaturaId: payload.assinaturaId,
+    cobertoPorAssinatura: payload.cobertoPorAssinatura,
+    agendamentoId: id,
+  }).catch(() => {});
 
   // push em background — não bloqueia resposta ao cliente, mas roda até completar via after()
   const { title: pushTitle, body: pushBody } = pushNovoAgendamento({

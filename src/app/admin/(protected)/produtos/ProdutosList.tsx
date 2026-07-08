@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import {
+  IconEdit, IconGripVertical, IconShoppingBag, IconTrash,
+} from "@tabler/icons-react";
 import Link from "next/link";
-import { Edit2, Trash2, GripVertical, ShoppingBag } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { useModalMount } from "@/components/ui/useModalMount";
 import {
@@ -107,14 +109,14 @@ function SortableRow({ produto, onDelete }: { produto: Produto; onDelete: (p: Pr
       className="flex items-center gap-3 px-3 py-3 hover:bg-[#151515] transition border-b border-[#1a1a1a] last:border-0"
     >
       <button {...attributes} {...listeners} className="text-gray-700 hover:text-gray-400 transition cursor-grab active:cursor-grabbing shrink-0 touch-none">
-        <GripVertical size={16} />
+        <IconGripVertical size={16} />
       </button>
 
       <div className="w-12 h-12 shrink-0 rounded border border-[#2d2d2d] overflow-hidden bg-[#1a1a1a] flex items-center justify-center">
         {produto.imagem ? (
           <img src={produto.imagem} alt={produto.titulo} className="w-full h-full object-cover" loading="lazy" />
         ) : (
-          <ShoppingBag size={18} className="text-[#2d2d2d]" />
+          <IconShoppingBag size={18} className="text-[#2d2d2d]" />
         )}
       </div>
 
@@ -136,13 +138,13 @@ function SortableRow({ produto, onDelete }: { produto: Produto; onDelete: (p: Pr
             href={`/admin/produtos/${produto.id}/editar`}
             className="flex items-center gap-1 px-2 py-1 border border-[#2d2d2d] text-gray-400 text-xs rounded hover:border-[#b8944a] hover:text-[#b8944a] transition"
           >
-            <Edit2 size={11} /> Editar
+            <IconEdit size={11} /> Editar
           </Link>
           <button
             onClick={() => onDelete(produto)}
             className="flex items-center px-2 py-1 border border-[#2d2d2d] text-gray-500 text-xs rounded hover:border-red-700 hover:text-red-400 transition"
           >
-            <Trash2 size={11} />
+            <IconTrash size={11} />
           </button>
         </div>
       </div>
@@ -154,13 +156,13 @@ function SortableRow({ produto, onDelete }: { produto: Produto; onDelete: (p: Pr
           href={`/admin/produtos/${produto.id}/editar`}
           className="flex items-center gap-1.5 px-2.5 py-1.5 border border-[#2d2d2d] text-gray-400 text-xs rounded hover:border-[#b8944a] hover:text-[#b8944a] transition"
         >
-          <Edit2 size={12} /> Editar
+          <IconEdit size={12} /> Editar
         </Link>
         <button
           onClick={() => onDelete(produto)}
           className="flex items-center gap-1.5 px-2.5 py-1.5 border border-[#2d2d2d] text-gray-500 text-xs rounded hover:border-red-700 hover:text-red-400 transition"
         >
-          <Trash2 size={12} />
+          <IconTrash size={12} />
         </button>
       </div>
     </div>

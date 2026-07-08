@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Crown, Scissors, Zap } from "lucide-react";
+import {
+  IconBolt, IconCheck, IconCrown, IconScissors,
+} from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import { PLANOS_PUBLICOS } from "@/lib/stripe-tipos";
 
 const PLANO_CONFIG = {
-  basico:  { icone: Scissors, beneficiosExtra: ["Agendamento prioritário", "Sem fila de espera"] },
-  mensal:  { icone: Zap,      beneficiosExtra: ["Agendamento prioritário", "Sem fila de espera", "Produto grátis no aniversário"] },
-  premium: { icone: Crown,    beneficiosExtra: ["Agendamento prioritário", "Sem fila de espera", "Produto grátis no aniversário", "Atendimento VIP exclusivo"] },
+  basico:  { icone: IconScissors, beneficiosExtra: ["Agendamento prioritário", "Sem fila de espera"] },
+  mensal:  { icone: IconBolt,      beneficiosExtra: ["Agendamento prioritário", "Sem fila de espera", "Produto grátis no aniversário"] },
+  premium: { icone: IconCrown,    beneficiosExtra: ["Agendamento prioritário", "Sem fila de espera", "Produto grátis no aniversário", "Atendimento VIP exclusivo"] },
 };
 
 export default function Assinaturas() {
@@ -120,20 +122,20 @@ export default function Assinaturas() {
                 {/* benefícios */}
                 <ul className="flex flex-col gap-2.5 flex-1">
                   <li className="flex items-center gap-2.5 text-sm text-[#F5E6C8]/70">
-                    <Check size={14} className="text-[#C9A84C] shrink-0" />
+                    <IconCheck size={14} className="text-[#C9A84C] shrink-0" />
                     {plano.cortes} corte{plano.cortes > 1 ? "s" : ""} por mês
                   </li>
                   <li className="flex items-center gap-2.5 text-sm text-[#F5E6C8]/70">
-                    <Check size={14} className="text-[#C9A84C] shrink-0" />
+                    <IconCheck size={14} className="text-[#C9A84C] shrink-0" />
                     Desconto automático no agendamento
                   </li>
                   <li className="flex items-center gap-2.5 text-sm text-[#F5E6C8]/70">
-                    <Check size={14} className="text-[#C9A84C] shrink-0" />
+                    <IconCheck size={14} className="text-[#C9A84C] shrink-0" />
                     Cancele quando quiser
                   </li>
                   {cfg.beneficiosExtra.map((b) => (
                     <li key={b} className="flex items-center gap-2.5 text-sm text-[#F5E6C8]/70">
-                      <Check size={14} className="text-[#C9A84C] shrink-0" />
+                      <IconCheck size={14} className="text-[#C9A84C] shrink-0" />
                       {b}
                     </li>
                   ))}

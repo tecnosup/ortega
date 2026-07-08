@@ -4,11 +4,8 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
-  CheckCircle, XCircle, Clock, RefreshCw, MessageCircle,
-  Pencil, Trash2, Check, X, ChevronLeft, ChevronRight, Lock, Undo2,
-  CalendarPlus, Ban, Unlock, LayoutGrid, List, Plus, TrendingUp,
-  AlertCircle, AlertTriangle, Bell, ChevronDown, Settings2, Coffee, CalendarX, CalendarCheck, Calendar, Tag,
-} from "lucide-react";
+  IconAdjustments, IconAlertCircle, IconAlertTriangle, IconArrowBackUp, IconBan, IconBell, IconCalendar, IconCalendarCheck, IconCalendarPlus, IconCalendarX, IconCheck, IconChevronDown, IconChevronLeft, IconChevronRight, IconCircleCheck, IconCircleX, IconClock, IconCoffee, IconLayoutGrid, IconList, IconLock, IconLockOpen, IconMessageCircle, IconPencil, IconPlus, IconRefresh, IconTag, IconTrash, IconTrendingUp, IconX,
+} from "@tabler/icons-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -115,11 +112,11 @@ function CalendarioMensal({
       {/* cabeçalho */}
       <div className="flex items-center justify-between mb-5">
         <button onClick={() => navMes(-1)} className="p-1.5 text-gray-400 hover:text-[#b8944a] transition rounded-lg hover:bg-[#1a1a1a]">
-          <ChevronLeft size={16} />
+          <IconChevronLeft size={16} />
         </button>
         <span className="text-sm font-bold text-[#F5E6C8] capitalize">{nomeMes}</span>
         <button onClick={() => navMes(1)} className="p-1.5 text-gray-400 hover:text-[#b8944a] transition rounded-lg hover:bg-[#1a1a1a]">
-          <ChevronRight size={16} />
+          <IconChevronRight size={16} />
         </button>
       </div>
 
@@ -173,8 +170,8 @@ function CalendarioMensal({
                 <div className="absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 bg-[#1e1e1e] border border-[#3d3d3d] rounded-lg px-3 py-2 text-[10px] whitespace-nowrap shadow-xl pointer-events-none">
                   {temAg && <p className="text-[#b8944a] font-semibold">{ags.length} agendamento{ags.length > 1 ? "s" : ""}</p>}
                   {fat !== undefined && <p className="text-green-400">R$ {fat.toFixed(2).replace(".", ",")} faturado</p>}
-                  {fechado && <p className="text-green-300 flex items-center gap-1"><Lock size={8} /> Caixa fechado</p>}
-                  {!fechado && isPast && temAg && <p className="text-red-400 flex items-center gap-1"><Unlock size={8} /> Caixa em aberto</p>}
+                  {fechado && <p className="text-green-300 flex items-center gap-1"><IconLock size={8} /> Caixa fechado</p>}
+                  {!fechado && isPast && temAg && <p className="text-red-400 flex items-center gap-1"><IconLockOpen size={8} /> Caixa em aberto</p>}
                 </div>
               )}
             </div>
@@ -371,7 +368,7 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, passoMin, car
         <div className="flex items-center gap-1.5 mb-3">
           {passos.map((p, i) => (
             <div key={p} className={`flex items-center gap-1.5 ${i < passos.length - 1 ? "flex-1" : ""}`}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${i < idx ? "bg-[#b8944a] text-[#0A0A0A]" : i === idx ? "bg-[#b8944a]/20 border border-[#b8944a] text-[#b8944a]" : "bg-[#1a1a1a] border border-[#2d2d2d] text-gray-600"}`}>{i < idx ? <Check size={12} /> : i + 1}</div>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${i < idx ? "bg-[#b8944a] text-[#0A0A0A]" : i === idx ? "bg-[#b8944a]/20 border border-[#b8944a] text-[#b8944a]" : "bg-[#1a1a1a] border border-[#2d2d2d] text-gray-600"}`}>{i < idx ? <IconCheck size={12} /> : i + 1}</div>
               {i < passos.length - 1 && <div className={`h-px flex-1 ${i < idx ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`} />}
             </div>
           ))}
@@ -394,7 +391,7 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, passoMin, car
                   className={`text-left border p-3.5 rounded-xl transition group ${marcado ? "border-[#b8944a] bg-[#b8944a]/10" : "border-[#2d2d2d] bg-[#111] hover:border-[#b8944a] hover:bg-[#b8944a]/5"}`}>
                   <div className="flex items-start gap-3">
                     <div className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition ${marcado ? "bg-[#b8944a] border-[#b8944a]" : "border-[#3d3d3d]"}`}>
-                      {marcado && <Check size={13} className="text-[#0A0A0A]" />}
+                      {marcado && <IconCheck size={13} className="text-[#0A0A0A]" />}
                     </div>
                     <div className="min-w-0 flex-1"><p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition truncate">{s.titulo}</p>{s.descricao && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{s.descricao}</p>}</div>
                     <div className="text-right shrink-0">
@@ -467,7 +464,7 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, passoMin, car
             </div>
             {!usarCredito && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-gray-400 flex items-center gap-1.5"><Tag size={12} /> Cupom (opcional)</label>
+                <label className="text-xs text-gray-400 flex items-center gap-1.5"><IconTag size={12} /> Cupom (opcional)</label>
                 <div className="flex gap-2">
                   <input value={codigoCupom} onChange={(e) => { setCodigoCupom(e.target.value.toUpperCase()); setErroCupom(""); setCupom(null); }} placeholder="ORTEGA10" disabled={!!cupom} className={`${inp} flex-1 font-mono disabled:opacity-50`} />
                   {cupom ? <button onClick={() => { setCupom(null); setCodigoCupom(""); }} className="px-3 py-2 text-xs text-red-400 border border-red-800/50 rounded-lg hover:bg-red-900/20 transition">Remover</button>
@@ -520,7 +517,7 @@ function DateFieldBR({ value, min, onChange }: { value: string; min: string; onC
       <button type="button" onClick={() => setAberto((v) => !v)}
         className="bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] w-full flex items-center justify-between hover:border-[#b8944a]/60 transition">
         <span>{labelBR}</span>
-        <Calendar size={15} className="text-gray-500" />
+        <IconCalendar size={15} className="text-gray-500" />
       </button>
       <AnimatePresence initial={false}>
         {aberto && (
@@ -534,9 +531,9 @@ function DateFieldBR({ value, min, onChange }: { value: string; min: string; onC
           >
             <div className="mt-1.5 bg-[#0d0d0d] border border-[#2d2d2d] rounded-lg p-3">
               <div className="flex items-center justify-between mb-2">
-                <button type="button" onClick={() => setMesVis(new Date(ano, mes - 1, 1))} className="p-1 text-gray-400 hover:text-[#b8944a] transition"><ChevronLeft size={16} /></button>
+                <button type="button" onClick={() => setMesVis(new Date(ano, mes - 1, 1))} className="p-1 text-gray-400 hover:text-[#b8944a] transition"><IconChevronLeft size={16} /></button>
                 <span className="text-xs font-medium text-[#F5E6C8]">{DP_MESES[mes]} {ano}</span>
-                <button type="button" onClick={() => setMesVis(new Date(ano, mes + 1, 1))} className="p-1 text-gray-400 hover:text-[#b8944a] transition"><ChevronRight size={16} /></button>
+                <button type="button" onClick={() => setMesVis(new Date(ano, mes + 1, 1))} className="p-1 text-gray-400 hover:text-[#b8944a] transition"><IconChevronRight size={16} /></button>
               </div>
               <div className="grid grid-cols-7 gap-0.5 mb-1">
                 {DP_DIAS.map((d, i) => <div key={i} className={`text-center text-[10px] py-0.5 ${i === 0 ? "text-red-500/70" : "text-gray-600"}`}>{d}</div>)}
@@ -717,7 +714,7 @@ function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, onSave
   return (
     <AnimatedModal open={open} onClose={onClose} className="nice-scroll bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl max-w-lg w-full mx-4 flex flex-col">
       <div className="px-5 py-4 border-b border-[#1e1e1e] shrink-0">
-        <h3 className="font-bold text-[#F5E6C8] flex items-center gap-2"><Settings2 size={15} className="text-[#b8944a]" /> Configurar grade</h3>
+        <h3 className="font-bold text-[#F5E6C8] flex items-center gap-2"><IconAdjustments size={15} className="text-[#b8944a]" /> Configurar grade</h3>
         <p className="text-xs text-gray-500 mt-0.5">Reflete na grade e no site do cliente.</p>
       </div>
 
@@ -740,7 +737,7 @@ function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, onSave
               <input type="time" value={padrao.fim} onChange={(e) => setPadrao((p) => ({ ...p, fim: e.target.value }))} className={time} />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] text-gray-500 uppercase tracking-wide flex items-center gap-1"><Coffee size={11} /> Almoço início</span>
+              <span className="text-[10px] text-gray-500 uppercase tracking-wide flex items-center gap-1"><IconCoffee size={11} /> Almoço início</span>
               <input type="time" value={padrao.almocoInicio} onChange={(e) => setPadrao((p) => ({ ...p, almocoInicio: e.target.value }))} className={time} />
             </label>
             <label className="flex flex-col gap-1">
@@ -784,7 +781,7 @@ function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, onSave
         </div>
 
         <div className="rounded-xl border border-[#2d2d2d] bg-[#0A0A0A] p-4 flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-[#F5E6C8] flex items-center gap-1.5"><Clock size={13} className="text-[#b8944a]" /> Intervalo entre horários</span>
+          <span className="text-xs font-medium text-[#F5E6C8] flex items-center gap-1.5"><IconClock size={13} className="text-[#b8944a]" /> Intervalo entre horários</span>
           <div className="flex items-center gap-2 mt-1">
             <motion.input
               ref={passoRef}
@@ -807,7 +804,7 @@ function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, onSave
         </div>
 
         <div className="rounded-xl border border-[#2d2d2d] bg-[#0A0A0A] p-4 flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-[#F5E6C8] flex items-center gap-1.5"><Clock size={13} className="text-[#b8944a]" /> Tolerância de fechamento</span>
+          <span className="text-xs font-medium text-[#F5E6C8] flex items-center gap-1.5"><IconClock size={13} className="text-[#b8944a]" /> Tolerância de fechamento</span>
           <div className="flex items-center gap-2 mt-1">
             <motion.input
               ref={carenciaRef}
@@ -860,7 +857,7 @@ function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, onSave
                       <input type="time" value={d.fim} onChange={(e) => upd(dow, { fim: e.target.value })} className={time} />
                     </label>
                     <label className="flex flex-col gap-1">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wide flex items-center gap-1"><Coffee size={11} /> Almoço início</span>
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wide flex items-center gap-1"><IconCoffee size={11} /> Almoço início</span>
                       <input type="time" value={d.almocoInicio ?? ""} onChange={(e) => upd(dow, { almocoInicio: e.target.value || null })} className={time} />
                     </label>
                     <label className="flex flex-col gap-1">
@@ -895,7 +892,7 @@ function SucessoModal({ open, mensagem, onClose }: { open: boolean; mensagem: st
         className="w-20 h-20 rounded-full bg-green-500/15 border-2 border-green-500/50 flex items-center justify-center"
       >
         <motion.span initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.18, type: "spring", stiffness: 500, damping: 16 }}>
-          <Check size={40} strokeWidth={3} className="text-green-400" />
+          <IconCheck size={40} strokeWidth={3} className="text-green-400" />
         </motion.span>
       </motion.div>
       <p className="text-base font-bold text-[#F5E6C8] text-center leading-snug">{mensagem}</p>
@@ -1311,7 +1308,7 @@ export default function AgendamentosAdminPage() {
           Renderizado ANTES do ReagendarModal pra que este fique por cima ao reagendar. */}
       <AnimatedModal open={!!pendencias && pendencias.length > 0} onClose={() => setPendencias(null)} className="nice-scroll bg-[#141414] border border-amber-700/40 rounded-xl shadow-xl max-w-md w-full mx-4 flex flex-col">
         <div className="px-5 py-4 border-b border-[#1e1e1e] shrink-0">
-          <h3 className="font-bold text-amber-300 flex items-center gap-2"><AlertTriangle size={15} /> Dia fechado</h3>
+          <h3 className="font-bold text-amber-300 flex items-center gap-2"><IconAlertTriangle size={15} /> Dia fechado</h3>
           <p className="text-xs text-gray-500 mt-0.5">{pendencias?.length ?? 0} agendamento(s) neste dia — mantenha no horário ou reagende, um a um.</p>
         </div>
         <div className="flex flex-col divide-y divide-[#1a1a1a] max-h-[55vh] overflow-y-auto">
@@ -1325,13 +1322,13 @@ export default function AgendamentosAdminPage() {
                 <button onClick={() => setPendencias((prev) => { const rest = (prev ?? []).filter((p) => p.id !== ag.id); return rest.length ? rest : null; })}
                   className="px-2.5 py-1 text-xs text-gray-300 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition">Manter</button>
                 <button onClick={() => setReagendarAg(ag)}
-                  className="flex items-center gap-1 px-2.5 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><CalendarPlus size={12} /> Reagendar</button>
+                  className="flex items-center gap-1 px-2.5 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><IconCalendarPlus size={12} /> Reagendar</button>
               </div>
             </div>
           ))}
         </div>
         <div className="px-5 py-4 border-t border-[#1e1e1e] flex justify-end shrink-0">
-          <button onClick={() => setPendencias(null)} className="flex items-center gap-1.5 px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition"><Check size={14} /> Concluir</button>
+          <button onClick={() => setPendencias(null)} className="flex items-center gap-1.5 px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition"><IconCheck size={14} /> Concluir</button>
         </div>
       </AnimatedModal>
       {/* Sempre montados (key força reset do form ao reabrir) — assim o AnimatePresence
@@ -1349,14 +1346,14 @@ export default function AgendamentosAdminPage() {
             exit={{ opacity: 0, y: -16, scale: 0.96 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
           >
-            <MessageCircle size={18} className="shrink-0 text-green-400" />
+            <IconMessageCircle size={18} className="shrink-0 text-green-400" />
             <div className="flex flex-col gap-1">
               <span className="text-sm font-medium">Reagendamento salvo</span>
               <span className="text-xs text-green-400/70">Notifique o cliente pelo WhatsApp</span>
             </div>
             <div className="flex gap-2 ml-auto">
               <a href={notificacaoLink} target="_blank" rel="noreferrer" onClick={() => setNotificacaoLink(null)} className="text-xs bg-green-700 hover:bg-green-600 text-white rounded px-2 py-1 transition">Enviar</a>
-              <button onClick={() => setNotificacaoLink(null)} className="text-xs text-gray-500 hover:text-gray-300 transition"><X size={14} /></button>
+              <button onClick={() => setNotificacaoLink(null)} className="text-xs text-gray-500 hover:text-gray-300 transition"><IconX size={14} /></button>
             </div>
           </motion.div>
         )}
@@ -1366,7 +1363,7 @@ export default function AgendamentosAdminPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-[#F5E6C8]">Agendamentos</h1>
         <button onClick={carregar} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#b8944a] transition">
-          <RefreshCw size={14} className={carregando ? "animate-spin" : ""} /> Atualizar
+          <IconRefresh size={14} className={carregando ? "animate-spin" : ""} /> Atualizar
         </button>
       </div>
 
@@ -1403,9 +1400,9 @@ export default function AgendamentosAdminPage() {
               <div className="rounded-lg border bg-red-950/50 border-red-800/50 overflow-hidden">
                 <button onClick={() => toggleAlerta("atrasados")}
                   className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-red-300 hover:bg-red-900/20 transition">
-                  <AlertCircle size={13} className="shrink-0" />
+                  <IconAlertCircle size={13} className="shrink-0" />
                   <span className="flex-1 text-left">{atrasados.length} atendimento{atrasados.length > 1 ? "s" : ""} com horário passado sem conclusão</span>
-                  <ChevronDown size={13} className={`shrink-0 transition-transform ${alertasExpandidos.has("atrasados") ? "rotate-180" : ""}`} />
+                  <IconChevronDown size={13} className={`shrink-0 transition-transform ${alertasExpandidos.has("atrasados") ? "rotate-180" : ""}`} />
                 </button>
                 {alertasExpandidos.has("atrasados") && (
                   <div className="border-t border-red-900/40 divide-y divide-red-900/30">
@@ -1434,7 +1431,7 @@ export default function AgendamentosAdminPage() {
               return (
                 <button key={a.id} onClick={() => irParaAgendamento(a)}
                   className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border text-xs font-medium transition text-left group ${style}`}>
-                  <Clock size={13} className="shrink-0" />
+                  <IconClock size={13} className="shrink-0" />
                   <span className="flex-1">{a.nome} — {a.servico} em <strong>{mins} min</strong> ({a.horario})</span>
                   <span className="text-[10px] opacity-50 group-hover:opacity-100 transition shrink-0">ver →</span>
                 </button>
@@ -1444,7 +1441,7 @@ export default function AgendamentosAdminPage() {
             {/* Novos não visualizados */}
             {naoVisualizados.length > 0 && (
               <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border bg-orange-950/40 border-orange-700/40 text-orange-300 text-xs font-medium">
-                <Bell size={13} className="shrink-0" />
+                <IconBell size={13} className="shrink-0" />
                 {naoVisualizados.length} novo{naoVisualizados.length > 1 ? "s" : ""} agendamento{naoVisualizados.length > 1 ? "s" : ""} aguardando confirmação
               </div>
             )}
@@ -1454,9 +1451,9 @@ export default function AgendamentosAdminPage() {
               <div className="rounded-lg border bg-yellow-950/40 border-yellow-700/40 overflow-hidden">
                 <button onClick={() => toggleAlerta("aguardando")}
                   className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-yellow-300 hover:bg-yellow-900/20 transition">
-                  <AlertTriangle size={13} className="shrink-0" />
+                  <IconAlertTriangle size={13} className="shrink-0" />
                   <span className="flex-1 text-left">{aguardandoLongos.length} pendente{aguardandoLongos.length > 1 ? "s" : ""} há mais de 2h sem resposta</span>
-                  <ChevronDown size={13} className={`shrink-0 transition-transform ${alertasExpandidos.has("aguardando") ? "rotate-180" : ""}`} />
+                  <IconChevronDown size={13} className={`shrink-0 transition-transform ${alertasExpandidos.has("aguardando") ? "rotate-180" : ""}`} />
                 </button>
                 {alertasExpandidos.has("aguardando") && (
                   <div className="border-t border-yellow-900/40 divide-y divide-yellow-900/30">
@@ -1503,12 +1500,12 @@ export default function AgendamentosAdminPage() {
         <div className={`${cardDark} p-4 flex flex-col justify-between`}>
           <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-500 mb-1">Caixa</p>
           <p className={`text-sm font-bold flex items-center gap-1.5 ${caixaFechado ? "text-green-400" : "text-gray-400"}`}>
-            {caixaFechado ? <><Lock size={13} /> Fechado</> : <><Unlock size={13} /> Em aberto</>}
+            {caixaFechado ? <><IconLock size={13} /> Fechado</> : <><IconLockOpen size={13} /> Em aberto</>}
           </p>
           {!ehFuturo && (
-            <Link href={`/admin/financeiro?dia=${dataSelecionada}#caixa`}
+            <Link href={`/admin/caixa?dia=${dataSelecionada}#caixa`}
               className="mt-2 text-[10px] font-bold tracking-widest uppercase text-[#b8944a] hover:underline flex items-center gap-1">
-              <TrendingUp size={10} /> Ver no financeiro
+              <IconTrendingUp size={10} /> Ver no caixa
             </Link>
           )}
         </div>
@@ -1537,7 +1534,7 @@ export default function AgendamentosAdminPage() {
               {/* cabeçalho */}
               <div className="flex items-center justify-between px-5 py-2.5 border-b border-[#1a1a1a] gap-2 flex-wrap shrink-0">
                 <div>
-                  <p className="text-sm font-bold text-[#F5E6C8] capitalize flex items-center gap-2"><List size={14} /> {diaSemana}, {dataLabel}</p>
+                  <p className="text-sm font-bold text-[#F5E6C8] capitalize flex items-center gap-2"><IconList size={14} /> {diaSemana}, {dataLabel}</p>
                   <p className="text-xs text-gray-500">
                     {ehHoje && <span className="text-[#b8944a] font-medium">Hoje · </span>}
                     {agsDia.length === 0 ? "Nenhum agendamento" : `${agsDia.length} agendamento${agsDia.length !== 1 ? "s" : ""}`}
@@ -1588,14 +1585,14 @@ export default function AgendamentosAdminPage() {
                                     <div key={idx} className="flex gap-2 items-center flex-wrap">
                                       <select value={linha.servico} onChange={(e) => { const nome = e.target.value; const svc = servicos.find((s) => s.titulo === nome); setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, servico: nome, preco: svc?.preco ?? l.preco } : l)); }} className={inp}>{servicos.map((s) => <option key={s.id}>{s.titulo}</option>)}</select>
                                       <input value={linha.preco} onChange={(e) => setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, preco: e.target.value } : l))} placeholder="Preço" className={`${inp} w-24`} />
-                                      {editLinhas.length > 1 && <button onClick={() => setEditLinhas((prev) => prev.filter((_, i) => i !== idx))} className="p-1 text-red-400 hover:text-red-300 rounded transition"><X size={13} /></button>}
+                                      {editLinhas.length > 1 && <button onClick={() => setEditLinhas((prev) => prev.filter((_, i) => i !== idx))} className="p-1 text-red-400 hover:text-red-300 rounded transition"><IconX size={13} /></button>}
                                     </div>
                                   ))}
                                   {editLinhas.length > 1 && <p className="text-xs text-[#b8944a] font-medium">Total: R$ {editLinhas.reduce((s, l) => s + parsePriceNum(l.preco), 0).toFixed(2).replace(".", ",")}</p>}
                                   <div className="flex gap-2 flex-wrap">
-                                    <button onClick={() => setEditLinhas((prev) => [...prev, { servico: servicos[0]?.titulo ?? "", preco: servicos[0]?.preco ?? "" }])} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><Plus size={11} /> Serviço</button>
-                                    <button onClick={() => salvarEdicao(ag.id)} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 bg-green-900/30 text-green-400 border border-green-700/50 rounded text-xs hover:bg-green-900/50 transition"><Check size={12} /> Salvar</button>
-                                    <button onClick={() => setEditandoId(null)} className="flex items-center gap-1 px-2 py-1 border border-[#2d2d2d] text-gray-400 rounded text-xs hover:border-[#b8944a] transition"><X size={12} /> Cancelar</button>
+                                    <button onClick={() => setEditLinhas((prev) => [...prev, { servico: servicos[0]?.titulo ?? "", preco: servicos[0]?.preco ?? "" }])} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><IconPlus size={11} /> Serviço</button>
+                                    <button onClick={() => salvarEdicao(ag.id)} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 bg-green-900/30 text-green-400 border border-green-700/50 rounded text-xs hover:bg-green-900/50 transition"><IconCheck size={12} /> Salvar</button>
+                                    <button onClick={() => setEditandoId(null)} className="flex items-center gap-1 px-2 py-1 border border-[#2d2d2d] text-gray-400 rounded text-xs hover:border-[#b8944a] transition"><IconX size={12} /> Cancelar</button>
                                   </div>
                                 </div>
                               ) : (
@@ -1630,33 +1627,33 @@ export default function AgendamentosAdminPage() {
                                   )}
                                   {ag.avisoPendente && (
                                     <div className="mt-2 flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-amber-950/40 border border-amber-700/40">
-                                      <AlertTriangle size={12} className="text-amber-400 shrink-0" />
+                                      <IconAlertTriangle size={12} className="text-amber-400 shrink-0" />
                                       <span className="text-xs text-amber-300 flex-1">Confirmado automaticamente — avise o cliente.</span>
-                                      <button onClick={() => avisarCliente(ag.id)} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 text-xs text-green-300 bg-green-900/30 border border-green-700/50 rounded-lg hover:bg-green-900/50 transition shrink-0"><MessageCircle size={11} /> Avisar no WhatsApp</button>
+                                      <button onClick={() => avisarCliente(ag.id)} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 text-xs text-green-300 bg-green-900/30 border border-green-700/50 rounded-lg hover:bg-green-900/50 transition shrink-0"><IconMessageCircle size={11} /> Avisar no WhatsApp</button>
                                     </div>
                                   )}
                                   {!caixaFechado && (
                                     <div className="flex items-center gap-1.5 flex-wrap mt-3 pt-3 border-t border-[#1a1a1a]">
                                       {ag.status === "pendente" && (
-                                        <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-400 border border-blue-700/40 rounded-lg hover:bg-blue-900/20 transition"><Check size={12} /> Confirmar</button>
+                                        <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-400 border border-blue-700/40 rounded-lg hover:bg-blue-900/20 transition"><IconCheck size={12} /> Confirmar</button>
                                       )}
                                       {(ag.status === "confirmado" || ag.status === "pendente") && (
-                                        <button onClick={() => setModal({ tipo: "concluir", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-green-400 border border-green-700/40 rounded-lg hover:bg-green-900/20 transition"><CheckCircle size={12} /> Concluir</button>
+                                        <button onClick={() => setModal({ tipo: "concluir", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-green-400 border border-green-700/40 rounded-lg hover:bg-green-900/20 transition"><IconCircleCheck size={12} /> Concluir</button>
                                       )}
                                       {!finalizado && (
-                                        <button onClick={() => setReagendarAg(ag)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><CalendarPlus size={12} /> Reagendar</button>
+                                        <button onClick={() => setReagendarAg(ag)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><IconCalendarPlus size={12} /> Reagendar</button>
                                       )}
                                       {(ag.status === "confirmado" || ag.status === "pendente") && (
-                                        <button onClick={() => atualizarStatus(ag.id, "nao_compareceu")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><Clock size={12} /> Não compareceu</button>
+                                        <button onClick={() => atualizarStatus(ag.id, "nao_compareceu")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconClock size={12} /> Não compareceu</button>
                                       )}
                                       {(ehConcluido || ag.status === "nao_compareceu") && (
-                                        <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><Undo2 size={12} /> Desfazer</button>
+                                        <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconArrowBackUp size={12} /> Desfazer</button>
                                       )}
                                       <div className="flex items-center gap-1 ml-auto">
                                         {!finalizado && (
-                                          <button onClick={() => { setEditandoId(ag.id); const srvs = ag.servico.split(" + "); const precos = ag.preco.split(" + "); setEditLinhas(srvs.map((s, i) => ({ servico: s.trim(), preco: precos[i]?.trim() ?? "" }))); }} className="p-1.5 text-gray-500 hover:text-gray-300 border border-transparent hover:border-[#2d2d2d] rounded-lg transition" title="Editar"><Pencil size={13} /></button>
+                                          <button onClick={() => { setEditandoId(ag.id); const srvs = ag.servico.split(" + "); const precos = ag.preco.split(" + "); setEditLinhas(srvs.map((s, i) => ({ servico: s.trim(), preco: precos[i]?.trim() ?? "" }))); }} className="p-1.5 text-gray-500 hover:text-gray-300 border border-transparent hover:border-[#2d2d2d] rounded-lg transition" title="Editar"><IconPencil size={13} /></button>
                                         )}
-                                        <button onClick={() => setModal({ tipo: "excluir", id: ag.id })} className="p-1.5 text-red-500/50 hover:text-red-400 border border-transparent hover:border-red-900/40 rounded-lg transition" title="Excluir"><Trash2 size={13} /></button>
+                                        <button onClick={() => setModal({ tipo: "excluir", id: ag.id })} className="p-1.5 text-red-500/50 hover:text-red-400 border border-transparent hover:border-red-900/40 rounded-lg transition" title="Excluir"><IconTrash size={13} /></button>
                                       </div>
                                     </div>
                                   )}
@@ -1685,13 +1682,13 @@ export default function AgendamentosAdminPage() {
               {!ehFuturo && (
                 <div className="px-4 py-2 border-t border-[#1a1a1a] flex items-center justify-between gap-3 flex-wrap shrink-0">
                   <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                    {caixaFechado && <Lock size={11} className="text-green-400" />}
+                    {caixaFechado && <IconLock size={11} className="text-green-400" />}
                     {caixaFechado ? <span className="text-green-400">Caixa fechado · </span> : null}
                     {concluidos.length} concluídos · R$ {totalDia.toFixed(2).replace(".", ",")} faturados
                   </p>
-                  <Link href={`/admin/financeiro?dia=${dataSelecionada}`}
+                  <Link href={`/admin/caixa?dia=${dataSelecionada}#caixa`}
                     className="flex items-center gap-1.5 px-3 py-1.5 border border-[#b8944a]/40 text-[#b8944a] text-xs font-bold hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition rounded-lg">
-                    <TrendingUp size={12} /> Ir pro caixa
+                    <IconTrendingUp size={12} /> Ir pro caixa
                   </Link>
                 </div>
               )}
@@ -1705,22 +1702,22 @@ export default function AgendamentosAdminPage() {
         <div id="grade-horarios" className={`${cardDark} overflow-hidden scroll-mt-20`}>
           <div className="px-5 py-4 border-b border-[#1a1a1a] flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-bold text-[#F5E6C8] flex items-center gap-2"><LayoutGrid size={14} /> Grade de horários</p>
+              <p className="text-sm font-bold text-[#F5E6C8] flex items-center gap-2"><IconLayoutGrid size={14} /> Grade de horários</p>
               <p className="text-xs text-gray-500 mt-0.5 capitalize">{diaSemana}, {dataLabel} · clique para agendar ou bloquear</p>
             </div>
             {!caixaFechado && (
               <div className="flex items-center gap-2 shrink-0">
                 <button onClick={() => setConfigGradeOpen(true)} title="Configurar grade" className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-300 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition">
-                  <Settings2 size={13} /> <span className="hidden sm:inline">Configurar</span>
+                  <IconAdjustments size={13} /> <span className="hidden sm:inline">Configurar</span>
                 </button>
                 {slotsLivresDia.length > 0 && (
                   <button onClick={() => setModal({ tipo: "fechar_dia" })} title="Fechar o dia (bloquear horários livres)" className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-red-400/80 border border-red-900/40 rounded-lg hover:border-red-500/60 hover:text-red-400 transition">
-                    <CalendarX size={13} /> <span className="hidden sm:inline">Fechar dia</span>
+                    <IconCalendarX size={13} /> <span className="hidden sm:inline">Fechar dia</span>
                   </button>
                 )}
                 {slotsBloqueados.length > 0 && (
                   <button onClick={() => setModal({ tipo: "liberar_dia" })} title="Liberar o dia (desbloquear horários)" className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-green-400/80 border border-green-900/40 rounded-lg hover:border-green-500/60 hover:text-green-400 transition">
-                    <CalendarCheck size={13} /> <span className="hidden sm:inline">Liberar dia</span>
+                    <IconCalendarCheck size={13} /> <span className="hidden sm:inline">Liberar dia</span>
                   </button>
                 )}
               </div>
@@ -1751,18 +1748,18 @@ export default function AgendamentosAdminPage() {
                   <div className="flex-1 flex flex-col gap-2 min-w-0">
                     {bloqueado ? (
                       <div className="flex items-center justify-between gap-2 py-1">
-                        <span className="text-sm text-gray-500 flex items-center gap-1.5"><Ban size={13} className="text-red-500/70" /> Bloqueado</span>
-                        {!caixaFechado && <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition shrink-0"><Unlock size={12} /> Desbloquear</button>}
+                        <span className="text-sm text-gray-500 flex items-center gap-1.5"><IconBan size={13} className="text-red-500/70" /> Bloqueado</span>
+                        {!caixaFechado && <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition shrink-0"><IconLockOpen size={12} /> Desbloquear</button>}
                       </div>
                     ) : ocupadoPorAnterior && !cheio ? (
                       // slot dentro da duração de um agendamento que começou antes
                       <div className="flex items-center gap-1.5 py-1">
-                        <span className="text-xs text-gray-600 flex items-center gap-1.5"><Clock size={12} className="text-gray-700" /> Em atendimento</span>
+                        <span className="text-xs text-gray-600 flex items-center gap-1.5"><IconClock size={12} className="text-gray-700" /> Em atendimento</span>
                       </div>
                     ) : livre ? (
                       <div className="flex items-center justify-between gap-2 py-1">
                         {slotPassou(slot) ? (
-                          <span className="text-sm text-gray-500 flex items-center gap-1.5"><Clock size={13} className="text-gray-600" /> Horário passado</span>
+                          <span className="text-sm text-gray-500 flex items-center gap-1.5"><IconClock size={13} className="text-gray-600" /> Horário passado</span>
                         ) : (
                           <span className="text-sm text-green-500/70 font-medium flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500/70" /> Disponível</span>
                         )}
@@ -1772,12 +1769,12 @@ export default function AgendamentosAdminPage() {
                             <button onClick={() => caixaFechado ? setModal({ tipo: "caixa_fechado_retro", horario: slot }) : abrirAgendar({ data: dataSelecionada, horario: slot })}
                               title="Registrar atendimento retroativo (cliente que veio e não foi lançado)"
                               className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg transition border text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]">
-                              <CalendarPlus size={12} /> <span className="hidden sm:inline">Registrar retroativo</span><span className="sm:hidden">Retroativo</span>
+                              <IconCalendarPlus size={12} /> <span className="hidden sm:inline">Registrar retroativo</span><span className="sm:hidden">Retroativo</span>
                             </button>
                           ) : !caixaFechado ? (
                             <>
-                              <button onClick={() => abrirAgendar({ data: dataSelecionada, horario: slot })} className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg transition border text-[#b8944a] border-[#b8944a]/30 hover:bg-[#b8944a]/10"><CalendarPlus size={12} /> Agendar</button>
-                              <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="p-1.5 text-gray-500 hover:text-red-400 border border-transparent hover:border-red-900/40 rounded-lg transition" title="Bloquear"><Ban size={13} /></button>
+                              <button onClick={() => abrirAgendar({ data: dataSelecionada, horario: slot })} className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg transition border text-[#b8944a] border-[#b8944a]/30 hover:bg-[#b8944a]/10"><IconCalendarPlus size={12} /> Agendar</button>
+                              <button onClick={() => setModal({ tipo: "bloquear", horario: slot })} className="p-1.5 text-gray-500 hover:text-red-400 border border-transparent hover:border-red-900/40 rounded-lg transition" title="Bloquear"><IconBan size={13} /></button>
                             </>
                           ) : null}
                         </div>
@@ -1799,14 +1796,14 @@ export default function AgendamentosAdminPage() {
                                         <div key={idx} className="flex gap-2 items-center flex-wrap">
                                           <select value={linha.servico} onChange={(e) => { const nome = e.target.value; const svc = servicos.find((s) => s.titulo === nome); setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, servico: nome, preco: svc?.preco ?? l.preco } : l)); }} className={inp}>{servicos.map((s) => <option key={s.id}>{s.titulo}</option>)}</select>
                                           <input value={linha.preco} onChange={(e) => setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, preco: e.target.value } : l))} placeholder="Preço" className={`${inp} w-24`} />
-                                          {editLinhas.length > 1 && <button onClick={() => setEditLinhas((prev) => prev.filter((_, i) => i !== idx))} className="p-1 text-red-400 hover:text-red-300 rounded transition"><X size={13} /></button>}
+                                          {editLinhas.length > 1 && <button onClick={() => setEditLinhas((prev) => prev.filter((_, i) => i !== idx))} className="p-1 text-red-400 hover:text-red-300 rounded transition"><IconX size={13} /></button>}
                                         </div>
                                       ))}
                                       {editLinhas.length > 1 && <p className="text-xs text-[#b8944a]">Total: R$ {editLinhas.reduce((s, l) => s + parsePriceNum(l.preco), 0).toFixed(2).replace(".", ",")}</p>}
                                       <div className="flex gap-2 flex-wrap">
-                                        <button onClick={() => setEditLinhas((prev) => [...prev, { servico: servicos[0]?.titulo ?? "", preco: servicos[0]?.preco ?? "" }])} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><Plus size={11} /> Serviço</button>
-                                        <button onClick={() => salvarEdicao(ag.id)} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 bg-green-900/30 text-green-400 border border-green-700/50 rounded text-xs hover:bg-green-900/50 transition"><Check size={12} /> Salvar</button>
-                                        <button onClick={() => setEditandoId(null)} className="flex items-center gap-1 px-2 py-1 border border-[#2d2d2d] text-gray-400 rounded text-xs hover:border-[#b8944a] transition"><X size={12} /> Cancelar</button>
+                                        <button onClick={() => setEditLinhas((prev) => [...prev, { servico: servicos[0]?.titulo ?? "", preco: servicos[0]?.preco ?? "" }])} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><IconPlus size={11} /> Serviço</button>
+                                        <button onClick={() => salvarEdicao(ag.id)} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 bg-green-900/30 text-green-400 border border-green-700/50 rounded text-xs hover:bg-green-900/50 transition"><IconCheck size={12} /> Salvar</button>
+                                        <button onClick={() => setEditandoId(null)} className="flex items-center gap-1 px-2 py-1 border border-[#2d2d2d] text-gray-400 rounded text-xs hover:border-[#b8944a] transition"><IconX size={12} /> Cancelar</button>
                                       </div>
                                     </div>
                                   ) : (
@@ -1828,14 +1825,14 @@ export default function AgendamentosAdminPage() {
                               </div>
                               {!caixaFechado && !editando && (
                                 <div className="flex items-center gap-1.5 flex-wrap pt-2.5 border-t border-[#1a1a1a]">
-                                  {ag.status === "pendente" && <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-400 border border-blue-700/40 rounded-lg hover:bg-blue-900/20 transition"><Check size={12} /> Confirmar</button>}
-                                  {(ag.status === "confirmado" || ag.status === "pendente") && <button onClick={() => setModal({ tipo: "concluir", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-green-400 border border-green-700/40 rounded-lg hover:bg-green-900/20 transition"><CheckCircle size={12} /> Concluir</button>}
-                                  {!finalizado && <button onClick={() => setReagendarAg(ag)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><CalendarPlus size={12} /> Reagendar</button>}
-                                  {(ag.status === "confirmado" || ag.status === "pendente") && <button onClick={() => atualizarStatus(ag.id, "nao_compareceu")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><Clock size={12} /> Não compareceu</button>}
-                                  {(ehConcluido || ag.status === "nao_compareceu") && <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><Undo2 size={12} /> Desfazer</button>}
+                                  {ag.status === "pendente" && <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-400 border border-blue-700/40 rounded-lg hover:bg-blue-900/20 transition"><IconCheck size={12} /> Confirmar</button>}
+                                  {(ag.status === "confirmado" || ag.status === "pendente") && <button onClick={() => setModal({ tipo: "concluir", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-green-400 border border-green-700/40 rounded-lg hover:bg-green-900/20 transition"><IconCircleCheck size={12} /> Concluir</button>}
+                                  {!finalizado && <button onClick={() => setReagendarAg(ag)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><IconCalendarPlus size={12} /> Reagendar</button>}
+                                  {(ag.status === "confirmado" || ag.status === "pendente") && <button onClick={() => atualizarStatus(ag.id, "nao_compareceu")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconClock size={12} /> Não compareceu</button>}
+                                  {(ehConcluido || ag.status === "nao_compareceu") && <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconArrowBackUp size={12} /> Desfazer</button>}
                                   <div className="flex items-center gap-1 ml-auto">
-                                    {!finalizado && <button onClick={() => { setEditandoId(ag.id); const srvs = ag.servico.split(" + "); const precos = ag.preco.split(" + "); setEditLinhas(srvs.map((s, i) => ({ servico: s.trim(), preco: precos[i]?.trim() ?? "" }))); }} className="p-1.5 text-gray-500 hover:text-gray-300 border border-transparent hover:border-[#2d2d2d] rounded-lg transition" title="Editar"><Pencil size={13} /></button>}
-                                    <button onClick={() => setModal({ tipo: "excluir", id: ag.id })} className="p-1.5 text-red-500/50 hover:text-red-400 border border-transparent hover:border-red-900/40 rounded-lg transition" title="Excluir"><Trash2 size={13} /></button>
+                                    {!finalizado && <button onClick={() => { setEditandoId(ag.id); const srvs = ag.servico.split(" + "); const precos = ag.preco.split(" + "); setEditLinhas(srvs.map((s, i) => ({ servico: s.trim(), preco: precos[i]?.trim() ?? "" }))); }} className="p-1.5 text-gray-500 hover:text-gray-300 border border-transparent hover:border-[#2d2d2d] rounded-lg transition" title="Editar"><IconPencil size={13} /></button>}
+                                    <button onClick={() => setModal({ tipo: "excluir", id: ag.id })} className="p-1.5 text-red-500/50 hover:text-red-400 border border-transparent hover:border-red-900/40 rounded-lg transition" title="Excluir"><IconTrash size={13} /></button>
                                   </div>
                                 </div>
                               )}
@@ -1843,7 +1840,7 @@ export default function AgendamentosAdminPage() {
                           );
                         })}
                         {!cheio && !caixaFechado && (
-                          <button onClick={() => abrirAgendar({ data: dataSelecionada, horario: slot })} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition self-start"><CalendarPlus size={12} /> Adicionar</button>
+                          <button onClick={() => abrirAgendar({ data: dataSelecionada, horario: slot })} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition self-start"><IconCalendarPlus size={12} /> Adicionar</button>
                         )}
                       </>
                     )}

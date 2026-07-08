@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { ChevronLeft, ChevronRight, Check, Tag } from "lucide-react";
+import {
+  IconCheck, IconChevronLeft, IconChevronRight, IconTag,
+} from "@tabler/icons-react";
 import type { Item } from "@/lib/admin-items";
 import { type Agendamento, resolverDuracaoMin, parsePriceNum } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
@@ -66,7 +68,7 @@ function StepIndicator({ atual }: { atual: 1 | 2 | 3 | 4 }) {
             n === atual ? "bg-[#b8944a]/20 border border-[#b8944a] text-[#b8944a]" :
             "bg-[#1a1a1a] border border-[#2d2d2d] text-gray-600"
           }`}>
-            {n < atual ? <Check size={12} /> : n}
+            {n < atual ? <IconCheck size={12} /> : n}
           </div>
           {n < total && <div className={`w-6 h-px transition-all duration-300 ${n < atual ? "bg-[#b8944a]" : "bg-[#2d2d2d]"}`} />}
         </div>
@@ -373,7 +375,7 @@ export default function AgendamentoPage() {
                           <div className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition ${
                             marcado ? "bg-[#b8944a] border-[#b8944a]" : "border-[#3d3d3d]"
                           }`}>
-                            {marcado && <Check size={13} className="text-[#0A0A0A]" />}
+                            {marcado && <IconCheck size={13} className="text-[#0A0A0A]" />}
                           </div>
                           <div className="flex-1">
                             <p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition">{s.titulo}</p>
@@ -507,7 +509,7 @@ export default function AgendamentoPage() {
                   onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1, 1))}
                   className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-[#b8944a] hover:bg-[#b8944a]/10 rounded-lg transition"
                 >
-                  <ChevronLeft size={20} />
+                  <IconChevronLeft size={20} />
                 </button>
                 <h2 className="text-base font-bold text-[#F5E6C8]">
                   {MESES[mesAtual.getMonth()]} <span className="text-gray-500 font-normal">{mesAtual.getFullYear()}</span>
@@ -516,7 +518,7 @@ export default function AgendamentoPage() {
                   onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1, 1))}
                   className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-[#b8944a] hover:bg-[#b8944a]/10 rounded-lg transition"
                 >
-                  <ChevronRight size={20} />
+                  <IconChevronRight size={20} />
                 </button>
               </div>
 
@@ -685,7 +687,7 @@ export default function AgendamentoPage() {
           {/* cupom */}
           <div className="flex flex-col gap-2 mb-5">
             <label className="text-xs text-gray-600 font-medium uppercase tracking-wide flex items-center gap-1.5">
-              <Tag size={12} /> Cupom de desconto
+              <IconTag size={12} /> Cupom de desconto
             </label>
             <div className="flex gap-2">
               <input

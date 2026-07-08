@@ -1,17 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, CheckCircle, XCircle, AlertCircle, Scissors, Calendar, Scissors as ScissorsIcon, X } from "lucide-react";
+import {
+  IconAlertCircle, IconCalendar, IconCircleCheck, IconCircleX, IconLoader2, IconScissors, IconX,
+} from "@tabler/icons-react";
 import { PLANOS_PUBLICOS } from "@/lib/stripe-tipos";
 import type { AssinaturaResumo } from "@/lib/stripe-tipos";
 
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg px-3 py-2.5 text-sm text-[#F5E6C8] placeholder-gray-600 focus:outline-none focus:border-[#b8944a] transition w-full";
 
 const STATUS_INFO: Record<string, { label: string; cor: string; bg: string; icone: React.ReactNode }> = {
-  ativa:        { label: "Ativa",        cor: "text-green-400",  bg: "bg-green-950 border-green-800",  icone: <CheckCircle size={14} /> },
-  inadimplente: { label: "Inadimplente", cor: "text-red-400",    bg: "bg-red-950 border-red-800",      icone: <XCircle size={14} /> },
-  cancelada:    { label: "Cancelada",    cor: "text-gray-400",   bg: "bg-[#1a1a1a] border-[#2d2d2d]", icone: <XCircle size={14} /> },
-  pausada:      { label: "Pausada",      cor: "text-yellow-400", bg: "bg-yellow-950 border-yellow-800",icone: <AlertCircle size={14} /> },
+  ativa:        { label: "Ativa",        cor: "text-green-400",  bg: "bg-green-950 border-green-800",  icone: <IconCircleCheck size={14} /> },
+  inadimplente: { label: "Inadimplente", cor: "text-red-400",    bg: "bg-red-950 border-red-800",      icone: <IconCircleX size={14} /> },
+  cancelada:    { label: "Cancelada",    cor: "text-gray-400",   bg: "bg-[#1a1a1a] border-[#2d2d2d]", icone: <IconCircleX size={14} /> },
+  pausada:      { label: "Pausada",      cor: "text-yellow-400", bg: "bg-yellow-950 border-yellow-800",icone: <IconAlertCircle size={14} /> },
 };
 
 function formatarData(ts: number) {
@@ -44,7 +46,7 @@ function CancelModal({
             </p>
           </div>
           <button onClick={onClose} className="text-gray-600 hover:text-gray-400 transition shrink-0">
-            <X size={16} />
+            <IconX size={16} />
           </button>
         </div>
         <div className="flex gap-3">
@@ -56,7 +58,7 @@ function CancelModal({
             disabled={loading}
             className="flex-1 py-2.5 bg-red-700 text-white text-sm font-semibold rounded-lg hover:bg-red-600 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
           >
-            {loading ? <Loader2 size={14} className="animate-spin" /> : null}
+            {loading ? <IconLoader2 size={14} className="animate-spin" /> : null}
             {loading ? "Cancelando..." : "Confirmar cancelamento"}
           </button>
         </div>
@@ -126,7 +128,7 @@ export default function MinhaAssinaturaPage() {
 
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-3">
-              <Scissors size={22} className="text-[#b8944a]" />
+              <IconScissors size={22} className="text-[#b8944a]" />
               <span className="text-[#b8944a] font-bold tracking-widest uppercase text-sm">Ortega</span>
             </div>
             <h1 className="text-2xl font-bold text-[#F5E6C8]">Minha Assinatura</h1>
@@ -148,7 +150,7 @@ export default function MinhaAssinaturaPage() {
               disabled={buscando}
               className="px-4 py-2.5 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded-lg hover:bg-[#c9a84c] transition disabled:opacity-50 shrink-0"
             >
-              {buscando ? <Loader2 size={16} className="animate-spin" /> : "Buscar"}
+              {buscando ? <IconLoader2 size={16} className="animate-spin" /> : "Buscar"}
             </button>
           </div>
 
@@ -182,7 +184,7 @@ export default function MinhaAssinaturaPage() {
               <div className="p-5 border-b border-[#1a1a1a] flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <ScissorsIcon size={14} className="text-[#b8944a]" />
+                    <IconScissors size={14} className="text-[#b8944a]" />
                     Créditos de corte
                   </div>
                   <span className="text-sm font-bold text-[#F5E6C8]">
@@ -205,7 +207,7 @@ export default function MinhaAssinaturaPage() {
 
               {/* próxima cobrança */}
               <div className="p-5 border-b border-[#1a1a1a] flex items-center gap-3">
-                <Calendar size={16} className="text-gray-600 shrink-0" />
+                <IconCalendar size={16} className="text-gray-600 shrink-0" />
                 <div>
                   <p className="text-xs text-gray-500">Próxima cobrança</p>
                   <p className="text-sm font-medium text-[#F5E6C8]">{formatarData(assinatura.proximoVencimento)}</p>

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import {
+  IconMenu2, IconX,
+} from "@tabler/icons-react";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ASSINATURAS_ATIVAS, REVIEWS_ATIVOS } from "@/lib/flags";
 
@@ -87,8 +89,8 @@ export default function Navbar() {
           >
             Agendar
           </Link>
-          <button className="p-2 text-[#F5E6C8]" onClick={() => setOpen(!open)} aria-label="Menu">
-            {open ? <X size={22} /> : <Menu size={22} />}
+          <button className="p-2 text-[#F5E6C8]" onClick={() => setOpen(!open)} aria-label="IconMenu2">
+            {open ? <IconX size={22} /> : <IconMenu2 size={22} />}
           </button>
         </div>
       </div>

@@ -112,9 +112,28 @@ export function useAdminNotificacoes() {
   }
 
   useEffect(() => {
-    fetchNotificacoes();
-    const interval = setInterval(fetchNotificacoes, INTERVALO_POLLING_MS);
-    return () => clearInterval(interval);
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    function iniciarPolling() {
+      if (interval) return;
+      fetchNotificacoes();
+      interval = setInterval(fetchNotificacoes, INTERVALO_POLLING_MS);
+    }
+    function pararPolling() {
+      if (interval) { clearInterval(interval); interval = null; }
+    }
+    function onVisibilityChange() {
+      if (document.hidden) pararPolling();
+      else iniciarPolling();
+    }
+
+    // Só faz polling com a aba visível — economiza leituras do Firestore
+    if (!document.hidden) iniciarPolling();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      pararPolling();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   useFaviconBadge(data.total, data.urgencia);

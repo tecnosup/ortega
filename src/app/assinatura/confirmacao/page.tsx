@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  IconCircleCheck, IconCircleX, IconLoader2,
+} from "@tabler/icons-react";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle, Loader2, XCircle } from "lucide-react";
 import { PLANOS_PUBLICOS } from "@/lib/stripe-tipos";
 import { Suspense } from "react";
 
@@ -27,7 +29,7 @@ function ConfirmacaoConteudo() {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3 text-gray-400">
-          <Loader2 size={28} className="animate-spin text-[#b8944a]" />
+          <IconLoader2 size={28} className="animate-spin text-[#b8944a]" />
           <p className="text-sm">Confirmando seu pagamento…</p>
         </div>
       </div>
@@ -38,7 +40,7 @@ function ConfirmacaoConteudo() {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center px-6">
         <div className="text-center flex flex-col items-center gap-4">
-          <XCircle size={48} className="text-red-400" />
+          <IconCircleX size={48} className="text-red-400" />
           <h1 className="text-xl font-bold text-[#F5E6C8]">Não foi possível confirmar</h1>
           <p className="text-gray-500 text-sm">Entre em contato conosco se o pagamento foi debitado.</p>
           <a href="/assinatura" className="text-[#b8944a] text-sm hover:underline">Voltar aos planos</a>
@@ -52,7 +54,7 @@ function ConfirmacaoConteudo() {
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center px-6">
       <div className="max-w-md w-full flex flex-col items-center gap-6 text-center">
-        <CheckCircle size={56} className="text-green-400" />
+        <IconCircleCheck size={56} className="text-green-400" />
         <div>
           <h1 className="text-2xl font-bold text-[#F5E6C8]">Assinatura confirmada!</h1>
           <p className="text-gray-400 mt-1">Bem-vindo, {dados?.clienteNome ?? ""}!</p>
@@ -102,7 +104,7 @@ export default function ConfirmacaoPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-        <Loader2 size={28} className="animate-spin text-[#b8944a]" />
+        <IconLoader2 size={28} className="animate-spin text-[#b8944a]" />
       </div>
     }>
       <ConfirmacaoConteudo />

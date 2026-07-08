@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import {
+  IconCheck, IconLoader2, IconScissors,
+} from "@tabler/icons-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { Check, Loader2, Scissors } from "lucide-react";
 import { PLANOS_PUBLICOS } from "@/lib/stripe-tipos";
 import type { PlanoAssinaturaPublico } from "@/lib/stripe-tipos";
 
@@ -56,7 +58,7 @@ function AssinaturaConteudo() {
         {/* Header */}
         <div className="text-center flex flex-col gap-4">
           <div className="flex items-center justify-center gap-3 mb-2">
-            <Scissors size={28} className="text-[#b8944a]" />
+            <IconScissors size={28} className="text-[#b8944a]" />
             <span className="text-[#b8944a] font-bold text-xl tracking-widest uppercase">Ortega</span>
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold leading-tight">
@@ -93,7 +95,7 @@ function AssinaturaConteudo() {
 
                 {selecionado && (
                   <span className="absolute top-4 right-4 w-5 h-5 rounded-full bg-[#b8944a] flex items-center justify-center">
-                    <Check size={12} className="text-[#0A0A0A]" strokeWidth={3} />
+                    <IconCheck size={12} className="text-[#0A0A0A]" strokeWidth={3} />
                   </span>
                 )}
 
@@ -108,15 +110,15 @@ function AssinaturaConteudo() {
                 </div>
 
                 <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <Check size={14} className="text-[#b8944a]" />
+                  <IconCheck size={14} className="text-[#b8944a]" />
                   <span>{plano.cortes} corte{plano.cortes > 1 ? "s" : ""} por mês</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <Check size={14} className="text-[#b8944a]" />
+                  <IconCheck size={14} className="text-[#b8944a]" />
                   <span>Desconto automático no agendamento</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <Check size={14} className="text-[#b8944a]" />
+                  <IconCheck size={14} className="text-[#b8944a]" />
                   <span>Cancele quando quiser</span>
                 </div>
               </button>
@@ -188,7 +190,7 @@ function AssinaturaConteudo() {
               disabled={loading}
               className="w-full py-3.5 bg-[#b8944a] text-[#0A0A0A] font-bold rounded-xl hover:bg-[#c9a84c] transition disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {loading ? <><Loader2 size={16} className="animate-spin" /> Redirecionando…</> : "Assinar agora"}
+              {loading ? <><IconLoader2 size={16} className="animate-spin" /> Redirecionando…</> : "Assinar agora"}
             </button>
 
             <p className="text-xs text-gray-600 text-center">
@@ -213,7 +215,7 @@ export default function AssinaturaPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-        <Loader2 size={28} className="animate-spin text-[#b8944a]" />
+        <IconLoader2 size={28} className="animate-spin text-[#b8944a]" />
       </div>
     }>
       <AssinaturaConteudo />

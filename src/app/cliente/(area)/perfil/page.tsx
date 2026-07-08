@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Save } from "lucide-react";
+import {
+  IconDeviceFloppy, IconLoader2,
+} from "@tabler/icons-react";
 
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded-xl px-4 py-3 text-sm text-[#F5E6C8] placeholder-gray-700 focus:outline-none focus:border-[#b8944a]/60 transition w-full";
 
@@ -57,7 +59,7 @@ export default function ClientePerfilPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 size={24} className="animate-spin text-[#b8944a]" />
+        <IconLoader2 size={24} className="animate-spin text-[#b8944a]" />
       </div>
     );
   }
@@ -119,7 +121,7 @@ export default function ClientePerfilPage() {
           disabled={salvando}
           className="w-full py-3.5 bg-[#b8944a] text-[#0A0A0A] font-bold rounded-xl hover:bg-[#c9a84c] transition disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {salvando ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          {salvando ? <IconLoader2 size={16} className="animate-spin" /> : <IconDeviceFloppy size={16} />}
           {salvando ? "Salvando..." : "Salvar alterações"}
         </button>
       </form>

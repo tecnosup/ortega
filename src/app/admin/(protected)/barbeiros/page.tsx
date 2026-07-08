@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { jsonOr } from "@/lib/safe-json";
 import {
-  Users, Plus, Edit2, Trash2, X, Check, Loader2, KeyRound, Unlink,
-  Camera, Phone, MapPin, ChevronDown, ChevronUp, Filter,
-  UserCheck, UserX, Settings2, Tag,
-} from "lucide-react";
+  IconAdjustments, IconCamera, IconCheck, IconChevronDown, IconChevronUp, IconEdit, IconFilter, IconKey, IconLoader2, IconMapPin, IconPhone, IconPlus, IconTag, IconTrash, IconUnlink, IconUserCheck, IconUserX, IconUsers, IconX,
+} from "@tabler/icons-react";
+import { jsonOr } from "@/lib/safe-json";
 import type { Barbeiro, ComissaoServico } from "@/lib/barbeiros-types";
 import type { Item } from "@/lib/admin-items";
 import type { CategoriaFuncionario } from "@/lib/categorias-funcionarios";
@@ -302,20 +300,20 @@ export default function FuncionariosPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Users size={22} className="text-[#b8944a]" />
+          <IconUsers size={22} className="text-[#b8944a]" />
           <h1 className="text-2xl font-bold text-[#F5E6C8]">Funcionários</h1>
         </div>
         <button
           onClick={openNew}
           className="flex items-center gap-2 px-4 py-2 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded hover:bg-[#c9a84c] transition"
         >
-          <Plus size={15} /> Novo funcionário
+          <IconPlus size={15} /> Novo funcionário
         </button>
       </div>
 
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap gap-2 items-center">
-          <div className="flex items-center gap-1 text-gray-500 text-xs"><Filter size={12} /></div>
+          <div className="flex items-center gap-1 text-gray-500 text-xs"><IconFilter size={12} /></div>
 
           <button
             onClick={() => setFiltroTipo("todos")}
@@ -338,7 +336,7 @@ export default function FuncionariosPage() {
             onClick={() => setTiposOpen((v) => !v)}
             className={`flex items-center gap-1.5 px-3 py-1 text-xs rounded-full border transition ${tiposOpen ? "border-[#b8944a] text-[#b8944a] bg-[#b8944a]/10" : "border-dashed border-[#3d3d3d] text-gray-500 hover:border-[#b8944a] hover:text-[#b8944a]"}`}
           >
-            <Tag size={11} /> Gerenciar tipos
+            <IconTag size={11} /> Gerenciar tipos
           </button>
 
           <div className="w-px h-4 bg-[#2d2d2d]" />
@@ -371,7 +369,7 @@ export default function FuncionariosPage() {
                 disabled={tipoSaving}
                 className="px-4 py-2 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded hover:bg-[#c9a84c] transition disabled:opacity-50 shrink-0"
               >
-                {tipoSaving ? <Loader2 size={14} className="animate-spin" /> : "Adicionar"}
+                {tipoSaving ? <IconLoader2 size={14} className="animate-spin" /> : "Adicionar"}
               </button>
             </div>
             {tipoErro && <p className="text-red-400 text-xs">{tipoErro}</p>}
@@ -391,19 +389,19 @@ export default function FuncionariosPage() {
                           className="flex-1 bg-transparent text-sm text-[#F5E6C8] focus:outline-none"
                           autoFocus spellCheck={false}
                         />
-                        <button onClick={handleSalvarTipoEdit} className="text-green-400 hover:text-green-300 transition"><Check size={14} /></button>
-                        <button onClick={() => setTipoEditId(null)} className="text-gray-500 hover:text-white transition"><X size={14} /></button>
+                        <button onClick={handleSalvarTipoEdit} className="text-green-400 hover:text-green-300 transition"><IconCheck size={14} /></button>
+                        <button onClick={() => setTipoEditId(null)} className="text-gray-500 hover:text-white transition"><IconX size={14} /></button>
                       </>
                     ) : (
                       <>
                         <span className="flex-1 text-sm text-[#F5E6C8]">{cat.nome}</span>
-                        <button onClick={() => { setTipoEditId(cat.id); setTipoEditNome(cat.nome); }} className="text-gray-500 hover:text-[#b8944a] transition"><Edit2 size={13} /></button>
+                        <button onClick={() => { setTipoEditId(cat.id); setTipoEditNome(cat.nome); }} className="text-gray-500 hover:text-[#b8944a] transition"><IconEdit size={13} /></button>
                         <button
                           onClick={() => handleDeleteTipo(cat.id)}
                           disabled={tipoDeletingId === cat.id}
                           className="text-gray-500 hover:text-red-400 transition disabled:opacity-50"
                         >
-                          {tipoDeletingId === cat.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                          {tipoDeletingId === cat.id ? <IconLoader2 size={13} className="animate-spin" /> : <IconTrash size={13} />}
                         </button>
                       </>
                     )}
@@ -416,7 +414,7 @@ export default function FuncionariosPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 text-gray-500 text-sm"><Loader2 size={16} className="animate-spin" /> Carregando…</div>
+        <div className="flex items-center gap-2 text-gray-500 text-sm"><IconLoader2 size={16} className="animate-spin" /> Carregando…</div>
       ) : barbeirosFiltered.length === 0 ? (
         <p className="text-gray-500 text-sm">Nenhum funcionário encontrado.</p>
       ) : (
@@ -461,13 +459,13 @@ export default function FuncionariosPage() {
                       title={b.presenteHoje ? "Marcar ausente" : "Marcar presente"}
                       className={`p-1.5 rounded-lg border transition ${b.presenteHoje ? "border-green-700 text-green-400 bg-green-950/30" : "border-[#2d2d2d] text-gray-600 hover:border-green-700 hover:text-green-400"}`}
                     >
-                      {togglingPresenca === b.id ? <Loader2 size={14} className="animate-spin" /> : b.presenteHoje ? <UserCheck size={14} /> : <UserX size={14} />}
+                      {togglingPresenca === b.id ? <IconLoader2 size={14} className="animate-spin" /> : b.presenteHoje ? <IconUserCheck size={14} /> : <IconUserX size={14} />}
                     </button>
                     <button
                       onClick={() => setExpandedId(expanded ? null : b.id)}
                       className="p-1.5 rounded-lg border border-[#2d2d2d] text-gray-500 hover:text-white hover:border-[#444] transition"
                     >
-                      {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      {expanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
                     </button>
                   </div>
                 </div>
@@ -476,16 +474,16 @@ export default function FuncionariosPage() {
                   <div className="border-t border-[#1a1a1a] px-4 py-4 flex flex-col gap-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs text-gray-400">
                       {b.telefone && (
-                        <div className="flex items-center gap-1.5"><Phone size={11} className="text-gray-600" />{b.telefone}</div>
+                        <div className="flex items-center gap-1.5"><IconPhone size={11} className="text-gray-600" />{b.telefone}</div>
                       )}
                       {b.cpf && (
-                        <div className="flex items-center gap-1.5"><Settings2 size={11} className="text-gray-600" />CPF: {b.cpf}</div>
+                        <div className="flex items-center gap-1.5"><IconAdjustments size={11} className="text-gray-600" />CPF: {b.cpf}</div>
                       )}
                       {b.dataNascimento && (
-                        <div className="flex items-center gap-1.5"><Settings2 size={11} className="text-gray-600" />Nasc.: {b.dataNascimento}</div>
+                        <div className="flex items-center gap-1.5"><IconAdjustments size={11} className="text-gray-600" />Nasc.: {b.dataNascimento}</div>
                       )}
                       {b.endereco && (
-                        <div className="flex items-center gap-1.5 col-span-full"><MapPin size={11} className="text-gray-600 shrink-0" />{b.endereco}</div>
+                        <div className="flex items-center gap-1.5 col-span-full"><IconMapPin size={11} className="text-gray-600 shrink-0" />{b.endereco}</div>
                       )}
                     </div>
 
@@ -507,7 +505,7 @@ export default function FuncionariosPage() {
                         onClick={() => openConta(b)}
                         className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2d2d2d] text-gray-400 text-xs rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition"
                       >
-                        <KeyRound size={12} />
+                        <IconKey size={12} />
                         {b.uid ? "Atualizar acesso" : "Criar acesso"}
                       </button>
                       {b.uid && (
@@ -516,7 +514,7 @@ export default function FuncionariosPage() {
                           disabled={removendoConta === b.id}
                           className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2d2d2d] text-gray-400 text-xs rounded-lg hover:border-orange-500 hover:text-orange-400 transition disabled:opacity-50"
                         >
-                          {removendoConta === b.id ? <Loader2 size={12} className="animate-spin" /> : <Unlink size={12} />}
+                          {removendoConta === b.id ? <IconLoader2 size={12} className="animate-spin" /> : <IconUnlink size={12} />}
                           Revogar
                         </button>
                       )}
@@ -524,14 +522,14 @@ export default function FuncionariosPage() {
                         onClick={() => { setExpandedId(null); openEdit(b); }}
                         className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2d2d2d] text-gray-400 text-xs rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition"
                       >
-                        <Edit2 size={12} /> Editar
+                        <IconEdit size={12} /> Editar
                       </button>
                       <button
                         onClick={() => handleDelete(b.id, b.nome)}
                         disabled={deletingId === b.id}
                         className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2d2d2d] text-gray-400 text-xs rounded-lg hover:border-red-500 hover:text-red-400 transition disabled:opacity-50"
                       >
-                        {deletingId === b.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                        {deletingId === b.id ? <IconLoader2 size={12} className="animate-spin" /> : <IconTrash size={12} />}
                         Remover
                       </button>
                     </div>
@@ -577,7 +575,7 @@ export default function FuncionariosPage() {
                 onClick={handleSalvarConta} disabled={contaSaving}
                 className="flex items-center gap-2 px-4 py-2 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded hover:bg-[#c9a84c] transition disabled:opacity-50"
               >
-                {contaSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                {contaSaving ? <IconLoader2 size={14} className="animate-spin" /> : <IconCheck size={14} />}
                 Salvar acesso
               </button>
             </div>
@@ -597,7 +595,7 @@ export default function FuncionariosPage() {
                     {form.foto ? (
                       <img src={form.foto} alt="foto" className="w-full h-full object-cover" />
                     ) : (
-                      <Camera size={24} className="text-gray-600" />
+                      <IconCamera size={24} className="text-gray-600" />
                     )}
                   </div>
                   <button
@@ -606,7 +604,7 @@ export default function FuncionariosPage() {
                     disabled={uploading}
                     className="absolute -bottom-1 -right-1 w-7 h-7 bg-[#b8944a] rounded-full flex items-center justify-center hover:bg-[#c9a84c] transition disabled:opacity-50"
                   >
-                    {uploading ? <Loader2 size={12} className="animate-spin text-[#0A0A0A]" /> : <Camera size={12} className="text-[#0A0A0A]" />}
+                    {uploading ? <IconLoader2 size={12} className="animate-spin text-[#0A0A0A]" /> : <IconCamera size={12} className="text-[#0A0A0A]" />}
                   </button>
                   <input ref={fileRef} type="file" accept="image/*" onChange={handleUploadFoto} className="hidden" />
                 </div>
@@ -695,7 +693,7 @@ export default function FuncionariosPage() {
                 onClick={handleSave} disabled={saving}
                 className="flex items-center gap-2 px-4 py-2 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded hover:bg-[#c9a84c] transition disabled:opacity-50"
               >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                {saving ? <IconLoader2 size={14} className="animate-spin" /> : <IconCheck size={14} />}
                 {modal.editing ? "Salvar" : "Criar"}
               </button>
             </div>

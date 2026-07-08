@@ -112,6 +112,7 @@ export interface FechamentoDia {
   agendamentos: Agendamento[];
   extras?: ItemExtra[];
   avulsos?: AtendimentoAvulso[];
+  comandas?: import("./comandas-types").Comanda[];
   totalServicos: number;
   quantidadeAtendidos: number;
   fechadoEm: number;

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import {
+  IconChevronLeft, IconRefresh, IconSearch,
+} from "@tabler/icons-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Search, ChevronLeft, RefreshCw } from "lucide-react";
 
 const STATUS_CONFIG = {
   pendente: {
@@ -133,7 +135,7 @@ function StatusContent() {
         {/* Header */}
         <div className="flex items-center gap-3">
           <Link href="/" className="p-2 text-gray-500 hover:text-[#b8944a] transition rounded-lg hover:bg-[#1a1a1a]">
-            <ChevronLeft size={20} />
+            <IconChevronLeft size={20} />
           </Link>
           <div>
             <h1 className="text-xl font-bold text-[#F5E6C8]">Meus Agendamentos</h1>
@@ -164,9 +166,9 @@ function StatusContent() {
             className="flex items-center justify-center gap-2 px-5 py-3 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-lg hover:bg-[#c9a84c] transition disabled:opacity-50 shadow-[0_0_20px_rgba(184,148,74,0.3)]"
           >
             {loading ? (
-              <RefreshCw size={16} className="animate-spin" />
+              <IconRefresh size={16} className="animate-spin" />
             ) : (
-              <Search size={16} />
+              <IconSearch size={16} />
             )}
             {loading ? "Buscando..." : "Buscar agendamentos"}
           </button>

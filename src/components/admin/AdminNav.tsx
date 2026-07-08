@@ -6,30 +6,32 @@ import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
-  LayoutDashboard, Scissors, Star, ClipboardList,
-  LogOut, CalendarCheck, Tag, Menu, X, ShoppingBag, TrendingUp, ExternalLink, Users, DollarSign, CreditCard,
-  BellRing, AlertTriangle, Bell, Calendar, Wallet, ChevronRight, Settings,
-} from "lucide-react";
+  IconLayoutDashboard, IconScissors, IconStar, IconClipboardList,
+  IconLogout, IconCalendarCheck, IconTag, IconMenu2, IconX, IconShoppingBag, IconChartLine, IconExternalLink,
+  IconUsers, IconReportMoney, IconCreditCard, IconCashRegister,
+  IconBellRinging, IconAlertTriangle, IconBell, IconCalendar, IconWallet, IconChevronRight, IconSettings,
+} from "@tabler/icons-react";
 import { useAdminNotificacoes } from "@/hooks/useAdminNotificacoes";
 import { PushToggle } from "@/components/admin/PushToggle";
 import Drawer from "@/components/ui/Drawer";
 
 const links = [
-  { href: "/admin",               label: "Dashboard",    icon: LayoutDashboard, badge: null as "agendamentos" | "financeiro" | null },
-  { href: "/admin/agendamentos",  label: "Agendamentos", icon: CalendarCheck,   badge: "agendamentos" as const },
-  { href: "/admin/financeiro",    label: "Financeiro",   icon: TrendingUp,      badge: "financeiro" as const },
-  { href: "/admin/produtos",      label: "Produtos",     icon: ShoppingBag,     badge: null },
-  { href: "/admin/itens",         label: "Serviços",     icon: Scissors,        badge: null },
-  { href: "/admin/barbeiros",     label: "Funcionários", icon: Users,           badge: null },
-  { href: "/admin/comissoes",     label: "Comissões",    icon: DollarSign,      badge: null },
-  { href: "/admin/assinantes",    label: "Assinantes",   icon: CreditCard,      badge: null },
-  { href: "/admin/descontos",     label: "Cupons",       icon: Tag,             badge: null },
-  { href: "/admin/vitrine",       label: "Vitrine",      icon: Star,            badge: null },
-  { href: "/admin/configuracoes", label: "Configurações", icon: Settings,       badge: null },
-  { href: "/admin/auditoria",     label: "Auditoria",    icon: ClipboardList,   badge: null },
+  { href: "/admin",               label: "Dashboard",    icon: IconLayoutDashboard, badge: null as "agendamentos" | "financeiro" | null },
+  { href: "/admin/agendamentos",  label: "Agendamentos", icon: IconCalendarCheck,   badge: "agendamentos" as const },
+  { href: "/admin/caixa",         label: "Caixa",        icon: IconCashRegister,    badge: "financeiro" as const },
+  { href: "/admin/financeiro",    label: "Financeiro",   icon: IconChartLine,       badge: null },
+  { href: "/admin/produtos",      label: "Produtos",     icon: IconShoppingBag,     badge: null },
+  { href: "/admin/itens",         label: "Serviços",     icon: IconScissors,        badge: null },
+  { href: "/admin/barbeiros",     label: "Funcionários", icon: IconUsers,           badge: null },
+  { href: "/admin/comissoes",     label: "Comissões",    icon: IconReportMoney,     badge: null },
+  { href: "/admin/assinantes",    label: "Assinantes",   icon: IconCreditCard,      badge: null },
+  { href: "/admin/descontos",     label: "Cupons",       icon: IconTag,             badge: null },
+  { href: "/admin/vitrine",       label: "Vitrine",      icon: IconStar,            badge: null },
+  { href: "/admin/configuracoes", label: "Configurações", icon: IconSettings,       badge: null },
+  { href: "/admin/auditoria",     label: "Auditoria",    icon: IconClipboardList,   badge: null },
 ];
 
-const bottomLinks = [links[0], links[1], links[2], links[3]]; // Dashboard, Agendamentos, Financeiro, Produtos
+const bottomLinks = [links[0], links[1], links[2], links[3]]; // Dashboard, Agendamentos, Caixa, Financeiro
 
 function BadgeDot({ count, urgencia }: { count: number; urgencia: "normal" | "atencao" | "critico" }) {
   if (count <= 0) return null;
@@ -76,20 +78,20 @@ export default function AdminNav() {
       className="!z-[61] w-full md:w-[420px] bg-[#141414] border-l border-[#2d2d2d] shadow-2xl flex flex-col">
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#1e1e1e] shrink-0" style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.875rem)" }}>
           <div className="flex items-center gap-2">
-            <BellRing size={15} className={urgenciaTotal === "critico" ? "text-red-400" : urgenciaTotal === "atencao" ? "text-amber-400" : "text-gray-400"} />
+            <IconBellRinging size={15} className={urgenciaTotal === "critico" ? "text-red-400" : urgenciaTotal === "atencao" ? "text-amber-400" : "text-gray-400"} />
             <h3 className="font-bold text-[#F5E6C8] text-sm">Alertas ativos</h3>
             {totalAlertas > 0 && (
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white ${urgenciaTotal === "critico" ? "bg-red-500" : "bg-yellow-500"}`}>{totalAlertas}</span>
             )}
           </div>
-          <button onClick={() => setModalAlertas(false)} className="text-gray-600 hover:text-gray-300"><X size={15} /></button>
+          <button onClick={() => setModalAlertas(false)} className="text-gray-600 hover:text-gray-300"><IconX size={15} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto min-h-0 py-2">
           {totalAlertas === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center px-4">
               <div className="w-10 h-10 rounded-full bg-green-900/20 border border-green-800/30 flex items-center justify-center mb-3">
-                <BellRing size={18} className="text-green-400" />
+                <IconBellRinging size={18} className="text-green-400" />
               </div>
               <p className="text-sm font-medium text-green-400">Tudo em ordem</p>
               <p className="text-xs text-gray-500 mt-1">Nenhum alerta ativo no momento</p>
@@ -105,13 +107,13 @@ export default function AdminNav() {
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#1a1a1a] transition group"
                   >
                     <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${urgencia === "critico" ? "bg-red-900/30" : "bg-orange-900/30"}`}>
-                      <Calendar size={13} className={urgencia === "critico" ? "text-red-400" : "text-orange-400"} />
+                      <IconCalendar size={13} className={urgencia === "critico" ? "text-red-400" : "text-orange-400"} />
                     </div>
                     <div className="flex-1 min-w-0 text-left">
                       <p className="text-xs font-medium text-[#F5E6C8]">{pendentes} pendente{pendentes > 1 ? "s" : ""}</p>
                       {notif.hoje > 0 && <p className="text-[10px] text-gray-500">{notif.hoje} para hoje</p>}
                     </div>
-                    <ChevronRight size={14} className={`text-gray-600 shrink-0 transition-transform duration-200 ${pendentesExpandido ? "rotate-90" : ""}`} />
+                    <IconChevronRight size={14} className={`text-gray-600 shrink-0 transition-transform duration-200 ${pendentesExpandido ? "rotate-90" : ""}`} />
                   </button>
 
                   {pendentesExpandido && (
@@ -125,7 +127,7 @@ export default function AdminNav() {
                               {p.atrasado ? "Atrasado · " : ""}{new Date(p.data + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} às {p.horario}
                             </p>
                           </div>
-                          <ChevronRight size={14} className="text-gray-600 group-hover:text-[#b8944a] transition shrink-0" />
+                          <IconChevronRight size={14} className="text-gray-600 group-hover:text-[#b8944a] transition shrink-0" />
                         </Link>
                       ))}
                     </div>
@@ -138,10 +140,10 @@ export default function AdminNav() {
                 <div className="px-3 pb-2 border-t border-[#1a1a1a] pt-2">
                   <p className="text-[9px] font-bold tracking-widest uppercase text-gray-600 px-1 py-2">Caixas em aberto</p>
                   {notif.caixasAbertosLista.map((data) => (
-                    <Link key={data} href={`/admin/financeiro?dia=${data}#caixa`} onClick={() => setModalAlertas(false)}
+                    <Link key={data} href={`/admin/caixa?dia=${data}#caixa`} onClick={() => setModalAlertas(false)}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#1a1a1a] transition group">
                       <div className="w-7 h-7 rounded-md bg-red-900/30 flex items-center justify-center shrink-0">
-                        <Wallet size={13} className="text-red-400" />
+                        <IconWallet size={13} className="text-red-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-red-300">Caixa retroativo em aberto</p>
@@ -149,7 +151,7 @@ export default function AdminNav() {
                           {new Date(data + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "short" })}
                         </p>
                       </div>
-                      <ChevronRight size={14} className="text-gray-600 group-hover:text-red-400 transition shrink-0" />
+                      <IconChevronRight size={14} className="text-gray-600 group-hover:text-red-400 transition shrink-0" />
                     </Link>
                   ))}
                 </div>
@@ -163,7 +165,7 @@ export default function AdminNav() {
                     <Link key={v.id} href="/admin/financeiro" onClick={() => setModalAlertas(false)}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#1a1a1a] transition group">
                       <div className="w-7 h-7 rounded-md bg-amber-900/30 flex items-center justify-center shrink-0">
-                        <Bell size={13} className="text-amber-400" />
+                        <IconBell size={13} className="text-amber-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-amber-300 truncate">{v.descricao}</p>
@@ -172,7 +174,7 @@ export default function AdminNav() {
                           {" · "}{new Date(v.data + "T12:00:00").toLocaleDateString("pt-BR")}
                         </p>
                       </div>
-                      <ChevronRight size={14} className="text-gray-600 group-hover:text-amber-400 transition shrink-0" />
+                      <IconChevronRight size={14} className="text-gray-600 group-hover:text-amber-400 transition shrink-0" />
                     </Link>
                   ))}
                 </div>
@@ -188,7 +190,7 @@ export default function AdminNav() {
       <div className="px-5 pb-5 border-b border-[#2d2d2d] flex items-center justify-between" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)" }}>
         <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega</span>
         <button onClick={() => setOpen(false)} className="md:hidden p-1.5 text-gray-500 hover:text-white transition rounded-lg hover:bg-[#2d2d2d]">
-          <X size={18} />
+          <IconX size={18} />
         </button>
       </div>
 
@@ -226,7 +228,7 @@ export default function AdminNav() {
           onClick={() => { setModalAlertas(true); setOpen(false); }}
           className={`flex items-center gap-3 px-3 py-2.5 text-sm transition w-full rounded-lg ${totalAlertas > 0 ? "text-[#b8944a] hover:bg-[#b8944a]/10" : "text-gray-500 hover:bg-[#1a1a1a]"}`}
         >
-          <BellRing size={16} />
+          <IconBellRinging size={16} />
           <span className="flex-1 text-left">Alertas</span>
           {totalAlertas > 0 && (
             <span className={`text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-white ${urgenciaTotal === "critico" ? "bg-red-500" : "bg-yellow-500"}`}>
@@ -239,7 +241,7 @@ export default function AdminNav() {
           onClick={handleLogout}
           className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-400 hover:text-red-400 hover:bg-red-900/10 transition w-full rounded-lg"
         >
-          <LogOut size={16} />
+          <IconLogout size={16} />
           Sair
         </button>
       </div>
@@ -262,7 +264,7 @@ export default function AdminNav() {
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#111]/95 backdrop-blur-md border-b border-[#2d2d2d] flex items-end justify-between px-4 pb-3" style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.25rem)" }}>
         <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega</span>
         <Link href="/" className="p-2 text-gray-400 hover:text-[#b8944a] transition" aria-label="Ver site">
-          <ExternalLink size={18} />
+          <IconExternalLink size={18} />
         </Link>
       </div>
 
@@ -301,7 +303,7 @@ export default function AdminNav() {
           onClick={() => setOpen(true)}
           className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-gray-600 hover:text-gray-400 transition"
         >
-          <Menu size={20} strokeWidth={1.8} />
+          <IconMenu2 size={20} strokeWidth={1.8} />
           <span>Mais</span>
         </button>
       </nav>

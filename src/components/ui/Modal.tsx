@@ -1,8 +1,10 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import {
+  IconX,
+} from "@tabler/icons-react";
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
 import { useScrollLock } from "./useScrollLock";
 
 /**
@@ -108,7 +110,7 @@ export default function Modal({
                   whileTap={{ rotate: 180, scale: 0.85 }}
                   transition={{ type: "spring", stiffness: 400, damping: 20 }}
                 >
-                  <X size={17} />
+                  <IconX size={17} />
                 </motion.button>
               )}
 

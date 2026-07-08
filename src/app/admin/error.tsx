@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle, RefreshCw } from "lucide-react";
+import {
+  IconMessageCircle, IconRefresh,
+} from "@tabler/icons-react";
 import Modal from "@/components/ui/Modal";
 
 const SUPORTE = [
@@ -33,7 +35,7 @@ function ModalSuporte({ open, onFechar }: { open: boolean; onFechar: () => void 
               rel="noopener noreferrer"
               className="flex items-center gap-3 px-4 py-3 bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg text-[#F5E6C8] text-sm font-medium hover:border-[#b8944a] hover:text-[#b8944a] transition"
             >
-              <MessageCircle size={16} className="text-[#b8944a] shrink-0" />
+              <IconMessageCircle size={16} className="text-[#b8944a] shrink-0" />
               {nome}
             </a>
           ))}
@@ -76,13 +78,13 @@ export default function AdminError({
             onClick={reset}
             className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded hover:bg-[#c9a84c] transition"
           >
-            <RefreshCw size={14} /> Tentar novamente
+            <IconRefresh size={14} /> Tentar novamente
           </button>
           <button
             onClick={() => setMostraModal(true)}
             className="flex items-center justify-center gap-2 px-6 py-2.5 border border-[#2d2d2d] text-gray-400 text-sm rounded hover:border-green-700 hover:text-green-400 transition"
           >
-            <MessageCircle size={14} /> Contatar suporte
+            <IconMessageCircle size={14} /> Contatar suporte
           </button>
         </div>
 
