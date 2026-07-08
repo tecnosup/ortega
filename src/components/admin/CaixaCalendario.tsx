@@ -789,12 +789,7 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
       {/* ── Card SEPARADO: Comandas do dia (abertas) ── */}
       {!fechDia && !ehFuturo && (
         <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-5 mt-4">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-sm font-bold text-[#F5E6C8]">Comandas do dia</p>
-            <button onClick={() => setNovaComanda(true)} className="flex items-center gap-1 text-[10px] font-bold tracking-widest uppercase text-[#b8944a]/80 hover:text-[#b8944a] transition">
-              <IconPlus size={11} /> Nova
-            </button>
-          </div>
+          <p className="text-sm font-bold text-[#F5E6C8] mb-1">Comandas em aberto</p>
           <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-3">
             {abertas.length > 0 ? `${abertas.length} comanda${abertas.length > 1 ? "s" : ""} em aberto` : "Nenhuma comanda em aberto"}
           </p>
