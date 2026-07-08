@@ -50,10 +50,6 @@ const STATUS_LABEL: Record<AgendamentoStatus, string> = {
   nao_compareceu: "Não compareceu",
 };
 
-const SERVICOS_LISTA = [
-  "Corte Clássico", "Barba Completa", "Combo Corte + Barba", "Coloração e Luzes", "Sobrancelha",
-];
-
 // ─── Calendário mensal rico ───────────────────────────────────────────────────
 
 function CalendarioMensal({
@@ -1534,14 +1530,14 @@ export default function AgendamentosAdminPage() {
                                 <div className="mt-2 flex flex-col gap-2">
                                   {editLinhas.map((linha, idx) => (
                                     <div key={idx} className="flex gap-2 items-center flex-wrap">
-                                      <select value={linha.servico} onChange={(e) => setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, servico: e.target.value } : l))} className={inp}>{SERVICOS_LISTA.map((s) => <option key={s}>{s}</option>)}</select>
+                                      <select value={linha.servico} onChange={(e) => { const nome = e.target.value; const svc = servicos.find((s) => s.titulo === nome); setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, servico: nome, preco: svc?.preco ?? l.preco } : l)); }} className={inp}>{servicos.map((s) => <option key={s.id}>{s.titulo}</option>)}</select>
                                       <input value={linha.preco} onChange={(e) => setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, preco: e.target.value } : l))} placeholder="Preço" className={`${inp} w-24`} />
                                       {editLinhas.length > 1 && <button onClick={() => setEditLinhas((prev) => prev.filter((_, i) => i !== idx))} className="p-1 text-red-400 hover:text-red-300 rounded transition"><X size={13} /></button>}
                                     </div>
                                   ))}
                                   {editLinhas.length > 1 && <p className="text-xs text-[#b8944a] font-medium">Total: R$ {editLinhas.reduce((s, l) => s + parsePriceNum(l.preco), 0).toFixed(2).replace(".", ",")}</p>}
                                   <div className="flex gap-2 flex-wrap">
-                                    <button onClick={() => setEditLinhas((prev) => [...prev, { servico: SERVICOS_LISTA[0], preco: "" }])} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><Plus size={11} /> Serviço</button>
+                                    <button onClick={() => setEditLinhas((prev) => [...prev, { servico: servicos[0]?.titulo ?? "", preco: servicos[0]?.preco ?? "" }])} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><Plus size={11} /> Serviço</button>
                                     <button onClick={() => salvarEdicao(ag.id)} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 bg-green-900/30 text-green-400 border border-green-700/50 rounded text-xs hover:bg-green-900/50 transition"><Check size={12} /> Salvar</button>
                                     <button onClick={() => setEditandoId(null)} className="flex items-center gap-1 px-2 py-1 border border-[#2d2d2d] text-gray-400 rounded text-xs hover:border-[#b8944a] transition"><X size={12} /> Cancelar</button>
                                   </div>
@@ -1734,14 +1730,14 @@ export default function AgendamentosAdminPage() {
                                     <div className="flex flex-col gap-2">
                                       {editLinhas.map((linha, idx) => (
                                         <div key={idx} className="flex gap-2 items-center flex-wrap">
-                                          <select value={linha.servico} onChange={(e) => setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, servico: e.target.value } : l))} className={inp}>{SERVICOS_LISTA.map((s) => <option key={s}>{s}</option>)}</select>
+                                          <select value={linha.servico} onChange={(e) => { const nome = e.target.value; const svc = servicos.find((s) => s.titulo === nome); setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, servico: nome, preco: svc?.preco ?? l.preco } : l)); }} className={inp}>{servicos.map((s) => <option key={s.id}>{s.titulo}</option>)}</select>
                                           <input value={linha.preco} onChange={(e) => setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, preco: e.target.value } : l))} placeholder="Preço" className={`${inp} w-24`} />
                                           {editLinhas.length > 1 && <button onClick={() => setEditLinhas((prev) => prev.filter((_, i) => i !== idx))} className="p-1 text-red-400 hover:text-red-300 rounded transition"><X size={13} /></button>}
                                         </div>
                                       ))}
                                       {editLinhas.length > 1 && <p className="text-xs text-[#b8944a]">Total: R$ {editLinhas.reduce((s, l) => s + parsePriceNum(l.preco), 0).toFixed(2).replace(".", ",")}</p>}
                                       <div className="flex gap-2 flex-wrap">
-                                        <button onClick={() => setEditLinhas((prev) => [...prev, { servico: SERVICOS_LISTA[0], preco: "" }])} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><Plus size={11} /> Serviço</button>
+                                        <button onClick={() => setEditLinhas((prev) => [...prev, { servico: servicos[0]?.titulo ?? "", preco: servicos[0]?.preco ?? "" }])} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><Plus size={11} /> Serviço</button>
                                         <button onClick={() => salvarEdicao(ag.id)} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 bg-green-900/30 text-green-400 border border-green-700/50 rounded text-xs hover:bg-green-900/50 transition"><Check size={12} /> Salvar</button>
                                         <button onClick={() => setEditandoId(null)} className="flex items-center gap-1 px-2 py-1 border border-[#2d2d2d] text-gray-400 rounded text-xs hover:border-[#b8944a] transition"><X size={12} /> Cancelar</button>
                                       </div>
