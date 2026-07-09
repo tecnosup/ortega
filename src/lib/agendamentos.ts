@@ -66,22 +66,27 @@ export async function fecharCaixaDia(
   avulsos: AtendimentoAvulso[] = [],
   comandas: Comanda[] = [],
 ): Promise<string> {
-  const concluidos = agendamentos.filter((a) => a.status === "concluido");
-  const totalAgs = concluidos.reduce((sum, a) => {
-    return sum + (parseFloat(a.preco.replace(/[^\d.,]/g, "").replace(",", ".")) || 0);
-  }, 0);
-  const totalAvulsos = avulsos.reduce((sum, av) => sum + av.total, 0);
   // Comandas finalizadas são a fonte de verdade do faturamento no novo modelo.
   const finalizadas = comandas.filter((c) => c.status === "finalizada");
   const totalComandas = finalizadas.reduce((sum, c) => sum + (c.total || 0), 0);
+  // Evita DUPLA CONTAGEM: se um agendamento concluído já tem comanda finalizada,
+  // ele já foi contado em totalComandas — não soma de novo em totalAgs.
+  const idsAgComComanda = new Set(finalizadas.map((c) => c.agendamentoId).filter(Boolean));
+  const concluidos = agendamentos.filter((a) => a.status === "concluido");
+  const concluidosSemComanda = concluidos.filter((a) => !idsAgComComanda.has(a.id));
+  const totalAgs = concluidosSemComanda.reduce((sum, a) => {
+    return sum + (parseFloat(a.preco.replace(/[^\d.,]/g, "").replace(",", ".")) || 0);
+  }, 0);
+  const totalAvulsos = avulsos.reduce((sum, av) => sum + av.total, 0);
   const db = getAdminDb();
   const ref = await db.collection("fechamentos").add({
     data,
-    agendamentos: concluidos,
+    // grava só os concluídos que NÃO viraram comanda (os demais já estão em `comandas`)
+    agendamentos: concluidosSemComanda,
     avulsos,
     comandas: finalizadas,
     totalServicos: totalAgs + totalAvulsos + totalComandas,
-    quantidadeAtendidos: concluidos.length + avulsos.length + finalizadas.length,
+    quantidadeAtendidos: concluidosSemComanda.length + avulsos.length + finalizadas.length,
     fechadoEm: Date.now(),
   });
   return ref.id;

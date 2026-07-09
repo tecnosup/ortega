@@ -3,6 +3,8 @@ import { getAgendamento, atualizarAgendamento, excluirAgendamento } from "@/lib/
 import type { AgendamentoStatus } from "@/lib/agendamentos";
 import { getSessionUser, getAdminDb } from "@/lib/firebase-admin";
 import { devolverCredito } from "@/lib/assinaturas";
+import { getComandaPorAgendamento, finalizarComanda, cancelarComanda, atualizarComanda, excluirComanda } from "@/lib/comandas";
+import { parsePriceNum } from "@/lib/agendamentos-types";
 
 async function appendLog(id: string, acao: string, adminId: string) {
   const db = getAdminDb();
@@ -40,6 +42,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   await atualizarAgendamento(id, { status: body.status });
   appendLog(id, `status → ${body.status}`, user.uid).catch(() => {});
+
+  // Mantém a COMANDA vinculada em sincronia com o status do agendamento.
+  // (cancelar/finalizar só agem se a comanda estiver "aberta" — guarda interna)
+  if (body.status === "cancelado" || body.status === "concluido" || body.status === "nao_compareceu") {
+    getComandaPorAgendamento(id)
+      .then((comanda) => {
+        if (!comanda || comanda.status !== "aberta") return;
+        // concluído → finaliza (entra no faturamento); cancelado/não-compareceu → cancela
+        return body.status === "concluido"
+          ? finalizarComanda(comanda.id)
+          : cancelarComanda(comanda.id);
+      })
+      .catch(() => {});
+  }
 
   // Reembolso de crédito quando barbeiro/admin cancela agendamento coberto por assinatura
   if (body.status === "cancelado" && ag.cobertoPorAssinatura && ag.assinaturaId) {
@@ -95,6 +111,28 @@ export async function PUT(req: NextRequest, { params }: Params) {
     : `editado serviço/preço`;
   appendLog(id, descricaoAcao, user.uid).catch(() => {});
 
+  // Espelha a mudança na COMANDA vinculada (data/horário/barbeiro; e serviço/preço
+  // recompõem o item e o total). Só toca no que veio no body.
+  getComandaPorAgendamento(id)
+    .then((comanda) => {
+      if (!comanda) return;
+      const cp: Record<string, unknown> = {};
+      if (body.data !== undefined) cp.data = body.data;
+      if (body.horario !== undefined) cp.horario = body.horario;
+      if (body.barbeiroId !== undefined) cp.barbeiroId = body.barbeiroId ?? null;
+      if (body.barbeiroNome !== undefined) cp.barbeiroNome = body.barbeiroNome ?? null;
+      // serviço/preço: só recompõe se a comanda ainda reflete só o serviço do agendamento
+      // (1 item de serviço) — não mexe em comandas que já ganharam produtos/itens extras
+      if ((body.servico !== undefined || body.preco !== undefined) && comanda.itens?.length === 1 && comanda.itens[0]?.tipo === "servico") {
+        const desc = body.servico ?? comanda.itens[0].descricao;
+        const valor = body.preco !== undefined ? parsePriceNum(body.preco) : comanda.itens[0].valor;
+        cp.itens = [{ ...comanda.itens[0], descricao: desc, valor }];
+        cp.total = valor;
+      }
+      if (Object.keys(cp).length > 0) return atualizarComanda(comanda.id, cp);
+    })
+    .catch(() => {});
+
   const reagendou = body.data !== undefined || body.horario !== undefined;
   let whatsappLink: string | null = null;
 
@@ -124,5 +162,9 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   const ag = await getAgendamento(id);
   if (!ag) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
   await excluirAgendamento(id);
+  // remove a comanda vinculada pra não ficar órfã no Caixa
+  getComandaPorAgendamento(id)
+    .then((comanda) => { if (comanda) return excluirComanda(comanda.id); })
+    .catch(() => {});
   return NextResponse.json({ ok: true });
 }

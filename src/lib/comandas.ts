@@ -49,6 +49,19 @@ export async function getComanda(id: string): Promise<Comanda | null> {
   return doc.exists ? ({ id: doc.id, ...doc.data() } as Comanda) : null;
 }
 
+/**
+ * Acha a comanda de origem "agendamento" vinculada a um agendamentoId.
+ * Usado pra manter comanda em sincronia quando o agendamento muda de status
+ * (cancelar/concluir/reagendar). Retorna null se não houver.
+ */
+export async function getComandaPorAgendamento(agendamentoId: string): Promise<Comanda | null> {
+  const db = getAdminDb();
+  const snap = await db.collection(COL).where("agendamentoId", "==", agendamentoId).limit(1).get();
+  if (snap.empty) return null;
+  const d = snap.docs[0];
+  return { id: d.id, ...d.data() } as Comanda;
+}
+
 export async function atualizarComanda(
   id: string,
   patch: Partial<Omit<Comanda, "id" | "criadoEm">>
