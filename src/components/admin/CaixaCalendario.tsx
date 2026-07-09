@@ -16,6 +16,8 @@ import type { GastoDia } from "@/lib/gastos-dia-tipos";
 import Modal from "@/components/ui/Modal";
 import { useModalMount } from "@/components/ui/useModalMount";
 import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Confirm";
+import { useSucesso } from "@/components/ui/Sucesso";
 
 function brl(v: number) { return `R$ ${v.toFixed(2).replace(".", ",")}` }
 function ymd(d: Date) {
@@ -530,13 +532,16 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
 
   const [ano, setAno] = useState(() => new Date().getFullYear());
   const [mes, setMes] = useState(() => new Date().getMonth());
-  const [calendarioAberto, setCalendarioAberto] = useState(true);
+  const [calendarioAberto, setCalendarioAberto] = useState(false);
+  const [finalizadasAberto, setFinalizadasAberto] = useState(false);
   const [diaSel, setDiaSel] = useState<string>(hoje);
   const [refSemana, setRefSemana] = useState<string>(hoje);
   const [dirSemana, setDirSemana] = useState(0);
   const [fechando, setFechando] = useState(false);
   const [erroFechar, setErroFechar] = useState("");
   const toast = useToast();
+  const confirmar = useConfirm();
+  const sucesso = useSucesso();
 
   const [mostraFormGasto, setMostraFormGasto] = useState(false);
   const [novaComanda, setNovaComanda] = useState(false);
@@ -635,8 +640,10 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
     return true;
   }
 
-  async function excluirGasto(id: string) {
+  async function excluirGasto(id: string, descricao: string) {
+    if (!(await confirmar({ titulo: "Excluir gasto do dia", mensagem: `Remover "${descricao}" do caixa deste dia?`, confirmar: "Excluir" }))) return;
     await fetch(`/api/gastos-dia/${id}`, { method: "DELETE", credentials: "include" });
+    sucesso("Gasto excluído");
     onAtualizar();
   }
 
@@ -879,8 +886,15 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
           {/* ── Card: Comandas finalizadas (dentro do caixa) ── */}
           {finalizadas.length > 0 && (
             <div className="mb-4 border border-[#1a1a1a] rounded-lg overflow-hidden">
-              <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 px-3 pt-2.5 pb-1">Comandas finalizadas</p>
-              {finalizadas.map((c) => (
+              <button onClick={() => setFinalizadasAberto((o) => !o)}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-[#0f0f0f] transition">
+                <span className="text-[10px] font-bold tracking-widest uppercase text-gray-600">Comandas finalizadas · {finalizadas.length}</span>
+                <span className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs font-semibold text-[#b8944a]">{brl(totalFaturamento)}</span>
+                  <IconChevronDown size={13} className={`text-gray-600 transition-transform ${finalizadasAberto ? "rotate-180" : ""}`} />
+                </span>
+              </button>
+              {finalizadasAberto && finalizadas.map((c) => (
                 <div key={c.id} className="border-t border-[#1a1a1a] px-3 py-2.5">
                   <div className="flex justify-between items-baseline gap-3">
                     <span className="text-sm text-[#F5E6C8] flex items-center gap-1.5 min-w-0"><IconCheck size={12} className="text-green-500 shrink-0" /> <span className="truncate">{c.clienteNome}</span></span>
@@ -919,7 +933,7 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
                   <span className="text-gray-400">{g.descricao}</span>
                   <div className="flex items-center gap-2 ml-3 shrink-0">
                     <span className="text-red-400 font-medium">−{brl(g.valor)}</span>
-                    {!fechDia && <button onClick={() => excluirGasto(g.id)} className="text-gray-700 hover:text-red-400 transition"><IconTrash size={11} /></button>}
+                    {!fechDia && <button onClick={() => excluirGasto(g.id, g.descricao)} className="text-gray-700 hover:text-red-400 transition"><IconTrash size={11} /></button>}
                   </div>
                 </div>
               ))}
