@@ -103,3 +103,14 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #C9A84C88;
 }
+
+/* Remove as setinhas (spinner) dos inputs numéricos — mantém o teclado numérico */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
