@@ -226,7 +226,7 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
   open?: boolean;
   inicial?: Partial<Gasto>;
   categorias: CategoriaGastoCustom[];
-  onSalvar: (d: Partial<Gasto>) => void;
+  onSalvar: (d: Partial<Gasto> & { dataGasto?: string }) => void;
   onCancelar: () => void;
   salvando: boolean;
 }) {
@@ -239,6 +239,8 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
   const [ativo, setAtivo] = useState(inicial?.ativo ?? true);
   const [proximoVencimento, setProximoVencimento] = useState(inicial?.proximoVencimento ?? "");
   const [lembrarRenovacao, setLembrarRenovacao] = useState(inicial?.lembrarRenovacao ?? false);
+  const hoje = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
+  const [dataGasto, setDataGasto] = useState(hoje);
   const [erro, setErro] = useState("");
 
   useEffect(() => { document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = ""; }; }, []);
@@ -252,6 +254,7 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
     if (!valor || isNaN(Number(valor)) || Number(valor) <= 0) { setErro("Valor inválido"); return; }
     if (!categoriaId && categorias.length > 0) { setErro("Selecione uma categoria"); return; }
     if (isPersonalizado && !frequenciaCustom.trim()) { setErro("Descreva a frequência personalizada"); return; }
+    if (isUnico && !dataGasto) { setErro("Escolha a data do gasto"); return; }
     setErro("");
     onSalvar({
       descricao, categoriaId: categoriaId || undefined,
@@ -261,6 +264,7 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
       ...(isPersonalizado && { frequenciaCustom: frequenciaCustom.trim(), intervaloDias: Number(intervaloDias) || undefined }),
       proximoVencimento: !isUnico && proximoVencimento ? proximoVencimento : undefined,
       lembrarRenovacao: !isUnico ? lembrarRenovacao : false,
+      ...(isUnico && { dataGasto }),
     });
   }
 
@@ -317,6 +321,15 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {isUnico && (
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Data do gasto *</label>
+              <input type="date" value={dataGasto} max={hoje} onChange={(e) => setDataGasto(e.target.value)}
+                className={`${inp} w-full`} />
+              <p className="text-[10px] text-gray-600">Será lançado como gasto do dia no caixa dessa data</p>
             </div>
           )}
 
@@ -407,6 +420,11 @@ export default function FinanceiroPage() {
   }
   const [gastoExpandido, setGastoExpandido] = useState<string | null>(null);
 
+  // ── Conciliação de gastos "único" legados (cadastrados sem data, antes da mudança) ──
+  const [concEdits, setConcEdits] = useState<Record<string, { data: string; valor: string; categoriaId: string }>>({});
+  const [lancandoLegado, setLancandoLegado] = useState<string | null>(null);
+  function hojeISO() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+
   const carregar = useCallback(async () => {
     const [resFech, resGastos, resGastosDia, resCats] = await Promise.all([
       fetch("/api/fechamento", { credentials: "include" }),
@@ -423,9 +441,73 @@ export default function FinanceiroPage() {
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  async function salvarGasto(data: Partial<Gasto>) {
+  // Inicializa os campos de edição dos legados assim que a lista de gastos chega
+  useEffect(() => {
+    setConcEdits((prev) => {
+      const next = { ...prev };
+      gastos.filter((g) => g.frequencia === "unico").forEach((g) => {
+        if (!next[g.id]) next[g.id] = { data: "", valor: String(g.valor), categoriaId: g.categoriaId ?? "" };
+      });
+      return next;
+    });
+  }, [gastos]);
+
+  async function lancarLegado(g: Gasto) {
+    const e = concEdits[g.id] ?? { data: "", valor: String(g.valor), categoriaId: g.categoriaId ?? "" };
+    if (!e.data) return;
+    const cat = e.categoriaId ? categorias.find((c) => c.id === e.categoriaId) : null;
+    setLancandoLegado(g.id);
+    await fetch("/api/gastos-dia", {
+      credentials: "include", method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: e.data, descricao: g.descricao, valor: Number(e.valor) || g.valor, ...(cat ? { categoriaId: cat.id, categoriaNome: cat.nome, categoriaCor: cat.cor } : {}) }),
+    });
+    await fetch(`/api/gastos/${g.id}`, { credentials: "include", method: "DELETE" });
+    setLancandoLegado(null);
+    toast.sucesso(`"${g.descricao}" lançado no caixa`);
+    carregar();
+  }
+
+  async function lancarTodosHoje() {
+    if (!confirm("Lançar todos os gastos pendentes com a data de hoje? Você pode ajustar depois no caixa.")) return;
+    const hoje = hojeISO();
+    for (const g of gastos.filter((x) => x.frequencia === "unico")) {
+      const e = concEdits[g.id];
+      const cat = (e?.categoriaId ?? g.categoriaId) ? categorias.find((c) => c.id === (e?.categoriaId || g.categoriaId)) : null;
+      await fetch("/api/gastos-dia", {
+        credentials: "include", method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: hoje, descricao: g.descricao, valor: Number(e?.valor) || g.valor, ...(cat ? { categoriaId: cat.id, categoriaNome: cat.nome, categoriaCor: cat.cor } : {}) }),
+      });
+      await fetch(`/api/gastos/${g.id}`, { credentials: "include", method: "DELETE" });
+    }
+    toast.sucesso("Todos os pendentes foram lançados no caixa");
+    carregar();
+  }
+
+  async function salvarGasto(data: Partial<Gasto> & { dataGasto?: string }) {
     setSalvandoGasto(true);
     const editando = !!editandoGasto;
+
+    // Único = gasto avulso datado → vai direto pro caixa (coleção gastos_dia), não fica em "Gastos da empresa"
+    if (data.frequencia === "unico") {
+      const cat = data.categoriaId ? categorias.find((c) => c.id === data.categoriaId) : null;
+      await fetch("/api/gastos-dia", {
+        credentials: "include", method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: data.dataGasto,
+          descricao: data.descricao,
+          valor: data.valor,
+          ...(cat ? { categoriaId: cat.id, categoriaNome: cat.nome, categoriaCor: cat.cor } : {}),
+        }),
+      });
+      // se estava convertendo um gasto recorrente já existente, remove o antigo
+      if (editandoGasto) { await fetch(`/api/gastos/${editandoGasto.id}`, { credentials: "include", method: "DELETE" }); }
+      setEditandoGasto(null); setMostraFormGasto(false);
+      setSalvandoGasto(false);
+      toast.sucesso("Gasto lançado no caixa!");
+      carregar();
+      return;
+    }
+
     if (editandoGasto) {
       await fetch(`/api/gastos/${editandoGasto.id}`, { credentials: "include", method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
       setEditandoGasto(null);
@@ -493,9 +575,24 @@ export default function FinanceiroPage() {
     ? (maxLucro / (maxLucro - minLucro)) * 100
     : 0;
 
-  const gastosAtivos = gastos.filter((g) => g.ativo);
+  // "Único" não é mais um gasto recorrente — sai da lista da empresa e dos agregados mensais.
+  // Enquanto tiver algum "único" na base, ele é um legado pendente de conciliação (falta a data).
+  const gastosFixos = gastos.filter((g) => g.frequencia !== "unico");
+  const legados = gastos.filter((g) => g.frequencia === "unico");
+  const gastosAtivos = gastosFixos.filter((g) => g.ativo);
   const totalMensalGastos = gastosAtivos.reduce((s, g) => s + gastoMensalEquivalente(g), 0);
   const lucroEstimado = totalPeriodo - totalMensalGastos;
+
+  const gastosDiaPeriodo = gastosDia.filter((g) => {
+    if (periodo === "tudo") return true;
+    const agora = new Date();
+    const d = new Date(g.data + "T12:00:00");
+    if (periodo === "7d") { const l = new Date(agora); l.setDate(l.getDate() - 7); return d >= l; }
+    if (periodo === "30d") { const l = new Date(agora); l.setDate(l.getDate() - 30); return d >= l; }
+    if (periodo === "mes_atual") return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear();
+    if (periodo === "mes_anterior") { const m = agora.getMonth() === 0 ? 11 : agora.getMonth() - 1; const y = agora.getMonth() === 0 ? agora.getFullYear() - 1 : agora.getFullYear(); return d.getMonth() === m && d.getFullYear() === y; }
+    return false;
+  });
 
   // Resolve nome e cor de cada gasto (categoria customizada tem prioridade)
   const porCategoria: Record<string, number> = {};
@@ -505,6 +602,13 @@ export default function FinanceiroPage() {
     const nome = custom?.nome ?? CATEGORIA_LABEL[g.categoria] ?? "Outros";
     const cor = custom?.cor ?? "#6B7280";
     porCategoria[nome] = (porCategoria[nome] ?? 0) + gastoMensalEquivalente(g);
+    corPorCategoria[nome] = cor;
+  });
+  // gastos do dia (avulsos) do período — gasto real por categoria
+  gastosDiaPeriodo.forEach((g) => {
+    const nome = g.categoriaNome || "Sem categoria";
+    const cor = g.categoriaCor || "#6B7280";
+    porCategoria[nome] = (porCategoria[nome] ?? 0) + g.valor;
     corPorCategoria[nome] = cor;
   });
   const donutData = Object.entries(porCategoria).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
@@ -619,6 +723,53 @@ export default function FinanceiroPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Conciliação: gastos "único" legados sem data ── */}
+      {legados.length > 0 && (
+        <div className="bg-amber-950/20 border border-amber-700/40 rounded-lg p-4 flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex items-start gap-2">
+              <IconAlertTriangle size={15} className="text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-300">{legados.length} gasto{legados.length > 1 ? "s" : ""} aguardando data pra entrar no caixa</p>
+                <p className="text-[11px] text-amber-300/60 mt-0.5">Estes foram cadastrados sem data. Informe quando cada um foi pago pra lançar no caixa do dia certo.</p>
+              </div>
+            </div>
+            <button onClick={lancarTodosHoje}
+              className="text-[10px] font-bold tracking-widest uppercase shrink-0 px-2.5 py-1.5 bg-amber-800/30 border border-amber-700/40 text-amber-300 rounded hover:bg-amber-800/50 transition">
+              Lançar todos com hoje
+            </button>
+          </div>
+          <div className="flex flex-col divide-y divide-amber-800/20">
+            {legados.map((g) => {
+              const e = concEdits[g.id] ?? { data: "", valor: String(g.valor), categoriaId: g.categoriaId ?? "" };
+              const set = (patch: Partial<{ data: string; valor: string; categoriaId: string }>) =>
+                setConcEdits((prev) => ({ ...prev, [g.id]: { ...(prev[g.id] ?? { data: "", valor: String(g.valor), categoriaId: g.categoriaId ?? "" }), ...patch } }));
+              return (
+                <div key={g.id} className="flex items-center gap-2 py-2.5 flex-wrap">
+                  <span className="text-sm font-medium text-[#F5E6C8] flex-1 min-w-[90px]">{g.descricao}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-gray-500">R$</span>
+                    <input type="number" min="0" step="0.01" value={e.valor} onChange={(ev) => set({ valor: ev.target.value })}
+                      className="bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2 py-1 text-xs text-[#F5E6C8] w-20 focus:outline-none focus:border-[#b8944a]" />
+                  </div>
+                  <select value={e.categoriaId} onChange={(ev) => set({ categoriaId: ev.target.value })}
+                    className="bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2 py-1 text-xs text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] max-w-[130px]">
+                    <option value="">Sem categoria</option>
+                    {categorias.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
+                  <input type="date" max={hojeISO()} value={e.data} onChange={(ev) => set({ data: ev.target.value })}
+                    className="bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2 py-1 text-xs text-[#F5E6C8] focus:outline-none focus:border-[#b8944a]" />
+                  <button disabled={!e.data || lancandoLegado === g.id} onClick={() => lancarLegado(g)}
+                    className="text-[10px] font-bold tracking-widest uppercase px-2.5 py-1.5 bg-[#b8944a] text-[#0A0A0A] rounded hover:bg-[#c9a84c] transition disabled:opacity-40">
+                    {lancandoLegado === g.id ? "..." : "Lançar"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -883,11 +1034,11 @@ export default function FinanceiroPage() {
           </div>
         </div>
 
-        {gastos.length === 0 ? (
-          <div className="py-8 text-center"><IconReceipt size={24} className="text-gray-600 mx-auto mb-2" /><p className="text-sm text-gray-500">Nenhum gasto cadastrado.</p></div>
+        {gastosFixos.length === 0 ? (
+          <div className="py-8 text-center"><IconReceipt size={24} className="text-gray-600 mx-auto mb-2" /><p className="text-sm text-gray-500">Nenhum gasto fixo cadastrado.</p></div>
         ) : (
           <div className="flex flex-col divide-y divide-[#1a1a1a] overflow-y-auto max-h-80">
-            {gastos.map((g) => {
+            {gastosFixos.map((g) => {
               const catCustom = g.categoriaId ? categorias.find((c) => c.id === g.categoriaId) : null;
               const catNome = catCustom?.nome ?? CATEGORIA_LABEL[g.categoria] ?? "Outros";
               const catCor = catCustom?.cor ?? "#6B7280";
