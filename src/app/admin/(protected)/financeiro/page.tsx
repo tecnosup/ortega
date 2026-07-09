@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState, useCallback } from "react";
 import {
-  IconAlertTriangle, IconBell, IconBellOff, IconCalendarMonth, IconCheck, IconChevronDown, IconEdit, IconPlus, IconReceipt, IconSettings, IconToggleLeft, IconToggleRight, IconTrash,
+  IconAlertTriangle, IconBell, IconBellOff, IconCashRegister, IconCheck, IconChevronDown, IconEdit, IconPlus, IconReceipt, IconSettings, IconToggleLeft, IconToggleRight, IconTrash,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { useAdminNotificacoes, type VencimentoItem } from "@/hooks/useAdminNotificacoes";
@@ -19,6 +19,11 @@ import { CATEGORIA_LABEL, FREQUENCIA_LABEL, gastoMensalEquivalente } from "@/lib
 import Modal from "@/components/ui/Modal";
 import { useModalMount } from "@/components/ui/useModalMount";
 import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Confirm";
+import { useSucesso } from "@/components/ui/Sucesso";
+import DatePicker from "@/components/ui/DatePicker";
+import Select from "@/components/ui/Select";
+import Revelar from "@/components/ui/Revelar";
 import AdminFab from "@/components/admin/AdminFab";
 
 function brl(v: number) { return `R$ ${v.toFixed(2).replace(".", ",")}` }
@@ -122,6 +127,8 @@ function ModalCategorias({ open = true, categorias, onFechar, onChanged }: {
   onChanged: () => void;
 }) {
   const toast = useToast();
+  const confirmar = useConfirm();
+  const sucesso = useSucesso();
   const [editando, setEditando] = useState<CategoriaGastoCustom | null>(null);
   const [novoNome, setNovoNome] = useState("");
   const [novaCor, setNovaCor] = useState(PALETTE[0]);
@@ -157,9 +164,9 @@ function ModalCategorias({ open = true, categorias, onFechar, onChanged }: {
   }
 
   async function excluir(id: string) {
-    if (!confirm("Excluir esta categoria? Gastos vinculados não serão afetados.")) return;
+    if (!(await confirmar({ titulo: "Excluir categoria", mensagem: "Gastos vinculados não serão afetados.", confirmar: "Excluir" }))) return;
     await fetch(`/api/gastos/categorias/${id}`, { method: "DELETE", credentials: "include" });
-    toast.info("Categoria excluída");
+    sucesso("Categoria excluída");
     onChanged();
   }
 
@@ -255,6 +262,7 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
     if (!categoriaId && categorias.length > 0) { setErro("Selecione uma categoria"); return; }
     if (isPersonalizado && !frequenciaCustom.trim()) { setErro("Descreva a frequência personalizada"); return; }
     if (isUnico && !dataGasto) { setErro("Escolha a data do gasto"); return; }
+    if (!isUnico && !proximoVencimento) { setErro("Informe o próximo vencimento — é quando o gasto entra no caixa"); return; }
     setErro("");
     onSalvar({
       descricao, categoriaId: categoriaId || undefined,
@@ -274,7 +282,9 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
           <h3 className="font-bold text-[#F5E6C8] text-sm">{inicial?.id ? "Editar gasto" : "Novo gasto"}</h3>
         </div>
         <div className="flex-1 overflow-y-auto min-h-0 px-5 py-4 flex flex-col gap-4">
-          {erro && <p className="text-xs text-red-400 bg-red-900/10 border border-red-900/30 rounded px-3 py-2">{erro}</p>}
+          <Revelar show={!!erro}>
+            <p className="text-xs text-red-400 bg-red-900/10 border border-red-900/30 rounded px-3 py-2">{erro}</p>
+          </Revelar>
 
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Descrição *</label>
@@ -288,9 +298,11 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Frequência *</label>
-              <select value={frequencia} onChange={(e) => setFrequencia(e.target.value as FrequenciaGasto)} className={`${inp} w-full`}>
-                {(Object.keys(FREQUENCIA_LABEL) as FrequenciaGasto[]).map((f) => <option key={f} value={f}>{FREQUENCIA_LABEL[f]}</option>)}
-              </select>
+              <Select
+                value={frequencia}
+                onChange={(v) => setFrequencia(v as FrequenciaGasto)}
+                options={(Object.keys(FREQUENCIA_LABEL) as FrequenciaGasto[]).map((f) => ({ value: f, label: FREQUENCIA_LABEL[f] }))}
+              />
             </div>
           </div>
 
@@ -327,17 +339,16 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
           {isUnico && (
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Data do gasto *</label>
-              <input type="date" value={dataGasto} max={hoje} onChange={(e) => setDataGasto(e.target.value)}
-                className={`${inp} w-full`} />
+              <DatePicker value={dataGasto} max={hoje} onChange={setDataGasto} placeholder="Quando foi pago" />
               <p className="text-[10px] text-gray-600">Será lançado como gasto do dia no caixa dessa data</p>
             </div>
           )}
 
           {!isUnico && (
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Próximo vencimento</label>
-              <input type="date" value={proximoVencimento} onChange={(e) => setProximoVencimento(e.target.value)}
-                className={`${inp} w-full`} />
+              <label className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Próximo vencimento *</label>
+              <DatePicker value={proximoVencimento} onChange={setProximoVencimento} placeholder="Quando vence a próxima vez" />
+              <p className="text-[10px] text-gray-600">No vencimento você confirma o pagamento e ele entra no caixa do dia</p>
             </div>
           )}
 
@@ -357,10 +368,12 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
             </label>
           )}
 
-          <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
-            <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} className="accent-[#b8944a]" />
-            Gasto ativo
-          </label>
+          {!isUnico && (
+            <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+              <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} className="accent-[#b8944a]" />
+              Gasto ativo
+            </label>
+          )}
         </div>
         <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2 shrink-0">
           <button onClick={submit} disabled={salvando}
@@ -375,6 +388,8 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
 
 export default function FinanceiroPage() {
   const toast = useToast();
+  const confirmar = useConfirm();
+  const sucesso = useSucesso();
   const [fechamentos, setFechamentos] = useState<FechamentoDia[]>([]);
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [gastosDia, setGastosDia] = useState<GastoDia[]>([]);
@@ -415,7 +430,7 @@ export default function FinanceiroPage() {
     });
     setPagando(false);
     setPagarModal(null);
-    toast.sucesso("Pagamento registrado!");
+    sucesso("Pagamento registrado!");
     carregar();
   }
   const [gastoExpandido, setGastoExpandido] = useState<string | null>(null);
@@ -463,12 +478,12 @@ export default function FinanceiroPage() {
     });
     await fetch(`/api/gastos/${g.id}`, { credentials: "include", method: "DELETE" });
     setLancandoLegado(null);
-    toast.sucesso(`"${g.descricao}" lançado no caixa`);
+    sucesso(`"${g.descricao}" lançado no caixa`);
     carregar();
   }
 
   async function lancarTodosHoje() {
-    if (!confirm("Lançar todos os gastos pendentes com a data de hoje? Você pode ajustar depois no caixa.")) return;
+    if (!(await confirmar({ titulo: "Lançar todos com hoje", mensagem: "Todos os gastos pendentes serão lançados com a data de hoje. Você pode ajustar depois no caixa.", confirmar: "Lançar todos", perigo: false }))) return;
     const hoje = hojeISO();
     for (const g of gastos.filter((x) => x.frequencia === "unico")) {
       const e = concEdits[g.id];
@@ -479,7 +494,7 @@ export default function FinanceiroPage() {
       });
       await fetch(`/api/gastos/${g.id}`, { credentials: "include", method: "DELETE" });
     }
-    toast.sucesso("Todos os pendentes foram lançados no caixa");
+    sucesso("Todos os pendentes foram lançados no caixa");
     carregar();
   }
 
@@ -503,7 +518,7 @@ export default function FinanceiroPage() {
       if (editandoGasto) { await fetch(`/api/gastos/${editandoGasto.id}`, { credentials: "include", method: "DELETE" }); }
       setEditandoGasto(null); setMostraFormGasto(false);
       setSalvandoGasto(false);
-      toast.sucesso("Gasto lançado no caixa!");
+      sucesso("Gasto lançado no caixa!");
       carregar();
       return;
     }
@@ -516,7 +531,7 @@ export default function FinanceiroPage() {
       setMostraFormGasto(false);
     }
     setSalvandoGasto(false);
-    toast.sucesso(editando ? "Gasto atualizado!" : "Gasto cadastrado!");
+    sucesso(editando ? "Gasto atualizado!" : "Gasto cadastrado!");
     carregar();
   }
 
@@ -527,9 +542,9 @@ export default function FinanceiroPage() {
   }
 
   async function excluirGasto(id: string) {
-    if (!confirm("Excluir este gasto?")) return;
+    if (!(await confirmar({ titulo: "Excluir gasto", mensagem: "Tem certeza que deseja excluir este gasto?", confirmar: "Excluir" }))) return;
     await fetch(`/api/gastos/${id}`, { credentials: "include", method: "DELETE" });
-    toast.info("Gasto excluído");
+    sucesso("Gasto excluído");
     carregar();
   }
 
@@ -594,17 +609,11 @@ export default function FinanceiroPage() {
     return false;
   });
 
-  // Resolve nome e cor de cada gasto (categoria customizada tem prioridade)
+  // Donut = gasto REALIZADO por categoria no período (só gastos do dia).
+  // Recorrente não entra aqui como projeção — ele só aparece quando é pago
+  // (o pagamento vira um gasto do dia). Assim não há dupla contagem.
   const porCategoria: Record<string, number> = {};
   const corPorCategoria: Record<string, string> = {};
-  gastosAtivos.forEach((g) => {
-    const custom = g.categoriaId ? categorias.find((c) => c.id === g.categoriaId) : null;
-    const nome = custom?.nome ?? CATEGORIA_LABEL[g.categoria] ?? "Outros";
-    const cor = custom?.cor ?? "#6B7280";
-    porCategoria[nome] = (porCategoria[nome] ?? 0) + gastoMensalEquivalente(g);
-    corPorCategoria[nome] = cor;
-  });
-  // gastos do dia (avulsos) do período — gasto real por categoria
   gastosDiaPeriodo.forEach((g) => {
     const nome = g.categoriaNome || "Sem categoria";
     const cor = g.categoriaCor || "#6B7280";
@@ -659,12 +668,12 @@ export default function FinanceiroPage() {
                   <p className="text-[10px] text-amber-400">Diferença de {brl(Math.abs(Number(pagarValor) - pagarModal.valor))} em relação ao valor original</p>
                 )}
               </div>
-              {pagarStep === 2 && (
+              <Revelar show={pagarStep === 2}>
                 <div className="bg-amber-950/30 border border-amber-700/40 rounded-lg px-3 py-2.5">
                   <p className="text-xs font-semibold text-amber-300">Confirmar pagamento de {brl(Number(pagarValor))}?</p>
-                  <p className="text-[10px] text-amber-300/60 mt-0.5">Esta ação atualizará o próximo vencimento automaticamente.</p>
+                  <p className="text-[10px] text-amber-300/60 mt-0.5">Entra como gasto no caixa de hoje e avança o próximo vencimento automaticamente.</p>
                 </div>
-              )}
+              </Revelar>
             </div>
             <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2">
               <button onClick={confirmarPagamento} disabled={pagando || !pagarValor || Number(pagarValor) <= 0}
@@ -797,7 +806,7 @@ export default function FinanceiroPage() {
         <div className={`${card} p-3.5`}>
           <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Gastos/mês</p>
           <p className="text-xl font-bold text-[#F5E6C8]">{brl(totalMensalGastos)}</p>
-          <p className="text-xs text-gray-500 mt-1">{gastosAtivos.length} ativo{gastosAtivos.length !== 1 ? "s" : ""}</p>
+          <p className="text-xs text-gray-500 mt-1">projeção · {gastosAtivos.length} fixo{gastosAtivos.length !== 1 ? "s" : ""}</p>
         </div>
         <div className={`${card} p-3.5 border ${lucroEstimado >= 0 ? "border-green-800/40" : "border-red-800/40"}`}>
           <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Lucro estimado</p>
@@ -922,8 +931,9 @@ export default function FinanceiroPage() {
       {/* ── Gráfico de pizza + Fechamentos ── */}
       <div className="grid md:grid-cols-2 gap-4">
         <div className={`${card} p-4 flex flex-col`}>
-          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-3">Gastos por categoria</p>
-          {donutData.length === 0 ? <p className="text-sm text-gray-500 py-10 text-center">Nenhum gasto ativo.</p> : (
+          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Gastos por categoria</p>
+          <p className="text-[10px] text-gray-600 mb-3">Realizado no período</p>
+          {donutData.length === 0 ? <p className="text-sm text-gray-500 py-10 text-center">Nenhum gasto realizado no período.</p> : (
             <div className="flex-1 flex flex-col justify-center">
               <div className="h-40">
                 <ResponsiveContainer width="100%" height="100%">
@@ -939,7 +949,7 @@ export default function FinanceiroPage() {
                     >
                       {donutData.map((entry, i) => <Cell key={i} fill={corPorCategoria[entry.name] ?? DONUT_COLORS[i % DONUT_COLORS.length]} />)}
                     </Pie>
-                    <Tooltip contentStyle={{ background: "#111", border: "1px solid #2d2d2d", borderRadius: 6, fontSize: 12 }} formatter={(v) => [brl(Number(v)), "Gasto/mês"]} />
+                    <Tooltip contentStyle={{ background: "#111", border: "1px solid #2d2d2d", borderRadius: 6, fontSize: 12 }} formatter={(v) => [brl(Number(v)), "Gasto no período"]} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -984,8 +994,8 @@ export default function FinanceiroPage() {
                             href={`/admin/caixa?dia=${f.data}#caixa`}
                             className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-gray-500 hover:text-[#b8944a] border border-[#2d2d2d] hover:border-[#b8944a]/40 rounded px-2.5 py-1.5 transition"
                           >
-                            <IconCalendarMonth size={11} />
-                            Ver na agenda
+                            <IconCashRegister size={11} />
+                            Ver no caixa
                           </Link>
                         </div>
                       )}
@@ -1121,8 +1131,8 @@ export default function FinanceiroPage() {
                           href={`/admin/caixa?dia=${g.data}#caixa`}
                           className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-gray-500 hover:text-[#b8944a] border border-[#2d2d2d] hover:border-[#b8944a]/40 rounded px-2.5 py-1.5 transition"
                         >
-                          <IconCalendarMonth size={11} />
-                          Ver na agenda
+                          <IconCashRegister size={11} />
+                          Ver no caixa
                         </Link>
                       </div>
                     )}

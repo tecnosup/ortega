@@ -93,6 +93,7 @@ export async function GET(_req: NextRequest) {
     const avisosPendentes: { title: string; body: string; docRef: FirebaseFirestore.DocumentReference }[] = [];
     for (const doc of gastosSnap.docs) {
       const g = doc.data();
+      if (g.ativo === false) continue; // gasto pausado não cobra lembrete de vencimento
       if (g.proximoVencimento && g.proximoVencimento >= hoje && g.proximoVencimento <= em10dStr) {
         vencimentos++;
         const dias = Math.ceil((new Date(g.proximoVencimento + "T12:00:00").getTime() - Date.now()) / 86400000);

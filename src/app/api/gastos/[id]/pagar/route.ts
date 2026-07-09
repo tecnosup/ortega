@@ -37,6 +37,22 @@ export async function POST(req: NextRequest, { params }: Params) {
     registradoEm: Date.now(),
   };
 
+  // Registra o pagamento como GASTO DO DIA — assim o recorrente pago entra no
+  // caixa/fechamento e em "Últimos gastos", igual a um avulso (dinheiro real que saiu).
+  let catNome = "", catCor = "";
+  if (gasto.categoriaId) {
+    const catDoc = await db.collection("categorias_gasto").doc(gasto.categoriaId).get();
+    if (catDoc.exists) { const c = catDoc.data()!; catNome = c.nome ?? ""; catCor = c.cor ?? ""; }
+  }
+  await db.collection("gastos_dia").add({
+    data: pagamento.data,
+    descricao: gasto.descricao,
+    valor: pagamento.valor,
+    criadoEm: Date.now(),
+    origemGastoId: id,
+    ...(gasto.categoriaId ? { categoriaId: gasto.categoriaId, categoriaNome: catNome, categoriaCor: catCor } : {}),
+  });
+
   const nextVenc = calcNextVencimento(gasto.proximoVencimento ?? hoje, gasto.frequencia ?? "mensal");
   const patch: Record<string, unknown> = {
     atualizadoEm: Date.now(),
