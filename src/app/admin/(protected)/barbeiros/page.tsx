@@ -9,6 +9,8 @@ import type { Barbeiro, ComissaoServico } from "@/lib/barbeiros-types";
 import type { Item } from "@/lib/admin-items";
 import type { CategoriaFuncionario } from "@/lib/categorias-funcionarios";
 import Modal from "@/components/ui/Modal";
+import { useConfirm } from "@/components/ui/Confirm";
+import { useSucesso } from "@/components/ui/Sucesso";
 
 type Form = {
   nome: string;
@@ -50,6 +52,8 @@ function maskTel(v: string) {
 }
 
 export default function FuncionariosPage() {
+  const confirmar = useConfirm();
+  const sucesso = useSucesso();
   const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
   const [itens, setItens] = useState<Item[]>([]);
   const [categorias, setCategorias] = useState<CategoriaFuncionario[]>([]);
@@ -233,19 +237,21 @@ export default function FuncionariosPage() {
   }
 
   async function handleRemoverConta(b: Barbeiro) {
-    if (!confirm(`Remover acesso de ${b.nome}?`)) return;
+    if (!(await confirmar({ titulo: "Remover acesso", mensagem: `Remover o acesso de ${b.nome}?`, confirmar: "Remover acesso" }))) return;
     setRemovendoConta(b.id);
     await fetch(`/api/admin/barbeiros/${b.id}/conta`, { method: "DELETE", credentials: "include" });
     await load();
     setRemovendoConta(null);
+    sucesso("Acesso removido");
   }
 
   async function handleDelete(id: string, nome: string) {
-    if (!confirm(`Remover ${nome}?`)) return;
+    if (!(await confirmar({ titulo: "Remover funcionário", mensagem: `Remover ${nome}?`, confirmar: "Remover" }))) return;
     setDeletingId(id);
     await fetch(`/api/admin/barbeiros/${id}`, { method: "DELETE", credentials: "include" });
     await load();
     setDeletingId(null);
+    sucesso(`${nome} removido`);
   }
 
   async function togglePresenca(b: Barbeiro) {
@@ -284,11 +290,12 @@ export default function FuncionariosPage() {
   }
 
   async function handleDeleteTipo(id: string) {
-    if (!confirm("Remover este tipo?")) return;
+    if (!(await confirmar({ titulo: "Remover tipo", mensagem: "Remover este tipo de funcionário?", confirmar: "Remover" }))) return;
     setTipoDeletingId(id);
     await fetch(`/api/admin/categorias-funcionarios/${id}`, { method: "DELETE", credentials: "include" });
     setTipoDeletingId(null);
     await load();
+    sucesso("Tipo removido");
   }
 
   const barbeirosFiltered = barbeiros

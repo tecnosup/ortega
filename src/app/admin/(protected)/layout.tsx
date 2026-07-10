@@ -4,11 +4,15 @@ import AdminAuthGuard from "@/components/admin/AdminAuthGuard";
 import AdminNav from "@/components/admin/AdminNav";
 import { AdminNotificacoesProvider } from "@/components/admin/AdminNotificacoesProvider";
 import { ToastProvider } from "@/components/ui/Toast";
+import { ConfirmProvider } from "@/components/ui/Confirm";
+import { SucessoProvider } from "@/components/ui/Sucesso";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <AdminAuthGuard>
       <ToastProvider>
+        <SucessoProvider>
+        <ConfirmProvider>
         <AdminNotificacoesProvider>
           <div className="min-h-screen-safe bg-[#0A0A0A] flex">
             <AdminNav />
@@ -19,6 +23,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </main>
           </div>
         </AdminNotificacoesProvider>
+        </ConfirmProvider>
+        </SucessoProvider>
       </ToastProvider>
     </AdminAuthGuard>
   );

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, getAdminDb } from "@/lib/firebase-admin";
+import { hojeBR } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -30,12 +31,28 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!doc.exists) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
 
   const gasto = doc.data()!;
-  const hoje = new Date().toISOString().split("T")[0];
+  const hoje = hojeBR();
   const pagamento = {
     valor: valorPago ?? gasto.valor,
     data: dataPagamento ?? hoje,
     registradoEm: Date.now(),
   };
+
+  // Registra o pagamento como GASTO DO DIA — assim o recorrente pago entra no
+  // caixa/fechamento e em "Últimos gastos", igual a um avulso (dinheiro real que saiu).
+  let catNome = "", catCor = "";
+  if (gasto.categoriaId) {
+    const catDoc = await db.collection("categorias_gasto").doc(gasto.categoriaId).get();
+    if (catDoc.exists) { const c = catDoc.data()!; catNome = c.nome ?? ""; catCor = c.cor ?? ""; }
+  }
+  await db.collection("gastos_dia").add({
+    data: pagamento.data,
+    descricao: gasto.descricao,
+    valor: pagamento.valor,
+    criadoEm: Date.now(),
+    origemGastoId: id,
+    ...(gasto.categoriaId ? { categoriaId: gasto.categoriaId, categoriaNome: catNome, categoriaCor: catCor } : {}),
+  });
 
   const nextVenc = calcNextVencimento(gasto.proximoVencimento ?? hoje, gasto.frequencia ?? "mensal");
   const patch: Record<string, unknown> = {
