@@ -2,6 +2,7 @@ import "server-only";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "./firebase-admin";
 import { criarMovimentacao } from "./estoque-movimentacoes";
+import { devolverCredito } from "./assinaturas";
 import type { Comanda } from "./comandas-types";
 import { calcularTotalItens } from "./comandas-types";
 
@@ -12,6 +13,39 @@ const COL = "comandas";
 /** Remove chaves undefined (Firestore rejeita) e recalcula total. */
 function limpar(data: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
+}
+
+/**
+ * Espelha o status da comanda de volta no AGENDAMENTO vinculado (sync reverso).
+ *
+ * A sincronia agendamento→comanda já existe (rota PATCH do agendamento chama
+ * finalizar/cancelar). Faltava o outro lado: quando a comanda é finalizada/
+ * cancelada/reaberta DIRETO no Caixa, o agendamento ficava defasado (ex.: comanda
+ * finalizada mas agendamento ainda "confirmado"). Este helper fecha esse buraco.
+ *
+ * Custo: 1 escrita, 0 leitura — o agendamentoId já veio no doc da comanda e o
+ * update é idempotente (reescrever o mesmo status é inofensivo), então não vale a
+ * pena gastar 1 leitura só pra checar antes.
+ * Não há loop: escrevemos o campo `status` direto no doc do agendamento, sem passar
+ * pela rota PATCH (que é quem dispararia o sync agendamento→comanda de volta).
+ * Só age se houver agendamentoId (comandas avulsas não têm).
+ */
+async function espelharStatusNoAgendamento(
+  comanda: Comanda,
+  novoStatusAg: "concluido" | "cancelado" | "confirmado"
+): Promise<void> {
+  const agId = comanda.agendamentoId;
+  if (!agId) return; // comanda avulsa (sem agendamento) — nada a espelhar
+  try {
+    const db = getAdminDb();
+    await db.collection("agendamentos").doc(agId).update({
+      status: novoStatusAg,
+      atualizadoEm: Date.now(),
+    });
+  } catch {
+    // não bloqueia a operação da comanda se o espelhamento falhar
+    // (ex.: agendamento já excluído — update lança e cai aqui, sem quebrar nada)
+  }
 }
 
 export async function criarComanda(
@@ -101,6 +135,9 @@ export async function finalizarComanda(
     })
   );
 
+  // Sync reverso: agendamento vinculado passa a "concluido".
+  await espelharStatusNoAgendamento(comanda, "concluido");
+
   // Baixa de estoque — só produtos com produtoId. Usa FieldValue.increment (atômico),
   // respeitando a quantidade de cada item (default 1).
   const itensProduto = comanda.itens.filter((i) => i.tipo === "produto" && i.produtoId);
@@ -136,6 +173,14 @@ export async function cancelarComanda(id: string): Promise<Comanda | null> {
   const comanda = await getComanda(id);
   if (!comanda || comanda.status !== "aberta") return null;
   await atualizarComanda(id, { status: "cancelada" });
+
+  // Sync reverso: agendamento vinculado passa a "cancelado".
+  await espelharStatusNoAgendamento(comanda, "cancelado");
+  // Simetria com a rota do agendamento: se era coberto por assinatura, devolve o crédito.
+  if (comanda.cobertoPorAssinatura && comanda.assinaturaId) {
+    devolverCredito(comanda.assinaturaId).catch(() => {});
+  }
+
   return { ...comanda, status: "cancelada" };
 }
 
@@ -156,6 +201,9 @@ export async function reabrirComanda(id: string): Promise<Comanda | null> {
     finalizadoEm: FieldValue.delete(),
     atualizadoEm: now,
   });
+
+  // Sync reverso: reabrir tira do faturamento → agendamento volta a "confirmado".
+  await espelharStatusNoAgendamento(comanda, "confirmado");
 
   // Estorna o estoque baixado na finalização (devolve os produtos).
   const itensProduto = comanda.itens.filter((i) => i.tipo === "produto" && i.produtoId);

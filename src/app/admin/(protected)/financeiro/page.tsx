@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState, useCallback } from "react";
 import {
-  IconAlertTriangle, IconBell, IconBellOff, IconCalendarMonth, IconCheck, IconChevronDown, IconEdit, IconPlus, IconReceipt, IconSettings, IconToggleLeft, IconToggleRight, IconTrash,
+  IconAlertTriangle, IconBell, IconBellOff, IconCashRegister, IconCheck, IconChevronDown, IconCoin, IconEdit, IconPlus, IconReceipt, IconSettings, IconToggleLeft, IconToggleRight, IconTrash,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { useAdminNotificacoes, type VencimentoItem } from "@/hooks/useAdminNotificacoes";
@@ -19,6 +19,11 @@ import { CATEGORIA_LABEL, FREQUENCIA_LABEL, gastoMensalEquivalente } from "@/lib
 import Modal from "@/components/ui/Modal";
 import { useModalMount } from "@/components/ui/useModalMount";
 import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Confirm";
+import { useSucesso } from "@/components/ui/Sucesso";
+import DatePicker from "@/components/ui/DatePicker";
+import Select from "@/components/ui/Select";
+import Revelar from "@/components/ui/Revelar";
 import AdminFab from "@/components/admin/AdminFab";
 
 function brl(v: number) { return `R$ ${v.toFixed(2).replace(".", ",")}` }
@@ -121,7 +126,8 @@ function ModalCategorias({ open = true, categorias, onFechar, onChanged }: {
   onFechar: () => void;
   onChanged: () => void;
 }) {
-  const toast = useToast();
+  const confirmar = useConfirm();
+  const sucesso = useSucesso();
   const [editando, setEditando] = useState<CategoriaGastoCustom | null>(null);
   const [novoNome, setNovoNome] = useState("");
   const [novaCor, setNovaCor] = useState(PALETTE[0]);
@@ -153,13 +159,13 @@ function ModalCategorias({ open = true, categorias, onFechar, onChanged }: {
         body: JSON.stringify({ nome: novoNome.trim(), cor: novaCor }),
       });
     }
-    setSalvando(false); toast.sucesso(editando ? "Categoria atualizada!" : "Categoria criada!"); fecharForm(); onChanged();
+    setSalvando(false); sucesso(editando ? "Categoria atualizada!" : "Categoria criada!"); fecharForm(); onChanged();
   }
 
   async function excluir(id: string) {
-    if (!confirm("Excluir esta categoria? Gastos vinculados não serão afetados.")) return;
+    if (!(await confirmar({ titulo: "Excluir categoria", mensagem: "Gastos vinculados não serão afetados.", confirmar: "Excluir" }))) return;
     await fetch(`/api/gastos/categorias/${id}`, { method: "DELETE", credentials: "include" });
-    toast.info("Categoria excluída");
+    sucesso("Categoria excluída");
     onChanged();
   }
 
@@ -226,7 +232,7 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
   open?: boolean;
   inicial?: Partial<Gasto>;
   categorias: CategoriaGastoCustom[];
-  onSalvar: (d: Partial<Gasto>) => void;
+  onSalvar: (d: Partial<Gasto> & { dataGasto?: string }) => void;
   onCancelar: () => void;
   salvando: boolean;
 }) {
@@ -239,6 +245,8 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
   const [ativo, setAtivo] = useState(inicial?.ativo ?? true);
   const [proximoVencimento, setProximoVencimento] = useState(inicial?.proximoVencimento ?? "");
   const [lembrarRenovacao, setLembrarRenovacao] = useState(inicial?.lembrarRenovacao ?? false);
+  const hoje = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
+  const [dataGasto, setDataGasto] = useState(hoje);
   const [erro, setErro] = useState("");
 
   useEffect(() => { document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = ""; }; }, []);
@@ -252,6 +260,8 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
     if (!valor || isNaN(Number(valor)) || Number(valor) <= 0) { setErro("Valor inválido"); return; }
     if (!categoriaId && categorias.length > 0) { setErro("Selecione uma categoria"); return; }
     if (isPersonalizado && !frequenciaCustom.trim()) { setErro("Descreva a frequência personalizada"); return; }
+    if (isUnico && !dataGasto) { setErro("Escolha a data do gasto"); return; }
+    if (!isUnico && !proximoVencimento) { setErro("Informe o próximo vencimento — é quando o gasto entra no caixa"); return; }
     setErro("");
     onSalvar({
       descricao, categoriaId: categoriaId || undefined,
@@ -261,6 +271,7 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
       ...(isPersonalizado && { frequenciaCustom: frequenciaCustom.trim(), intervaloDias: Number(intervaloDias) || undefined }),
       proximoVencimento: !isUnico && proximoVencimento ? proximoVencimento : undefined,
       lembrarRenovacao: !isUnico ? lembrarRenovacao : false,
+      ...(isUnico && { dataGasto }),
     });
   }
 
@@ -270,7 +281,9 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
           <h3 className="font-bold text-[#F5E6C8] text-sm">{inicial?.id ? "Editar gasto" : "Novo gasto"}</h3>
         </div>
         <div className="flex-1 overflow-y-auto min-h-0 px-5 py-4 flex flex-col gap-4">
-          {erro && <p className="text-xs text-red-400 bg-red-900/10 border border-red-900/30 rounded px-3 py-2">{erro}</p>}
+          <Revelar show={!!erro}>
+            <p className="text-xs text-red-400 bg-red-900/10 border border-red-900/30 rounded px-3 py-2">{erro}</p>
+          </Revelar>
 
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Descrição *</label>
@@ -284,9 +297,11 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Frequência *</label>
-              <select value={frequencia} onChange={(e) => setFrequencia(e.target.value as FrequenciaGasto)} className={`${inp} w-full`}>
-                {(Object.keys(FREQUENCIA_LABEL) as FrequenciaGasto[]).map((f) => <option key={f} value={f}>{FREQUENCIA_LABEL[f]}</option>)}
-              </select>
+              <Select
+                value={frequencia}
+                onChange={(v) => setFrequencia(v as FrequenciaGasto)}
+                options={(Object.keys(FREQUENCIA_LABEL) as FrequenciaGasto[]).map((f) => ({ value: f, label: FREQUENCIA_LABEL[f] }))}
+              />
             </div>
           </div>
 
@@ -320,11 +335,19 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
             </div>
           )}
 
+          {isUnico && (
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Data do gasto *</label>
+              <DatePicker value={dataGasto} max={hoje} onChange={setDataGasto} placeholder="Quando foi pago" />
+              <p className="text-[10px] text-gray-600">Será lançado como gasto do dia no caixa dessa data</p>
+            </div>
+          )}
+
           {!isUnico && (
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Próximo vencimento</label>
-              <input type="date" value={proximoVencimento} onChange={(e) => setProximoVencimento(e.target.value)}
-                className={`${inp} w-full`} />
+              <label className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Próximo vencimento *</label>
+              <DatePicker value={proximoVencimento} onChange={setProximoVencimento} placeholder="Quando vence a próxima vez" />
+              <p className="text-[10px] text-gray-600">No vencimento você confirma o pagamento e ele entra no caixa do dia</p>
             </div>
           )}
 
@@ -344,10 +367,12 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
             </label>
           )}
 
-          <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
-            <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} className="accent-[#b8944a]" />
-            Gasto ativo
-          </label>
+          {!isUnico && (
+            <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+              <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} className="accent-[#b8944a]" />
+              Gasto ativo
+            </label>
+          )}
         </div>
         <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2 shrink-0">
           <button onClick={submit} disabled={salvando}
@@ -362,6 +387,8 @@ function FormGasto({ open = true, inicial, categorias, onSalvar, onCancelar, sal
 
 export default function FinanceiroPage() {
   const toast = useToast();
+  const confirmar = useConfirm();
+  const sucesso = useSucesso();
   const [fechamentos, setFechamentos] = useState<FechamentoDia[]>([]);
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [gastosDia, setGastosDia] = useState<GastoDia[]>([]);
@@ -402,10 +429,15 @@ export default function FinanceiroPage() {
     });
     setPagando(false);
     setPagarModal(null);
-    toast.sucesso("Pagamento registrado!");
+    sucesso("Pagamento registrado!");
     carregar();
   }
   const [gastoExpandido, setGastoExpandido] = useState<string | null>(null);
+
+  // ── Conciliação de gastos "único" legados (cadastrados sem data, antes da mudança) ──
+  const [concEdits, setConcEdits] = useState<Record<string, { data: string; valor: string; categoriaId: string }>>({});
+  const [lancandoLegado, setLancandoLegado] = useState<string | null>(null);
+  function hojeISO() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
 
   const carregar = useCallback(async () => {
     const [resFech, resGastos, resGastosDia, resCats] = await Promise.all([
@@ -423,9 +455,73 @@ export default function FinanceiroPage() {
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  async function salvarGasto(data: Partial<Gasto>) {
+  // Inicializa os campos de edição dos legados assim que a lista de gastos chega
+  useEffect(() => {
+    setConcEdits((prev) => {
+      const next = { ...prev };
+      gastos.filter((g) => g.frequencia === "unico").forEach((g) => {
+        if (!next[g.id]) next[g.id] = { data: "", valor: String(g.valor), categoriaId: g.categoriaId ?? "" };
+      });
+      return next;
+    });
+  }, [gastos]);
+
+  async function lancarLegado(g: Gasto) {
+    const e = concEdits[g.id] ?? { data: "", valor: String(g.valor), categoriaId: g.categoriaId ?? "" };
+    if (!e.data) return;
+    const cat = e.categoriaId ? categorias.find((c) => c.id === e.categoriaId) : null;
+    setLancandoLegado(g.id);
+    await fetch("/api/gastos-dia", {
+      credentials: "include", method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: e.data, descricao: g.descricao, valor: Number(e.valor) || g.valor, ...(cat ? { categoriaId: cat.id, categoriaNome: cat.nome, categoriaCor: cat.cor } : {}) }),
+    });
+    await fetch(`/api/gastos/${g.id}`, { credentials: "include", method: "DELETE" });
+    setLancandoLegado(null);
+    sucesso(`"${g.descricao}" lançado no caixa`);
+    carregar();
+  }
+
+  async function lancarTodosHoje() {
+    if (!(await confirmar({ titulo: "Lançar todos com hoje", mensagem: "Todos os gastos pendentes serão lançados com a data de hoje. Você pode ajustar depois no caixa.", confirmar: "Lançar todos", perigo: false }))) return;
+    const hoje = hojeISO();
+    for (const g of gastos.filter((x) => x.frequencia === "unico")) {
+      const e = concEdits[g.id];
+      const cat = (e?.categoriaId ?? g.categoriaId) ? categorias.find((c) => c.id === (e?.categoriaId || g.categoriaId)) : null;
+      await fetch("/api/gastos-dia", {
+        credentials: "include", method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: hoje, descricao: g.descricao, valor: Number(e?.valor) || g.valor, ...(cat ? { categoriaId: cat.id, categoriaNome: cat.nome, categoriaCor: cat.cor } : {}) }),
+      });
+      await fetch(`/api/gastos/${g.id}`, { credentials: "include", method: "DELETE" });
+    }
+    sucesso("Todos os pendentes foram lançados no caixa");
+    carregar();
+  }
+
+  async function salvarGasto(data: Partial<Gasto> & { dataGasto?: string }) {
     setSalvandoGasto(true);
     const editando = !!editandoGasto;
+
+    // Único = gasto avulso datado → vai direto pro caixa (coleção gastos_dia), não fica em "Gastos da empresa"
+    if (data.frequencia === "unico") {
+      const cat = data.categoriaId ? categorias.find((c) => c.id === data.categoriaId) : null;
+      await fetch("/api/gastos-dia", {
+        credentials: "include", method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: data.dataGasto,
+          descricao: data.descricao,
+          valor: data.valor,
+          ...(cat ? { categoriaId: cat.id, categoriaNome: cat.nome, categoriaCor: cat.cor } : {}),
+        }),
+      });
+      // se estava convertendo um gasto recorrente já existente, remove o antigo
+      if (editandoGasto) { await fetch(`/api/gastos/${editandoGasto.id}`, { credentials: "include", method: "DELETE" }); }
+      setEditandoGasto(null); setMostraFormGasto(false);
+      setSalvandoGasto(false);
+      sucesso("Gasto lançado no caixa!");
+      carregar();
+      return;
+    }
+
     if (editandoGasto) {
       await fetch(`/api/gastos/${editandoGasto.id}`, { credentials: "include", method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
       setEditandoGasto(null);
@@ -434,7 +530,7 @@ export default function FinanceiroPage() {
       setMostraFormGasto(false);
     }
     setSalvandoGasto(false);
-    toast.sucesso(editando ? "Gasto atualizado!" : "Gasto cadastrado!");
+    sucesso(editando ? "Gasto atualizado!" : "Gasto cadastrado!");
     carregar();
   }
 
@@ -445,9 +541,9 @@ export default function FinanceiroPage() {
   }
 
   async function excluirGasto(id: string) {
-    if (!confirm("Excluir este gasto?")) return;
+    if (!(await confirmar({ titulo: "Excluir gasto", mensagem: "Tem certeza que deseja excluir este gasto?", confirmar: "Excluir" }))) return;
     await fetch(`/api/gastos/${id}`, { credentials: "include", method: "DELETE" });
-    toast.info("Gasto excluído");
+    sucesso("Gasto excluído");
     carregar();
   }
 
@@ -493,18 +589,34 @@ export default function FinanceiroPage() {
     ? (maxLucro / (maxLucro - minLucro)) * 100
     : 0;
 
-  const gastosAtivos = gastos.filter((g) => g.ativo);
+  // "Único" não é mais um gasto recorrente — sai da lista da empresa e dos agregados mensais.
+  // Enquanto tiver algum "único" na base, ele é um legado pendente de conciliação (falta a data).
+  const gastosFixos = gastos.filter((g) => g.frequencia !== "unico");
+  const legados = gastos.filter((g) => g.frequencia === "unico");
+  const gastosAtivos = gastosFixos.filter((g) => g.ativo);
   const totalMensalGastos = gastosAtivos.reduce((s, g) => s + gastoMensalEquivalente(g), 0);
   const lucroEstimado = totalPeriodo - totalMensalGastos;
 
-  // Resolve nome e cor de cada gasto (categoria customizada tem prioridade)
+  const gastosDiaPeriodo = gastosDia.filter((g) => {
+    if (periodo === "tudo") return true;
+    const agora = new Date();
+    const d = new Date(g.data + "T12:00:00");
+    if (periodo === "7d") { const l = new Date(agora); l.setDate(l.getDate() - 7); return d >= l; }
+    if (periodo === "30d") { const l = new Date(agora); l.setDate(l.getDate() - 30); return d >= l; }
+    if (periodo === "mes_atual") return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear();
+    if (periodo === "mes_anterior") { const m = agora.getMonth() === 0 ? 11 : agora.getMonth() - 1; const y = agora.getMonth() === 0 ? agora.getFullYear() - 1 : agora.getFullYear(); return d.getMonth() === m && d.getFullYear() === y; }
+    return false;
+  });
+
+  // Donut = gasto REALIZADO por categoria no período (só gastos do dia).
+  // Recorrente não entra aqui como projeção — ele só aparece quando é pago
+  // (o pagamento vira um gasto do dia). Assim não há dupla contagem.
   const porCategoria: Record<string, number> = {};
   const corPorCategoria: Record<string, string> = {};
-  gastosAtivos.forEach((g) => {
-    const custom = g.categoriaId ? categorias.find((c) => c.id === g.categoriaId) : null;
-    const nome = custom?.nome ?? CATEGORIA_LABEL[g.categoria] ?? "Outros";
-    const cor = custom?.cor ?? "#6B7280";
-    porCategoria[nome] = (porCategoria[nome] ?? 0) + gastoMensalEquivalente(g);
+  gastosDiaPeriodo.forEach((g) => {
+    const nome = g.categoriaNome || "Sem categoria";
+    const cor = g.categoriaCor || "#6B7280";
+    porCategoria[nome] = (porCategoria[nome] ?? 0) + g.valor;
     corPorCategoria[nome] = cor;
   });
   const donutData = Object.entries(porCategoria).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
@@ -555,12 +667,12 @@ export default function FinanceiroPage() {
                   <p className="text-[10px] text-amber-400">Diferença de {brl(Math.abs(Number(pagarValor) - pagarModal.valor))} em relação ao valor original</p>
                 )}
               </div>
-              {pagarStep === 2 && (
+              <Revelar show={pagarStep === 2}>
                 <div className="bg-amber-950/30 border border-amber-700/40 rounded-lg px-3 py-2.5">
                   <p className="text-xs font-semibold text-amber-300">Confirmar pagamento de {brl(Number(pagarValor))}?</p>
-                  <p className="text-[10px] text-amber-300/60 mt-0.5">Esta ação atualizará o próximo vencimento automaticamente.</p>
+                  <p className="text-[10px] text-amber-300/60 mt-0.5">Entra como gasto no caixa de hoje e avança o próximo vencimento automaticamente.</p>
                 </div>
-              )}
+              </Revelar>
             </div>
             <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2">
               <button onClick={confirmarPagamento} disabled={pagando || !pagarValor || Number(pagarValor) <= 0}
@@ -622,6 +734,67 @@ export default function FinanceiroPage() {
         </div>
       )}
 
+      {/* ── Conciliação: gastos "único" legados sem data ── */}
+      {legados.length > 0 && (
+        <div className="bg-amber-950/20 border border-amber-700/40 rounded-lg p-4 flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex items-start gap-2">
+              <IconAlertTriangle size={15} className="text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-300">{legados.length} gasto{legados.length > 1 ? "s" : ""} aguardando data pra entrar no caixa</p>
+                <p className="text-[11px] text-amber-300/60 mt-0.5">Estes foram cadastrados sem data. Informe quando cada um foi pago pra lançar no caixa do dia certo.</p>
+              </div>
+            </div>
+            <button onClick={lancarTodosHoje}
+              className="text-[10px] font-bold tracking-widest uppercase shrink-0 px-2.5 py-1.5 bg-amber-800/30 border border-amber-700/40 text-amber-300 rounded hover:bg-amber-800/50 transition">
+              Lançar todos com hoje
+            </button>
+          </div>
+          <div className="flex flex-col divide-y divide-amber-800/20">
+            {legados.map((g) => {
+              const e = concEdits[g.id] ?? { data: "", valor: String(g.valor), categoriaId: g.categoriaId ?? "" };
+              const set = (patch: Partial<{ data: string; valor: string; categoriaId: string }>) =>
+                setConcEdits((prev) => ({ ...prev, [g.id]: { ...(prev[g.id] ?? { data: "", valor: String(g.valor), categoriaId: g.categoriaId ?? "" }), ...patch } }));
+              return (
+                <div key={g.id} className="flex flex-col gap-2 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-[#F5E6C8] truncate">{g.descricao}</span>
+                    <button onClick={() => { setMostraFormGasto(false); setEditandoGasto(g); }}
+                      className="text-[10px] text-gray-500 hover:text-[#b8944a] transition shrink-0 underline underline-offset-2 decoration-dotted">
+                      É recorrente? Editar como gasto fixo
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
+                    <div className="flex items-center gap-1 bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2.5 py-2 focus-within:border-[#b8944a]">
+                      <span className="text-xs text-gray-500 shrink-0">R$</span>
+                      <input type="number" min="0" step="0.01" value={e.valor} onChange={(ev) => set({ valor: ev.target.value })}
+                        className="bg-transparent text-sm text-[#F5E6C8] w-full min-w-0 focus:outline-none" />
+                    </div>
+                    <Select
+                      value={e.categoriaId}
+                      onChange={(v) => set({ categoriaId: v })}
+                      placeholder="Sem categoria"
+                      options={categorias.map((c) => ({ value: c.id, label: c.nome }))}
+                    />
+                    <DatePicker
+                      value={e.data}
+                      onChange={(v) => set({ data: v })}
+                      max={hojeISO()}
+                      placeholder="Data do pagamento"
+                      className="col-span-2 sm:w-auto sm:min-w-[180px]"
+                    />
+                    <button disabled={!e.data || lancandoLegado === g.id} onClick={() => lancarLegado(g)}
+                      className="col-span-2 sm:col-span-1 text-[10px] font-bold tracking-widest uppercase px-3 py-2.5 sm:py-2 bg-[#b8944a] text-[#0A0A0A] rounded hover:bg-[#c9a84c] transition disabled:opacity-40 shrink-0">
+                      {lancandoLegado === g.id ? "..." : "Lançar"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Período ── */}
       <div className="flex gap-2 flex-wrap">
         {(Object.keys(PERIODO_LABEL) as Periodo[]).map((p) => (
@@ -646,7 +819,7 @@ export default function FinanceiroPage() {
         <div className={`${card} p-3.5`}>
           <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Gastos/mês</p>
           <p className="text-xl font-bold text-[#F5E6C8]">{brl(totalMensalGastos)}</p>
-          <p className="text-xs text-gray-500 mt-1">{gastosAtivos.length} ativo{gastosAtivos.length !== 1 ? "s" : ""}</p>
+          <p className="text-xs text-gray-500 mt-1">projeção · {gastosAtivos.length} fixo{gastosAtivos.length !== 1 ? "s" : ""}</p>
         </div>
         <div className={`${card} p-3.5 border ${lucroEstimado >= 0 ? "border-green-800/40" : "border-red-800/40"}`}>
           <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Lucro estimado</p>
@@ -771,8 +944,9 @@ export default function FinanceiroPage() {
       {/* ── Gráfico de pizza + Fechamentos ── */}
       <div className="grid md:grid-cols-2 gap-4">
         <div className={`${card} p-4 flex flex-col`}>
-          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-3">Gastos por categoria</p>
-          {donutData.length === 0 ? <p className="text-sm text-gray-500 py-10 text-center">Nenhum gasto ativo.</p> : (
+          <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1">Gastos por categoria</p>
+          <p className="text-[10px] text-gray-600 mb-3">Realizado no período</p>
+          {donutData.length === 0 ? <p className="text-sm text-gray-500 py-10 text-center">Nenhum gasto realizado no período.</p> : (
             <div className="flex-1 flex flex-col justify-center">
               <div className="h-40">
                 <ResponsiveContainer width="100%" height="100%">
@@ -788,7 +962,7 @@ export default function FinanceiroPage() {
                     >
                       {donutData.map((entry, i) => <Cell key={i} fill={corPorCategoria[entry.name] ?? DONUT_COLORS[i % DONUT_COLORS.length]} />)}
                     </Pie>
-                    <Tooltip contentStyle={{ background: "#111", border: "1px solid #2d2d2d", borderRadius: 6, fontSize: 12 }} formatter={(v) => [brl(Number(v)), "Gasto/mês"]} />
+                    <Tooltip contentStyle={{ background: "#111", border: "1px solid #2d2d2d", borderRadius: 6, fontSize: 12 }} formatter={(v) => [brl(Number(v)), "Gasto no período"]} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -833,8 +1007,8 @@ export default function FinanceiroPage() {
                             href={`/admin/caixa?dia=${f.data}#caixa`}
                             className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-gray-500 hover:text-[#b8944a] border border-[#2d2d2d] hover:border-[#b8944a]/40 rounded px-2.5 py-1.5 transition"
                           >
-                            <IconCalendarMonth size={11} />
-                            Ver na agenda
+                            <IconCashRegister size={11} />
+                            Ver no caixa
                           </Link>
                         </div>
                       )}
@@ -883,16 +1057,16 @@ export default function FinanceiroPage() {
           </div>
         </div>
 
-        {gastos.length === 0 ? (
-          <div className="py-8 text-center"><IconReceipt size={24} className="text-gray-600 mx-auto mb-2" /><p className="text-sm text-gray-500">Nenhum gasto cadastrado.</p></div>
+        {gastosFixos.length === 0 ? (
+          <div className="py-8 text-center"><IconReceipt size={24} className="text-gray-600 mx-auto mb-2" /><p className="text-sm text-gray-500">Nenhum gasto fixo cadastrado.</p></div>
         ) : (
           <div className="flex flex-col divide-y divide-[#1a1a1a] overflow-y-auto max-h-80">
-            {gastos.map((g) => {
+            {gastosFixos.map((g) => {
               const catCustom = g.categoriaId ? categorias.find((c) => c.id === g.categoriaId) : null;
               const catNome = catCustom?.nome ?? CATEGORIA_LABEL[g.categoria] ?? "Outros";
               const catCor = catCustom?.cor ?? "#6B7280";
               const diasParaVencer = g.proximoVencimento
-                ? Math.ceil((new Date(g.proximoVencimento).getTime() - Date.now()) / 86400000)
+                ? Math.round((new Date(g.proximoVencimento + "T12:00:00").getTime() - new Date(hojeISO() + "T12:00:00").getTime()) / 86400000)
                 : null;
               const vencendoBreve = diasParaVencer !== null && diasParaVencer <= 10 && diasParaVencer >= 0;
               return (
@@ -920,6 +1094,12 @@ export default function FinanceiroPage() {
                     {g.frequencia !== "mensal" && g.frequencia !== "unico" && g.ativo && <p className="text-xs text-gray-500">{brl(gastoMensalEquivalente(g))}/mês</p>}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    {g.ativo && g.proximoVencimento && (
+                      <button
+                        onClick={() => abrirPagamento({ id: g.id, descricao: g.descricao, data: g.proximoVencimento!, dias: diasParaVencer ?? 0, valor: g.valor, frequencia: g.frequencia })}
+                        title="Registrar pagamento"
+                        className="p-1.5 text-[#b8944a] hover:text-[#c9a84c] rounded transition"><IconCoin size={16} /></button>
+                    )}
                     <button onClick={() => toggleGasto(g)} className={`p-1.5 rounded transition ${g.ativo ? "text-green-400 hover:text-green-300" : "text-gray-600 hover:text-gray-400"}`}>{g.ativo ? <IconToggleRight size={16} /> : <IconToggleLeft size={16} />}</button>
                     <button onClick={() => { setMostraFormGasto(false); setEditandoGasto(g); }} className="p-1.5 text-gray-500 hover:text-gray-300 rounded transition"><IconEdit size={13} /></button>
                     <button onClick={() => excluirGasto(g.id)} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition"><IconTrash size={13} /></button>
@@ -970,8 +1150,8 @@ export default function FinanceiroPage() {
                           href={`/admin/caixa?dia=${g.data}#caixa`}
                           className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-gray-500 hover:text-[#b8944a] border border-[#2d2d2d] hover:border-[#b8944a]/40 rounded px-2.5 py-1.5 transition"
                         >
-                          <IconCalendarMonth size={11} />
-                          Ver na agenda
+                          <IconCashRegister size={11} />
+                          Ver no caixa
                         </Link>
                       </div>
                     )}

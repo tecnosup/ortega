@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   IconAdjustments, IconAlertCircle, IconAlertTriangle, IconArrowBackUp, IconBan, IconBell, IconCalendar, IconCalendarCheck, IconCalendarPlus, IconCalendarX, IconCheck, IconChevronDown, IconChevronLeft, IconChevronRight, IconCircleCheck, IconCircleX, IconClock, IconCoffee, IconLayoutGrid, IconList, IconLock, IconLockOpen, IconMessageCircle, IconPencil, IconPlus, IconRefresh, IconTag, IconTrash, IconTrendingUp, IconX,
 } from "@tabler/icons-react";
@@ -55,27 +55,39 @@ function CalendarioMensal({
   fechamentos,
   slotsBloqueados,
   onSelect,
+  semMoldura = false,
+  retratil = false,
+  onExpandir,
 }: {
   dataSelecionada: string;
   agendamentos: Agendamento[];
   fechamentos: FechamentoDia[];
   slotsBloqueados: string[];
   onSelect: (key: string) => void;
+  semMoldura?: boolean; // dentro de um overlay que já tem sua moldura — remove borda/padding externos
+  retratil?: boolean;   // padrão do Caixa: recolhido = semana, expandido = mês (só faz sentido com semMoldura)
+  onExpandir?: (expandido: boolean) => void; // avisa o pai quando expande/recolhe (pra centralizar na tela)
 }) {
   const hoje = toDateKey(new Date());
   const [viewDate, setViewDate] = useState(() => {
     const d = new Date(dataSelecionada + "T12:00:00");
     return { year: d.getFullYear(), month: d.getMonth() };
   });
+  // Semana de referência (âncora): domingo da semana visível quando recolhido.
+  const inicioSemana = (d: Date) => { const x = new Date(d); x.setDate(x.getDate() - x.getDay()); x.setHours(12, 0, 0, 0); return x; };
+  const [refSemana, setRefSemana] = useState(() => inicioSemana(new Date(dataSelecionada + "T12:00:00")));
+  const [expandido, setExpandido] = useState(false); // false = semana, true = mês
 
   useEffect(() => {
     const d = new Date(dataSelecionada + "T12:00:00");
     setViewDate({ year: d.getFullYear(), month: d.getMonth() });
+    setRefSemana(inicioSemana(d));
   }, [dataSelecionada]);
   const [hoverKey, setHoverKey] = useState<string | null>(null);
 
   const { year, month } = viewDate;
-  const nomeMes = new Date(year, month, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  // No modo overlay (semMoldura) usa "MÊS ANO" sem o "de" — igual ao calendário do Caixa.
+  const MESES_CURTO = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
   const agsPorDia = agendamentos.reduce<Record<string, Agendamento[]>>((acc, a) => {
     if (a.status === "cancelado") return acc;
@@ -104,87 +116,148 @@ function CalendarioMensal({
       return { year: y, month: m };
     });
   }
+  function navSemana(delta: number) {
+    setRefSemana((prev) => { const x = new Date(prev); x.setDate(x.getDate() + delta * 7); return x; });
+  }
+  // '‹ ›' navega semana (recolhido) ou mês (expandido)
+  const navContexto = (delta: number) => (retratil && !expandido ? navSemana(delta) : navMes(delta));
+  // 7 dias da semana visível (recolhido)
+  const diasSemanaVisiveis = Array.from({ length: 7 }, (_, i) => { const x = new Date(refSemana); x.setDate(x.getDate() + i); return x; });
+  // label do cabeçalho: no recolhido mostra o mês da semana de referência
+  const mesRef = retratil && !expandido ? refSemana.getMonth() : month;
+  const anoRef = retratil && !expandido ? refSemana.getFullYear() : year;
+  const nomeMes = semMoldura
+    ? `${MESES_CURTO[mesRef]} ${anoRef}`
+    : new Date(year, month, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
   const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-  return (
-    <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-5 select-none">
-      {/* cabeçalho */}
-      <div className="flex items-center justify-between mb-5">
-        <button onClick={() => navMes(-1)} className="p-1.5 text-gray-400 hover:text-[#b8944a] transition rounded-lg hover:bg-[#1a1a1a]">
-          <IconChevronLeft size={16} />
+  // Renderiza UMA célula do calendário a partir de um Date (reusada por semana e mês).
+  function renderCelula(dObj: Date) {
+    const dia = dObj.getDate();
+    const key = toDateKey(dObj);
+    const selecionado = key === dataSelecionada;
+    const isHoje = key === hoje;
+    const ags = agsPorDia[key] ?? [];
+    const temAg = ags.length > 0;
+    const fechado = fechPorDia.has(key);
+    const fat = fatPorDia[key];
+    const isPast = key < hoje;
+    const isHover = hoverKey === key;
+    const foraDoMes = expandido || !retratil ? false : dObj.getMonth() !== mesRef;
+
+    const clsCel = semMoldura
+      ? `relative w-full py-2 flex flex-col items-center justify-center rounded border text-xs transition-all
+          ${selecionado
+            ? "border-[#F5E6C8]/40 bg-[#1a1a1a] text-white"
+            : isHoje
+            ? "border-[#F5E6C8]/15 text-white"
+            : isPast && temAg
+            ? "border-transparent bg-[#141414] text-gray-300 hover:bg-[#1a1a1a]"
+            : "border-transparent text-gray-500 hover:bg-[#141414] hover:text-[#F5E6C8]"}
+          ${foraDoMes ? "opacity-30" : ""}`
+      : `relative w-full h-10 flex flex-col items-center justify-center rounded-lg text-xs font-medium transition-all
+          ${selecionado
+            ? "bg-[#b8944a] text-[#0A0A0A] shadow-[0_0_12px_rgba(184,148,74,0.3)]"
+            : isHoje
+            ? "border-2 border-[#b8944a]/70 text-[#b8944a]"
+            : isPast && temAg
+            ? "bg-[#1a1a1a] text-gray-300 hover:bg-[#222]"
+            : "text-gray-400 hover:bg-[#1a1a1a] hover:text-[#F5E6C8]"}`;
+
+    return (
+      <div key={key} className="relative">
+        <button
+          onClick={() => onSelect(key)}
+          onMouseEnter={() => setHoverKey(key)}
+          onMouseLeave={() => setHoverKey(null)}
+          className={clsCel}
+        >
+          <span className={semMoldura ? "font-medium leading-none" : "font-bold leading-none"}>{dia}</span>
+          <div className="flex gap-0.5 mt-0.5 h-1 items-center">
+            {temAg && <span className={`w-1 h-1 rounded-full ${selecionado && !semMoldura ? "bg-[#0A0A0A]/50" : "bg-[#b8944a]"}`} />}
+            {fechado && <span className={`w-1 h-1 rounded-full ${selecionado && !semMoldura ? "bg-[#0A0A0A]/50" : "bg-green-500"}`} />}
+          </div>
         </button>
-        <span className="text-sm font-bold text-[#F5E6C8] capitalize">{nomeMes}</span>
-        <button onClick={() => navMes(1)} className="p-1.5 text-gray-400 hover:text-[#b8944a] transition rounded-lg hover:bg-[#1a1a1a]">
-          <IconChevronRight size={16} />
-        </button>
+        {isHover && (temAg || fechado || fat) && !selecionado && (
+          <div className="absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 bg-[#1e1e1e] border border-[#3d3d3d] rounded-lg px-3 py-2 text-[10px] whitespace-nowrap shadow-xl pointer-events-none">
+            {temAg && <p className="text-[#b8944a] font-semibold">{ags.length} agendamento{ags.length > 1 ? "s" : ""}</p>}
+            {fat !== undefined && <p className="text-green-400">R$ {fat.toFixed(2).replace(".", ",")} faturado</p>}
+            {fechado && <p className="text-green-300 flex items-center gap-1"><IconLock size={8} /> Caixa fechado</p>}
+            {!fechado && isPast && temAg && <p className="text-red-400 flex items-center gap-1"><IconLockOpen size={8} /> Caixa em aberto</p>}
+          </div>
+        )}
       </div>
+    );
+  }
+
+  return (
+    <div className={semMoldura ? "select-none" : "bg-[#111] border border-[#2d2d2d] rounded-xl p-5 select-none"}>
+      {/* cabeçalho — semMoldura navega '‹ MÊS ANO ⌄ ›' centralizado. Com retratil, o
+          MÊS+chevron alterna semana↔mês; '‹ ›' navega semana (recolhido) ou mês (expandido). */}
+      {semMoldura ? (
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <button onClick={() => navContexto(-1)} className="p-1 text-gray-500 hover:text-[#b8944a] transition"><IconChevronLeft size={16} /></button>
+          <span className="text-xs font-bold tracking-widest text-[#F5E6C8] uppercase min-w-[130px] text-center">{nomeMes}</span>
+          <button onClick={() => navContexto(1)} className="p-1 text-gray-500 hover:text-[#b8944a] transition"><IconChevronRight size={16} /></button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between mb-5">
+          <button onClick={() => navMes(-1)} className="p-1.5 text-gray-400 hover:text-[#b8944a] transition rounded-lg hover:bg-[#1a1a1a]"><IconChevronLeft size={16} /></button>
+          <span className="text-sm font-bold text-[#F5E6C8] capitalize">{nomeMes}</span>
+          <button onClick={() => navMes(1)} className="p-1.5 text-gray-400 hover:text-[#b8944a] transition rounded-lg hover:bg-[#1a1a1a]"><IconChevronRight size={16} /></button>
+        </div>
+      )}
 
       {/* dias da semana */}
       <div className="grid grid-cols-7 mb-2">
         {DIAS_SEMANA.map((d, i) => (
-          <div key={d} className={`text-center text-[10px] font-semibold py-1 ${i === 0 ? "text-red-500/60" : "text-gray-600"}`}>{d}</div>
+          semMoldura
+            ? <div key={d} className="text-center text-[9px] font-medium tracking-widest text-gray-600 py-1 uppercase">{d}</div>
+            : <div key={d} className={`text-center text-[10px] font-semibold py-1 ${i === 0 ? "text-red-500/60" : "text-gray-600"}`}>{d}</div>
         ))}
       </div>
 
-      {/* células */}
-      <div className="grid grid-cols-7 gap-1">
-        {cells.map((dia, i) => {
-          if (!dia) return <div key={i} className="h-10" />;
-          const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
-          const selecionado = key === dataSelecionada;
-          const isHoje = key === hoje;
-          const ags = agsPorDia[key] ?? [];
-          const temAg = ags.length > 0;
-          const fechado = fechPorDia.has(key);
-          const fat = fatPorDia[key];
-          const isPast = key < hoje;
-          const isHover = hoverKey === key;
+      {/* células — recolhido (retratil) mostra só a SEMANA; senão o mês inteiro */}
+      {retratil && !expandido ? (
+        <motion.div key={`sem-${toDateKey(refSemana)}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="grid grid-cols-7 gap-1">
+          {diasSemanaVisiveis.map((dObj) => renderCelula(dObj))}
+        </motion.div>
+      ) : (
+        <motion.div key={`mes-${year}-${month}`} initial={retratil ? { opacity: 0, height: 0 } : false} animate={{ opacity: 1, height: "auto" }} transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }} style={{ overflow: "hidden" }} className="grid grid-cols-7 gap-1">
+          {cells.map((dia, i) => {
+            if (!dia) return <div key={i} className={semMoldura ? "" : "h-10"} />;
+            return renderCelula(new Date(year, month, dia, 12));
+          })}
+        </motion.div>
+      )}
 
-          return (
-            <div key={key} className="relative">
-              <button
-                onClick={() => onSelect(key)}
-                onMouseEnter={() => setHoverKey(key)}
-                onMouseLeave={() => setHoverKey(null)}
-                className={`relative w-full h-10 flex flex-col items-center justify-center rounded-lg text-xs font-medium transition-all
-                  ${selecionado
-                    ? "bg-[#b8944a] text-[#0A0A0A] shadow-[0_0_12px_rgba(184,148,74,0.3)]"
-                    : isHoje
-                    ? "border-2 border-[#b8944a]/70 text-[#b8944a]"
-                    : isPast && temAg
-                    ? "bg-[#1a1a1a] text-gray-300 hover:bg-[#222]"
-                    : "text-gray-400 hover:bg-[#1a1a1a] hover:text-[#F5E6C8]"
-                  }`}
-              >
-                <span className="font-bold leading-none">{dia}</span>
-                {/* indicadores */}
-                <div className="flex gap-0.5 mt-0.5 h-1 items-center">
-                  {temAg && <span className={`w-1 h-1 rounded-full ${selecionado ? "bg-[#0A0A0A]/50" : "bg-[#b8944a]"}`} />}
-                  {fechado && <span className={`w-1 h-1 rounded-full ${selecionado ? "bg-[#0A0A0A]/50" : "bg-green-500"}`} />}
-                </div>
-              </button>
+      {/* botão largo pra expandir/recolher o mês (padrão do Caixa, mais óbvio de achar) */}
+      {retratil && (
+        <button
+          onClick={() => setExpandido((v) => { const nv = !v; onExpandir?.(nv); return nv; })}
+          className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-[#242424] text-[10px] font-semibold tracking-widest uppercase text-gray-500 hover:text-[#b8944a] hover:border-[#b8944a]/40 transition"
+        >
+          {expandido ? "Recolher" : "Ver mês inteiro"}
+          <IconChevronDown size={13} className={`transition-transform ${expandido ? "rotate-180" : ""}`} />
+        </button>
+      )}
 
-              {/* tooltip hover */}
-              {isHover && (temAg || fechado || fat) && !selecionado && (
-                <div className="absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 bg-[#1e1e1e] border border-[#3d3d3d] rounded-lg px-3 py-2 text-[10px] whitespace-nowrap shadow-xl pointer-events-none">
-                  {temAg && <p className="text-[#b8944a] font-semibold">{ags.length} agendamento{ags.length > 1 ? "s" : ""}</p>}
-                  {fat !== undefined && <p className="text-green-400">R$ {fat.toFixed(2).replace(".", ",")} faturado</p>}
-                  {fechado && <p className="text-green-300 flex items-center gap-1"><IconLock size={8} /> Caixa fechado</p>}
-                  {!fechado && isPast && temAg && <p className="text-red-400 flex items-center gap-1"><IconLockOpen size={8} /> Caixa em aberto</p>}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* legenda */}
-      <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-[#1a1a1a]">
+      {/* legenda — entra por último (fade+slide) pra não "aparecer pronta" enquanto
+          o calendário ainda desliza pra dentro (bottom-sheet no mobile).
+          No overlay estilo Caixa (semMoldura) a legenda é omitida. */}
+      {!semMoldura && (
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.22, duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+        className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-[#1a1a1a]"
+      >
         <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-1.5 h-1.5 rounded-full bg-[#b8944a]" /> agendamentos</div>
         <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-1.5 h-1.5 rounded-full bg-green-500" /> caixa fechado</div>
         <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-3 h-3 rounded border-2 border-[#b8944a]/60" /> hoje</div>
-      </div>
+      </motion.div>
+      )}
     </div>
   );
 }
@@ -650,8 +723,8 @@ function ReagendarModal({ open, ag, dataSelecionada, agsDia, slotsBloqueados, gr
 type ModalState = { tipo: "concluir" | "excluir" | "fechar_caixa" | "bloquear" | "fechar_dia" | "fechar_dia_2" | "liberar_dia" | "caixa_fechado_retro"; id?: string; horario?: string } | null;
 
 // Modal de configuração da grade — horários padrão por dia da semana + almoço.
-function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, onSave, onClose }: {
-  open: boolean; grade: GradeConfig; passoMin: number; carenciaMin: number; salvando: boolean; onSave: (g: GradeConfig, passo: number, carencia: number) => void; onClose: () => void;
+function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, agendamentos, onSave, onClose }: {
+  open: boolean; grade: GradeConfig; passoMin: number; carenciaMin: number; salvando: boolean; agendamentos: Agendamento[]; onSave: (g: GradeConfig, passo: number, carencia: number) => void; onClose: () => void;
 }) {
   const [draft, setDraft] = useState<GradeConfig>(grade);
   // passo e carência controlados como string (edição livre); validados no salvar
@@ -664,12 +737,37 @@ function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, onSave
   // Horário padrão: aplica abre/fecha/almoço a um conjunto de dias de uma vez.
   const [padrao, setPadrao] = useState({ inicio: "09:00", fim: "18:00", almocoInicio: "12:00", almocoFim: "13:00" });
   const [diasSel, setDiasSel] = useState<Set<number>>(new Set([1, 2, 3, 4, 5]));
-  useEffect(() => { if (open) { setDraft(grade); setPassoStr(String(passoMin)); setCarenciaStr(String(carenciaMin)); setPassoErro(false); setCarenciaErro(false); } }, [open, grade, passoMin, carenciaMin]);
+  // feedback da aplicação em massa (ação sensível): confirma quantos dias foram alterados
+  const [aplicadoFeedback, setAplicadoFeedback] = useState<number | null>(null);
+  // pediu confirmação extra porque a mudança afeta agendamentos já efetuados
+  const [confirmandoConflito, setConfirmandoConflito] = useState(false);
+  useEffect(() => { if (open) { setDraft(grade); setPassoStr(String(passoMin)); setCarenciaStr(String(carenciaMin)); setPassoErro(false); setCarenciaErro(false); setConfirmandoConflito(false); } }, [open, grade, passoMin, carenciaMin]);
+  // qualquer edição do draft invalida a confirmação anterior (a lista de conflitos mudou)
+  useEffect(() => { setConfirmandoConflito(false); }, [draft, passoStr, carenciaStr]);
 
   const passoNum = parseInt(passoStr, 10);
   const passoValido = Number.isFinite(passoNum) && passoNum >= PASSO_MIN && passoNum <= PASSO_MAX;
   const carenciaNum = carenciaStr === "" ? 0 : parseInt(carenciaStr, 10);
   const carenciaValida = Number.isFinite(carenciaNum) && carenciaNum >= 0 && carenciaNum <= CARENCIA_MAX;
+
+  // Detecta agendamentos FUTUROS (pendente/confirmado, data ≥ hoje) que ficariam
+  // fora do horário na grade NOVA (draft): dia desativado, ou horário fora do
+  // abre/fecha, ou dentro do novo almoço. Alerta o Igor antes de ele salvar sem querer.
+  const conflitos = useMemo(() => {
+    const hojeK = toDateKey(new Date());
+    const toMin = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
+    return agendamentos.filter((a) => {
+      if (a.status !== "pendente" && a.status !== "confirmado") return false;
+      if (a.data < hojeK) return false; // já passou — não conta
+      const dow = new Date(a.data + "T12:00:00").getDay();
+      const d = draft[dow];
+      if (!d || !d.ativo) return true; // dia virou fechado
+      const m = toMin(a.horario);
+      if (m < toMin(d.inicio) || m >= toMin(d.fim)) return true; // fora do expediente novo
+      if (d.almocoInicio && d.almocoFim && m >= toMin(d.almocoInicio) && m < toMin(d.almocoFim)) return true; // cai no almoço novo
+      return false;
+    });
+  }, [agendamentos, draft]);
 
   // valida antes de salvar; se inválido, foca o campo problemático, dispara shake e não salva
   function handleSalvar() {
@@ -685,6 +783,12 @@ function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, onSave
       setTimeout(() => setCarenciaErro(false), 600);
       return;
     }
+    // Se a mudança deixa agendamentos futuros fora do horário, exige uma confirmação
+    // extra antes de salvar (não cancela os agendamentos — só avisa que ficam "fora da grade").
+    if (conflitos.length > 0 && !confirmandoConflito) {
+      setConfirmandoConflito(true);
+      return;
+    }
     onSave(draft, passoNum, carenciaNum);
   }
 
@@ -695,6 +799,7 @@ function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, onSave
     setDiasSel((prev) => { const n = new Set(prev); n.has(dow) ? n.delete(dow) : n.add(dow); return n; });
   }
   function aplicarPadrao() {
+    const qtd = diasSel.size;
     setDraft((prev) => {
       const out = { ...prev };
       diasSel.forEach((dow) => {
@@ -708,6 +813,9 @@ function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, onSave
       });
       return out;
     });
+    // feedback visível: confirma que os dias foram atualizados (sensível — mexe no funcionamento)
+    setAplicadoFeedback(qtd);
+    setTimeout(() => setAplicadoFeedback(null), 2600);
   }
   const time = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2 py-1 text-xs text-[#F5E6C8] focus:outline-none focus:border-[#b8944a]";
 
@@ -766,9 +874,19 @@ function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, onSave
             </div>
           </div>
 
-          <button type="button" onClick={aplicarPadrao} disabled={diasSel.size === 0}
-            className="w-full py-2 text-xs bg-[#b8944a] text-[#0A0A0A] rounded-lg font-semibold hover:bg-[#c9a84c] transition disabled:opacity-40">
-            Aplicar aos {diasSel.size} dia{diasSel.size !== 1 ? "s" : ""} selecionado{diasSel.size !== 1 ? "s" : ""}
+          <button type="button" onClick={aplicarPadrao} disabled={diasSel.size === 0 || aplicadoFeedback !== null}
+            className={`w-full py-2 text-xs rounded-lg font-semibold transition disabled:opacity-40 flex items-center justify-center gap-1.5 ${
+              aplicadoFeedback !== null
+                ? "bg-green-500/20 text-green-300 border border-green-600/50"
+                : "bg-[#b8944a] text-[#0A0A0A] hover:bg-[#c9a84c]"
+            }`}>
+            {aplicadoFeedback !== null ? (
+              <motion.span initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 400, damping: 15 }} className="flex items-center gap-1.5">
+                <IconCheck size={13} strokeWidth={3} /> Aplicado a {aplicadoFeedback} dia{aplicadoFeedback !== 1 ? "s" : ""} — revise abaixo e salve
+              </motion.span>
+            ) : (
+              <>Aplicar aos {diasSel.size} dia{diasSel.size !== 1 ? "s" : ""} selecionado{diasSel.size !== 1 ? "s" : ""}</>
+            )}
           </button>
         </div>
       </div>
@@ -873,9 +991,42 @@ function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, onSave
           })}
         </div>
       </div>
-      <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2 justify-end shrink-0">
-        <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
-        <button onClick={handleSalvar} disabled={salvando} className="px-4 py-2 text-sm text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c] rounded transition disabled:opacity-40">{salvando ? "Salvando..." : "Salvar grade"}</button>
+      <div className="px-5 py-4 border-t border-[#1e1e1e] flex flex-col gap-3 shrink-0">
+        {conflitos.length > 0 ? (
+          // Alerta VERMELHO: a mudança deixa agendamentos já efetuados fora do horário
+          <div className="flex items-start gap-2 text-[11px] text-red-300 bg-red-950/40 border border-red-800/50 rounded-lg px-3 py-2.5">
+            <IconAlertTriangle size={14} className="shrink-0 mt-0.5 text-red-400" />
+            <div className="flex flex-col gap-1 min-w-0">
+              <span>
+                <strong>{conflitos.length} agendamento{conflitos.length !== 1 ? "s" : ""} já efetuado{conflitos.length !== 1 ? "s" : ""}</strong> {conflitos.length !== 1 ? "ficam" : "fica"} fora do novo horário de funcionamento.
+              </span>
+              <span className="text-red-300/70">
+                Eles <strong>não serão cancelados</strong>, mas passam a ficar fora da grade. Reagende ou avise os clientes:
+                {" "}{conflitos.slice(0, 3).map((c) => `${c.nome} (${new Date(c.data + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} ${c.horario})`).join(", ")}{conflitos.length > 3 ? ` +${conflitos.length - 3}` : ""}.
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start gap-2 text-[11px] text-amber-300/90 bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-2">
+            <IconAlertTriangle size={13} className="shrink-0 mt-0.5 text-amber-400" />
+            <span>Ao salvar, os horários passam a valer <strong>na hora</strong> para os clientes no site. Confira antes de confirmar.</span>
+          </div>
+        )}
+        <div className="flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 border border-[#2d2d2d] rounded hover:border-[#b8944a] transition">Cancelar</button>
+          <button
+            onClick={handleSalvar}
+            disabled={salvando}
+            className={`px-4 py-2 text-sm rounded transition disabled:opacity-40 flex items-center gap-1.5 ${
+              confirmandoConflito
+                ? "bg-red-900/60 text-red-200 border border-red-700/60 hover:bg-red-900/80"
+                : "text-[#0A0A0A] bg-[#b8944a] hover:bg-[#c9a84c]"
+            }`}
+          >
+            {confirmandoConflito && <IconAlertTriangle size={13} />}
+            {salvando ? "Salvando..." : confirmandoConflito ? "Salvar mesmo assim" : "Salvar grade"}
+          </button>
+        </div>
       </div>
     </AnimatedModal>
   );
@@ -930,6 +1081,10 @@ export default function AgendamentosAdminPage() {
   const [salvandoGrade, setSalvandoGrade] = useState(false);
   const [pendencias, setPendencias] = useState<Agendamento[] | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
+  // Modal explicativo do "confirmado automaticamente" (tira a poluição do card).
+  const [autoInfoOpen, setAutoInfoOpen] = useState(false);
+  // Âncora da agenda mobile (pra scroll/scroll-margin).
+  const agendaRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   function mostrarSucesso(msg: string) {
@@ -1096,6 +1251,9 @@ export default function AgendamentosAdminPage() {
     if (!ehHoje) return false;                    // dia futuro → nada passou
     return (Number(slot.slice(0, 2)) * 60 + Number(slot.slice(3, 5))) < agoraMin; // hoje → só horários já passados
   };
+  // Slots livres que AINDA dá pra agendar (exclui os que já passaram). Só esses fazem
+  // sentido "bloquear" ao fechar o dia — bloquear horário já passado não bloqueia nada.
+  const slotsLivresFuturos = slotsLivresDia.filter((s) => !slotPassou(s));
 
   const dataLabel = new Date(dataSelecionada + "T12:00:00").toLocaleDateString("pt-BR", {
     day: "numeric", month: "long", year: "numeric",
@@ -1202,7 +1360,7 @@ export default function AgendamentosAdminPage() {
   // Fecha o dia: bloqueia todos os horários livres. Agendamentos existentes ficam
   // intactos; se houver, abre o painel de pendências pra reagendar um a um.
   async function fecharDia() {
-    const livres = slotsLivresDia;
+    const livres = slotsLivresFuturos; // só bloqueia os que ainda dá pra agendar
     if (livres.length > 0) {
       await fetch("/api/slots/dia", { credentials: "include", method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: dataSelecionada, horarios: livres, acao: "bloquear" }) });
       setSlotsBloqueados((prev) => Array.from(new Set([...prev, ...livres])));
@@ -1262,7 +1420,7 @@ export default function AgendamentosAdminPage() {
     },
     fechar_dia: {
       titulo: "Fechar este dia?",
-      mensagem: `Bloqueia os ${slotsLivresDia.length} horário(s) livre(s) de ${dataLabel} — ninguém mais conseguirá agendar. Os agendamentos já existentes serão mantidos.`,
+      mensagem: `Bloqueia os ${slotsLivresFuturos.length} horário(s) livre(s) restante(s) de ${dataLabel} — ninguém mais conseguirá agendar. Os agendamentos já existentes serão mantidos.`,
       confirmLabel: "Continuar",
       confirmClass: "bg-red-700 hover:bg-red-600",
     },
@@ -1302,7 +1460,19 @@ export default function AgendamentosAdminPage() {
       <SucessoModal open={!!sucesso} mensagem={sucesso ?? ""} onClose={() => setSucesso(null)} />
 
       <Modal open={!!modal} {...(modal ? modalConfig[modal.tipo] : modalConfigVazio)} onConfirm={confirmarModal} onCancel={() => setModal(null)} />
-      <ConfigGradeModal open={configGradeOpen} grade={grade} passoMin={passoMin} carenciaMin={carenciaMin} salvando={salvandoGrade} onSave={salvarGrade} onClose={() => setConfigGradeOpen(false)} />
+      <ConfigGradeModal open={configGradeOpen} grade={grade} passoMin={passoMin} carenciaMin={carenciaMin} salvando={salvandoGrade} agendamentos={agendamentos} onSave={salvarGrade} onClose={() => setConfigGradeOpen(false)} />
+
+      {/* Explicação do selo "auto" — tira o texto longo de dentro do card */}
+      <AnimatedModal open={autoInfoOpen} onClose={() => setAutoInfoOpen(false)} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 flex flex-col gap-3">
+        <h3 className="font-bold text-[#F5E6C8] flex items-center gap-2 pr-6"><IconCircleCheck size={16} className="text-green-400 shrink-0" /> Confirmado automaticamente</h3>
+        <p className="text-sm text-gray-400 leading-relaxed">
+          Este agendamento foi confirmado sozinho pelo sistema — pelo modo automático ou por tempo de espera — sem alguém clicar em confirmar.
+        </p>
+        <p className="text-sm text-gray-400 leading-relaxed">
+          Quando o selo aparecer em <span className="text-amber-300">amarelo com ⚠️</span>, o cliente ainda não foi avisado. Use o botão <span className="text-green-300">Avisar no WhatsApp</span> no card para mandar a confirmação.
+        </p>
+        <button onClick={() => setAutoInfoOpen(false)} className="mt-1 self-end px-4 py-2 text-sm text-[#F5E6C8] bg-[#1f1f1f] border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition">Entendi</button>
+      </AnimatedModal>
 
       {/* Modal de pendências: aparece ao fechar o dia que tinha agendamentos.
           Renderizado ANTES do ReagendarModal pra que este fique por cima ao reagendar. */}
@@ -1480,42 +1650,60 @@ export default function AgendamentosAdminPage() {
         );
       })()}
 
-      {/* ── KPIs do dia selecionado ───────────────────────────────────────────── */}
+      {/* ── KPIs do dia selecionado (centralizados) ───────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className={`${cardDark} p-4`}>
+        <div className={`${cardDark} p-4 text-center`}>
           <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-500 mb-1">Agendamentos</p>
           <p className="text-2xl font-bold text-[#F5E6C8]">{agsDia.length}</p>
           <p className="text-xs text-gray-500 mt-1 capitalize truncate">{diaSemana}, {new Date(dataSelecionada + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</p>
         </div>
-        <div className={`${cardDark} p-4`}>
+        <div className={`${cardDark} p-4 text-center`}>
           <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-500 mb-1">Horários livres</p>
           <p className="text-2xl font-bold text-[#F5E6C8]">{slotsLivresDia.length}</p>
           <p className="text-xs text-gray-500 mt-1">de {todosSlotsDia.length} no dia</p>
         </div>
-        <div className={`${cardDark} p-4`}>
+        <div className={`${cardDark} p-4 text-center`}>
           <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-500 mb-1">Faturado</p>
           <p className="text-2xl font-bold text-green-400">R$ {totalDia.toFixed(2).replace(".", ",")}</p>
           <p className="text-xs text-gray-500 mt-1">{concluidos.length} concluído{concluidos.length !== 1 ? "s" : ""}</p>
         </div>
-        <div className={`${cardDark} p-4 flex flex-col justify-between`}>
+        <div className={`${cardDark} p-4 flex flex-col items-center text-center`}>
           <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-500 mb-1">Caixa</p>
-          <p className={`text-sm font-bold flex items-center gap-1.5 ${caixaFechado ? "text-green-400" : "text-gray-400"}`}>
-            {caixaFechado ? <><IconLock size={13} /> Fechado</> : <><IconLockOpen size={13} /> Em aberto</>}
+          <p className={`text-xl font-bold flex items-center justify-center gap-1.5 leading-tight ${caixaFechado ? "text-green-400" : "text-gray-300"}`}>
+            {caixaFechado ? <><IconLock size={17} /> Fechado</> : <><IconLockOpen size={17} /> Em aberto</>}
           </p>
           {!ehFuturo && (
             <Link href={`/admin/caixa?dia=${dataSelecionada}#caixa`}
-              className="mt-2 text-[10px] font-bold tracking-widest uppercase text-[#b8944a] hover:underline flex items-center gap-1">
+              className="mt-1 text-[10px] font-bold tracking-widest uppercase text-[#b8944a] hover:underline flex items-center gap-1">
               <IconTrendingUp size={10} /> Ver no caixa
             </Link>
           )}
         </div>
       </div>
 
+      {/* Mobile: agenda no padrão do Caixa — recolhido mostra a SEMANA (sempre visível),
+          o '‹ MÊS ANO ›' expande pro mês. No desktop o calendário fica fixo ao lado. */}
+      <div ref={agendaRef} className="lg:hidden rounded-xl bg-[#111] border border-[#242424] px-4 py-4 scroll-mt-4">
+        <CalendarioMensal
+          semMoldura
+          retratil
+          dataSelecionada={dataSelecionada}
+          agendamentos={agendamentos}
+          fechamentos={fechamentos}
+          slotsBloqueados={slotsBloqueados}
+          onSelect={(key) => { setDataSelecionada(key); setEditandoId(null); }}
+          onExpandir={(exp) => {
+            // ao expandir pro mês, centraliza a agenda na tela (espera a animação assentar)
+            if (exp) setTimeout(() => agendaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 280);
+          }}
+        />
+      </div>
+
       {/* ── Calendário + Lista lado a lado ───────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row gap-5 items-start">
 
-        {/* calendário */}
-        <div className="w-full lg:w-[420px] shrink-0">
+        {/* calendário — no desktop fica ao lado; no mobile vai pro overlay abaixo */}
+        <div className="hidden lg:block w-full lg:w-[420px] shrink-0">
           <CalendarioMensal
             dataSelecionada={dataSelecionada}
             agendamentos={agendamentos}
@@ -1551,7 +1739,13 @@ export default function AgendamentosAdminPage() {
                     {ehFuturo ? "Nenhum agendamento para este dia ainda." : "Nenhum agendamento neste dia."}
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-2 p-3">
+                  <motion.div
+                    className="flex flex-col gap-2 p-3"
+                    initial="hidden"
+                    animate="show"
+                    variants={{ show: { transition: { staggerChildren: 0.05 } } }}
+                    key={dataSelecionada}
+                  >
                     {agsDia.map((ag) => {
                       const editando = editandoId === ag.id;
                       const ocupado = processando === ag.id;
@@ -1571,7 +1765,12 @@ export default function AgendamentosAdminPage() {
                       const horarioFim = `${String(Math.floor(fimMin / 60)).padStart(2, "0")}:${String(fimMin % 60).padStart(2, "0")}`;
 
                       return (
-                        <div key={ag.id} id={`ag-${ag.id}`} className={`bg-[#0d0d0d] border rounded-xl px-3 sm:px-4 py-3.5 transition ${ehConcluido ? "border-green-900/40" : ag.status === "nao_compareceu" || ag.status === "cancelado" ? "border-[#242424] opacity-60" : "border-[#242424]"}`}>
+                        <motion.div
+                          key={ag.id} id={`ag-${ag.id}`}
+                          variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
+                          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                          className={`bg-[#0d0d0d] border rounded-xl px-3 sm:px-4 py-3 transition-colors ${ehConcluido ? "border-green-900/40" : ag.status === "nao_compareceu" || ag.status === "cancelado" ? "border-[#242424] opacity-60" : "border-[#242424]"}`}
+                        >
                           <div className="flex items-start gap-3">
                             <div className="flex-shrink-0 w-[52px] flex flex-col items-center pt-0.5">
                               <span className="text-sm font-bold text-[#F5E6C8] tabular-nums leading-tight">{ag.horario}</span>
@@ -1598,19 +1797,25 @@ export default function AgendamentosAdminPage() {
                               ) : (
                                 <>
                                   <p className="text-sm font-semibold text-[#F5E6C8]">{ag.servico}</p>
-                                  <p className="text-xs text-gray-500 mt-0.5">Cliente: <span className="text-gray-400">{ag.nome}</span></p>
-                                  {ag.telefone && ag.telefone !== "00000000000" && (
-                                    <p className="text-xs text-gray-600 mt-0.5">
-                                      <a href={`https://wa.me/55${ag.telefone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="hover:text-green-400 transition">{ag.telefone}</a>
-                                    </p>
-                                  )}
-                                  {ag.barbeiroNome && (
-                                    <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-[#2d2d2d] text-gray-300 border border-[#3d3d3d] rounded-full">✂️ {ag.barbeiroNome}</span>
-                                  )}
-                                  {ag.cupom && (
-                                    <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-[#b8944a]/10 text-[#b8944a] border border-[#b8944a]/30 rounded-full font-mono">
-                                      🏷️ {ag.cupom}{ag.desconto ? ` −R$ ${ag.desconto.toFixed(2).replace(".", ",")}` : ""}
-                                    </span>
+                                  {/* cliente + telefone na MESMA linha (usa a largura, encurta o card) */}
+                                  <div className="flex items-baseline flex-wrap gap-x-2 gap-y-0.5 mt-0.5 text-xs">
+                                    <span className="text-gray-500">Cliente: <span className="text-gray-300">{ag.nome}</span></span>
+                                    {ag.telefone && ag.telefone !== "00000000000" && (
+                                      <a href={`https://wa.me/55${ag.telefone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-green-400 transition tabular-nums">{ag.telefone}</a>
+                                    )}
+                                  </div>
+                                  {/* chips (barbeiro, cupom) na mesma faixa horizontal */}
+                                  {(ag.barbeiroNome || ag.cupom) && (
+                                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                      {ag.barbeiroNome && (
+                                        <span className="text-xs px-2 py-0.5 bg-[#2d2d2d] text-gray-300 border border-[#3d3d3d] rounded-full">✂️ {ag.barbeiroNome}</span>
+                                      )}
+                                      {ag.cupom && (
+                                        <span className="text-xs px-2 py-0.5 bg-[#b8944a]/10 text-[#b8944a] border border-[#b8944a]/30 rounded-full font-mono">
+                                          🏷️ {ag.cupom}{ag.desconto ? ` −R$ ${ag.desconto.toFixed(2).replace(".", ",")}` : ""}
+                                        </span>
+                                      )}
+                                    </div>
                                   )}
                                   {ag.historico && ag.historico.length > 0 && (
                                     <details className="mt-2">
@@ -1626,10 +1831,12 @@ export default function AgendamentosAdminPage() {
                                     </details>
                                   )}
                                   {ag.avisoPendente && (
-                                    <div className="mt-2 flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-amber-950/40 border border-amber-700/40">
-                                      <IconAlertTriangle size={12} className="text-amber-400 shrink-0" />
-                                      <span className="text-xs text-amber-300 flex-1">Confirmado automaticamente — avise o cliente.</span>
-                                      <button onClick={() => avisarCliente(ag.id)} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 text-xs text-green-300 bg-green-900/30 border border-green-700/50 rounded-lg hover:bg-green-900/50 transition shrink-0"><IconMessageCircle size={11} /> Avisar no WhatsApp</button>
+                                    <div className="mt-2 flex flex-col min-[420px]:flex-row min-[420px]:items-center gap-2 px-2.5 py-2 rounded-lg bg-amber-950/40 border border-amber-700/40">
+                                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                        <IconAlertTriangle size={12} className="text-amber-400 shrink-0" />
+                                        <span className="text-xs text-amber-300 truncate">Avise o cliente da confirmação.</span>
+                                      </div>
+                                      <button onClick={() => avisarCliente(ag.id)} disabled={ocupado} className="flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs text-green-300 bg-green-900/30 border border-green-700/50 rounded-lg hover:bg-green-900/50 transition shrink-0 w-full min-[420px]:w-auto"><IconMessageCircle size={12} className="shrink-0" /> <span className="truncate">Avisar no WhatsApp</span></button>
                                     </div>
                                   )}
                                   {!caixaFechado && (
@@ -1661,20 +1868,28 @@ export default function AgendamentosAdminPage() {
                               )}
                               </div>
 
-                              {/* coluna direita: preço + status */}
-                              <div className="flex flex-col items-end gap-1 shrink-0 pt-0.5">
-                                {ag.preco && <span className="text-xs font-bold text-[#b8944a]">R$ {ag.preco}</span>}
+                              {/* coluna direita: preço + status + selo auto (alinhados à direita) */}
+                              <div className="flex flex-col items-end gap-1.5 shrink-0 pt-0.5">
+                                {ag.preco && <span className="text-xs font-bold text-[#b8944a] tabular-nums whitespace-nowrap">R$ {ag.preco}</span>}
                                 <span className={`text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap ${STATUS_STYLE[ag.status]}`}>{STATUS_LABEL[ag.status]}</span>
                                 {ag.confirmadoAuto && (
-                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#1a1a1a] text-gray-500 border border-[#2d2d2d] whitespace-nowrap">auto</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAutoInfoOpen(true)}
+                                    title="O que significa confirmado automaticamente?"
+                                    className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border whitespace-nowrap transition ${ag.avisoPendente ? "bg-amber-950/40 text-amber-300 border-amber-700/50 hover:bg-amber-950/60" : "bg-[#1a1a1a] text-gray-500 border-[#2d2d2d] hover:text-gray-300 hover:border-[#3d3d3d]"}`}
+                                  >
+                                    {ag.avisoPendente && <IconAlertTriangle size={9} className="shrink-0" />}
+                                    auto
+                                  </button>
                                 )}
                               </div>
                             </div>
                           </div>
-                        </div>
+                        </motion.div>
                       );
                     })}
-                  </div>
+                  </motion.div>
                 )}
               </div>
 
@@ -1710,8 +1925,8 @@ export default function AgendamentosAdminPage() {
                 <button onClick={() => setConfigGradeOpen(true)} title="Configurar grade" className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-300 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition">
                   <IconAdjustments size={13} /> <span className="hidden sm:inline">Configurar</span>
                 </button>
-                {slotsLivresDia.length > 0 && (
-                  <button onClick={() => setModal({ tipo: "fechar_dia" })} title="Fechar o dia (bloquear horários livres)" className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-red-400/80 border border-red-900/40 rounded-lg hover:border-red-500/60 hover:text-red-400 transition">
+                {slotsLivresFuturos.length > 0 && (
+                  <button onClick={() => setModal({ tipo: "fechar_dia" })} title="Fechar o dia (bloquear horários livres restantes)" className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-red-400/80 border border-red-900/40 rounded-lg hover:border-red-500/60 hover:text-red-400 transition">
                     <IconCalendarX size={13} /> <span className="hidden sm:inline">Fechar dia</span>
                   </button>
                 )}

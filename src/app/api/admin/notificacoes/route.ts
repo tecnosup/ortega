@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin";
 import { sendPushToAll } from "@/lib/web-push";
 import { pushVencimentoProximo } from "@/lib/push-messages";
+import { hojeBR } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export async function GET(_req: NextRequest) {
 
     const db = getAdminDb();
     const agora = Date.now();
-    const hoje = new Date().toISOString().split("T")[0];
+    const hoje = hojeBR();
     const DUAS_HORAS = 2 * 60 * 60 * 1000;
     const limite30d = new Date(); limite30d.setDate(limite30d.getDate() - 30);
     const limite30dStr = limite30d.toISOString().split("T")[0];
@@ -58,21 +59,21 @@ export async function GET(_req: NextRequest) {
       return { id: doc.id, nome: d.nome as string, servico: d.servico as string, data: d.data as string, horario: d.horario as string };
     });
 
-    // ── Caixas retroativos abertos (apenas últimos 30 dias) ───────────────────
-    const [fechSnap, concluidosSnap, avulsosSnap] = await Promise.all([
+    // ── Caixas retroativos abertos (últimos 30 dias) ──────────────────────────
+    // Um dia está "aberto" quando tem COMANDA FINALIZADA (faturamento real) sem
+    // fechamento. Usa a mesma fonte da tela do Caixa (comandas) — antes usava
+    // agendamentos concluídos/avulsos, o que dava alerta fantasma em dias sem
+    // comanda finalizada.
+    const [fechSnap, comandasSnap] = await Promise.all([
       db.collection("fechamentos").where("data", ">=", limite30dStr).where("data", "<", hoje).limit(100).get(),
-      db.collection("agendamentos").where("data", ">=", limite30dStr).where("data", "<", hoje).limit(500).get(),
-      db.collection("atendimentos_avulsos").where("data", ">=", limite30dStr).where("data", "<", hoje).limit(500).get(),
+      db.collection("comandas").where("data", ">=", limite30dStr).where("data", "<", hoje).limit(1000).get(),
     ]);
 
     const fechDatas = new Set(fechSnap.docs.map(d => d.data().data as string));
     const datasComAtividade = new Set<string>();
-    concluidosSnap.docs.forEach(doc => {
-      const d = doc.data();
-      if (d.status === "concluido") datasComAtividade.add(d.data as string);
-    });
-    avulsosSnap.docs.forEach(doc => {
-      datasComAtividade.add(doc.data().data as string);
+    comandasSnap.docs.forEach(doc => {
+      const c = doc.data();
+      if (c.status === "finalizada") datasComAtividade.add(c.data as string);
     });
 
     const caixasAbertosLista = [...datasComAtividade]
@@ -93,6 +94,7 @@ export async function GET(_req: NextRequest) {
     const avisosPendentes: { title: string; body: string; docRef: FirebaseFirestore.DocumentReference }[] = [];
     for (const doc of gastosSnap.docs) {
       const g = doc.data();
+      if (g.ativo === false) continue; // gasto pausado não cobra lembrete de vencimento
       if (g.proximoVencimento && g.proximoVencimento >= hoje && g.proximoVencimento <= em10dStr) {
         vencimentos++;
         const dias = Math.ceil((new Date(g.proximoVencimento + "T12:00:00").getTime() - Date.now()) / 86400000);

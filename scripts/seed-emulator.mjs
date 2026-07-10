@@ -114,6 +114,28 @@ async function seedComandas() {
   console.log(`✓ ${comandas.length} comandas de exemplo criadas (2 abertas + 1 finalizada)`);
 }
 
+// Reproduz o CASO PEDRO: agendamento confirmado + comanda vinculada aberta.
+// Finalize essa comanda no Caixa e volte na grade de Agendamentos: o Pedro
+// deve virar "Concluído" (o fix do sync reverso). Sem o fix, ficava "Confirmado".
+async function seedCasoPedro() {
+  await limpar("agendamentos");
+  const agRef = await db.collection("agendamentos").add({
+    nome: "Pedro", telefone: "5512982006310", servico: "Corte na Tesoura",
+    preco: "41,00", data: hoje, horario: "17:30", status: "confirmado",
+    barbeiroNome: "Igor", visualizadoAdmin: true, criadoEm: now, atualizadoEm: now,
+  });
+  await db.collection("comandas").add({
+    origem: "agendamento", status: "aberta", agendamentoId: agRef.id,
+    clienteNome: "Pedro", data: hoje, horario: "17:30", barbeiroNome: "Igor",
+    itens: [
+      { id: "1", tipo: "servico", descricao: "Corte na Tesoura", valor: 41 },
+      { id: "2", tipo: "servico", descricao: "Sobrancelha", valor: 8 },
+    ],
+    total: 49, criadoEm: now, atualizadoEm: now,
+  });
+  console.log(`✓ CASO PEDRO criado: agendamento 'confirmado' + comanda 'aberta' vinculada (finalize e confira a grade)`);
+}
+
 async function seedGastos() {
   await limpar("gastos_dia");
   const gastos = [
@@ -131,6 +153,7 @@ await seedServicos();
 await seedProdutos();
 await seedBarbeiros();
 await seedComandas();
+await seedCasoPedro();
 await seedGastos();
 console.log("\n✅ Seed concluído. Entre no admin com:", ADMIN_EMAIL, "/", ADMIN_SENHA);
 process.exit(0);
