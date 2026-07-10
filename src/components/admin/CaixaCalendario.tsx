@@ -18,6 +18,8 @@ import { useModalMount } from "@/components/ui/useModalMount";
 import { useToast } from "@/components/ui/Toast";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useSucesso } from "@/components/ui/Sucesso";
+import Revelar from "@/components/ui/Revelar";
+import { hojeBR } from "@/lib/date-utils";
 
 function brl(v: number) { return `R$ ${v.toFixed(2).replace(".", ",")}` }
 function ymd(d: Date) {
@@ -528,7 +530,7 @@ interface Props {
 }
 
 export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAtualizar }: Props) {
-  const hoje = new Date().toISOString().split("T")[0];
+  const hoje = hojeBR();
 
   const [ano, setAno] = useState(() => new Date().getFullYear());
   const [mes, setMes] = useState(() => new Date().getMonth());
@@ -894,30 +896,32 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
                   <IconChevronDown size={13} className={`text-gray-600 transition-transform ${finalizadasAberto ? "rotate-180" : ""}`} />
                 </span>
               </button>
-              {finalizadasAberto && finalizadas.map((c) => (
-                <div key={c.id} className="border-t border-[#1a1a1a] px-3 py-2.5">
-                  <div className="flex justify-between items-baseline gap-3">
-                    <span className="text-sm text-[#F5E6C8] flex items-center gap-1.5 min-w-0"><IconCheck size={12} className="text-green-500 shrink-0" /> <span className="truncate">{c.clienteNome}</span></span>
-                    <span className="text-sm font-semibold text-[#b8944a] shrink-0">{brl(c.total)}</span>
-                  </div>
-                  <div className="pl-[22px] mt-1 flex flex-col gap-0.5">
-                    {c.itens.map((it) => (
-                      <div key={it.id} className="flex justify-between text-[11px] text-gray-500 gap-3">
-                        <span className="truncate">{it.tipo === "produto" ? "📦" : "✂️"} {it.descricao}</span>
-                        {c.itens.length > 1 && <span className="shrink-0 text-gray-600">{brl(it.valor)}</span>}
-                      </div>
-                    ))}
-                  </div>
-                  {!fechDia && (
-                    <div className="flex justify-end mt-2">
-                      <button onClick={() => setModalReabrirComanda(c)}
-                        className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-400 hover:text-amber-300 border border-[#2d2d2d] hover:border-amber-700/50 rounded-lg px-3.5 py-2 transition active:scale-95">
-                        <IconLockOpen size={13} /> Reabrir comanda
-                      </button>
+              <Revelar show={finalizadasAberto}>
+                {finalizadas.map((c) => (
+                  <div key={c.id} className="border-t border-[#1a1a1a] px-3 py-2.5">
+                    <div className="flex justify-between items-baseline gap-3">
+                      <span className="text-sm text-[#F5E6C8] flex items-center gap-1.5 min-w-0"><IconCheck size={12} className="text-green-500 shrink-0" /> <span className="truncate">{c.clienteNome}</span></span>
+                      <span className="text-sm font-semibold text-[#b8944a] shrink-0">{brl(c.total)}</span>
                     </div>
-                  )}
-                </div>
-              ))}
+                    <div className="pl-[22px] mt-1 flex flex-col gap-0.5">
+                      {c.itens.map((it) => (
+                        <div key={it.id} className="flex justify-between text-[11px] text-gray-500 gap-3">
+                          <span className="truncate">{it.tipo === "produto" ? "📦" : "✂️"} {it.descricao}</span>
+                          {c.itens.length > 1 && <span className="shrink-0 text-gray-600">{brl(it.valor)}</span>}
+                        </div>
+                      ))}
+                    </div>
+                    {!fechDia && (
+                      <div className="flex justify-end mt-2">
+                        <button onClick={() => setModalReabrirComanda(c)}
+                          className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-400 hover:text-amber-300 border border-[#2d2d2d] hover:border-amber-700/50 rounded-lg px-3.5 py-2 transition active:scale-95">
+                          <IconLockOpen size={13} /> Reabrir comanda
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </Revelar>
             </div>
           )}
           {!fechDia && finalizadas.length === 0 && (

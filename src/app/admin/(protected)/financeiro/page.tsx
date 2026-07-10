@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState, useCallback } from "react";
 import {
-  IconAlertTriangle, IconBell, IconBellOff, IconCashRegister, IconCheck, IconChevronDown, IconEdit, IconPlus, IconReceipt, IconSettings, IconToggleLeft, IconToggleRight, IconTrash,
+  IconAlertTriangle, IconBell, IconBellOff, IconCashRegister, IconCheck, IconChevronDown, IconCoin, IconEdit, IconPlus, IconReceipt, IconSettings, IconToggleLeft, IconToggleRight, IconTrash,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { useAdminNotificacoes, type VencimentoItem } from "@/hooks/useAdminNotificacoes";
@@ -1053,7 +1053,7 @@ export default function FinanceiroPage() {
               const catNome = catCustom?.nome ?? CATEGORIA_LABEL[g.categoria] ?? "Outros";
               const catCor = catCustom?.cor ?? "#6B7280";
               const diasParaVencer = g.proximoVencimento
-                ? Math.ceil((new Date(g.proximoVencimento).getTime() - Date.now()) / 86400000)
+                ? Math.round((new Date(g.proximoVencimento + "T12:00:00").getTime() - new Date(hojeISO() + "T12:00:00").getTime()) / 86400000)
                 : null;
               const vencendoBreve = diasParaVencer !== null && diasParaVencer <= 10 && diasParaVencer >= 0;
               return (
@@ -1081,6 +1081,12 @@ export default function FinanceiroPage() {
                     {g.frequencia !== "mensal" && g.frequencia !== "unico" && g.ativo && <p className="text-xs text-gray-500">{brl(gastoMensalEquivalente(g))}/mês</p>}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    {g.ativo && g.proximoVencimento && (
+                      <button
+                        onClick={() => abrirPagamento({ id: g.id, descricao: g.descricao, data: g.proximoVencimento!, dias: diasParaVencer ?? 0, valor: g.valor, frequencia: g.frequencia })}
+                        title="Registrar pagamento"
+                        className="p-1.5 text-[#b8944a] hover:text-[#c9a84c] rounded transition"><IconCoin size={16} /></button>
+                    )}
                     <button onClick={() => toggleGasto(g)} className={`p-1.5 rounded transition ${g.ativo ? "text-green-400 hover:text-green-300" : "text-gray-600 hover:text-gray-400"}`}>{g.ativo ? <IconToggleRight size={16} /> : <IconToggleLeft size={16} />}</button>
                     <button onClick={() => { setMostraFormGasto(false); setEditandoGasto(g); }} className="p-1.5 text-gray-500 hover:text-gray-300 rounded transition"><IconEdit size={13} /></button>
                     <button onClick={() => excluirGasto(g.id)} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition"><IconTrash size={13} /></button>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, getAdminDb } from "@/lib/firebase-admin";
+import { hojeBR } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!doc.exists) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
 
   const gasto = doc.data()!;
-  const hoje = new Date().toISOString().split("T")[0];
+  const hoje = hojeBR();
   const pagamento = {
     valor: valorPago ?? gasto.valor,
     data: dataPagamento ?? hoje,

@@ -1,3 +1,9 @@
+// Data de "hoje" no fuso do Brasil — evita o bug de servidores em UTC
+// (Vercel) rolarem para o dia seguinte a partir das 21h no horário local.
+export function hojeBR(): string {
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+}
+
 export function toDateKey(d: Date): string;
 export function toDateKey(year: number, month: number, day: number): string;
 export function toDateKey(yearOrDate: number | Date, month?: number, day?: number): string {
