@@ -126,7 +126,6 @@ function ModalCategorias({ open = true, categorias, onFechar, onChanged }: {
   onFechar: () => void;
   onChanged: () => void;
 }) {
-  const toast = useToast();
   const confirmar = useConfirm();
   const sucesso = useSucesso();
   const [editando, setEditando] = useState<CategoriaGastoCustom | null>(null);
@@ -160,7 +159,7 @@ function ModalCategorias({ open = true, categorias, onFechar, onChanged }: {
         body: JSON.stringify({ nome: novoNome.trim(), cor: novaCor }),
       });
     }
-    setSalvando(false); toast.sucesso(editando ? "Categoria atualizada!" : "Categoria criada!"); fecharForm(); onChanged();
+    setSalvando(false); sucesso(editando ? "Categoria atualizada!" : "Categoria criada!"); fecharForm(); onChanged();
   }
 
   async function excluir(id: string) {
@@ -757,24 +756,38 @@ export default function FinanceiroPage() {
               const set = (patch: Partial<{ data: string; valor: string; categoriaId: string }>) =>
                 setConcEdits((prev) => ({ ...prev, [g.id]: { ...(prev[g.id] ?? { data: "", valor: String(g.valor), categoriaId: g.categoriaId ?? "" }), ...patch } }));
               return (
-                <div key={g.id} className="flex items-center gap-2 py-2.5 flex-wrap">
-                  <span className="text-sm font-medium text-[#F5E6C8] flex-1 min-w-[90px]">{g.descricao}</span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-gray-500">R$</span>
-                    <input type="number" min="0" step="0.01" value={e.valor} onChange={(ev) => set({ valor: ev.target.value })}
-                      className="bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2 py-1 text-xs text-[#F5E6C8] w-20 focus:outline-none focus:border-[#b8944a]" />
+                <div key={g.id} className="flex flex-col gap-2 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-[#F5E6C8] truncate">{g.descricao}</span>
+                    <button onClick={() => { setMostraFormGasto(false); setEditandoGasto(g); }}
+                      className="text-[10px] text-gray-500 hover:text-[#b8944a] transition shrink-0 underline underline-offset-2 decoration-dotted">
+                      É recorrente? Editar como gasto fixo
+                    </button>
                   </div>
-                  <select value={e.categoriaId} onChange={(ev) => set({ categoriaId: ev.target.value })}
-                    className="bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2 py-1 text-xs text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] max-w-[130px]">
-                    <option value="">Sem categoria</option>
-                    {categorias.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                  </select>
-                  <input type="date" max={hojeISO()} value={e.data} onChange={(ev) => set({ data: ev.target.value })}
-                    className="bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2 py-1 text-xs text-[#F5E6C8] focus:outline-none focus:border-[#b8944a]" />
-                  <button disabled={!e.data || lancandoLegado === g.id} onClick={() => lancarLegado(g)}
-                    className="text-[10px] font-bold tracking-widest uppercase px-2.5 py-1.5 bg-[#b8944a] text-[#0A0A0A] rounded hover:bg-[#c9a84c] transition disabled:opacity-40">
-                    {lancandoLegado === g.id ? "..." : "Lançar"}
-                  </button>
+                  <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
+                    <div className="flex items-center gap-1 bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2.5 py-2 focus-within:border-[#b8944a]">
+                      <span className="text-xs text-gray-500 shrink-0">R$</span>
+                      <input type="number" min="0" step="0.01" value={e.valor} onChange={(ev) => set({ valor: ev.target.value })}
+                        className="bg-transparent text-sm text-[#F5E6C8] w-full min-w-0 focus:outline-none" />
+                    </div>
+                    <Select
+                      value={e.categoriaId}
+                      onChange={(v) => set({ categoriaId: v })}
+                      placeholder="Sem categoria"
+                      options={categorias.map((c) => ({ value: c.id, label: c.nome }))}
+                    />
+                    <DatePicker
+                      value={e.data}
+                      onChange={(v) => set({ data: v })}
+                      max={hojeISO()}
+                      placeholder="Data do pagamento"
+                      className="col-span-2 sm:w-auto sm:min-w-[180px]"
+                    />
+                    <button disabled={!e.data || lancandoLegado === g.id} onClick={() => lancarLegado(g)}
+                      className="col-span-2 sm:col-span-1 text-[10px] font-bold tracking-widest uppercase px-3 py-2.5 sm:py-2 bg-[#b8944a] text-[#0A0A0A] rounded hover:bg-[#c9a84c] transition disabled:opacity-40 shrink-0">
+                      {lancandoLegado === g.id ? "..." : "Lançar"}
+                    </button>
+                  </div>
                 </div>
               );
             })}
