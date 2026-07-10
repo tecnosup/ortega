@@ -45,20 +45,28 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   // Mantém a COMANDA vinculada em sincronia com o status do agendamento.
   // (cancelar/finalizar só agem se a comanda estiver "aberta" — guarda interna)
+  // A devolução de crédito de assinatura no cancelamento é feita DENTRO de
+  // cancelarComanda (fonte única) — não repetir aqui, senão devolve em dobro.
+  let comandaVinculada: Awaited<ReturnType<typeof getComandaPorAgendamento>> = null;
   if (body.status === "cancelado" || body.status === "concluido" || body.status === "nao_compareceu") {
-    getComandaPorAgendamento(id)
-      .then((comanda) => {
-        if (!comanda || comanda.status !== "aberta") return;
-        // concluído → finaliza (entra no faturamento); cancelado/não-compareceu → cancela
-        return body.status === "concluido"
-          ? finalizarComanda(comanda.id)
-          : cancelarComanda(comanda.id);
-      })
-      .catch(() => {});
+    comandaVinculada = await getComandaPorAgendamento(id).catch(() => null);
+    if (comandaVinculada && comandaVinculada.status === "aberta") {
+      // concluído → finaliza (entra no faturamento); cancelado/não-compareceu → cancela
+      await (body.status === "concluido"
+        ? finalizarComanda(comandaVinculada.id)
+        : cancelarComanda(comandaVinculada.id)
+      ).catch(() => {});
+    }
   }
 
-  // Reembolso de crédito quando barbeiro/admin cancela agendamento coberto por assinatura
-  if (body.status === "cancelado" && ag.cobertoPorAssinatura && ag.assinaturaId) {
+  // Reembolso de crédito quando NÃO houve comanda aberta pra cuidar disso.
+  // (com comanda aberta, cancelarComanda já devolveu o crédito.)
+  if (
+    body.status === "cancelado" &&
+    ag.cobertoPorAssinatura &&
+    ag.assinaturaId &&
+    !(comandaVinculada && comandaVinculada.status === "aberta")
+  ) {
     devolverCredito(ag.assinaturaId).catch(() => {});
   }
 
