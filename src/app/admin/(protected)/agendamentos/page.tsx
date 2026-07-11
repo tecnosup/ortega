@@ -14,6 +14,7 @@ import type { Agendamento, AgendamentoStatus, FechamentoDia } from "@/lib/agenda
 import { parsePriceNum, resolverDuracaoMin } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import type { Item } from "@/lib/admin-items";
+import type { CategoriaServico } from "@/lib/admin-categorias-servicos";
 import { toDateKey } from "@/lib/date-utils";
 import { gerarSlotsData, mesclarGrade, slotsOcupadosPorAgendamento, ocupacaoDeAgendamentos, calcularSlotsLivres, GRADE_DEFAULT, PASSO_DEFAULT, PASSO_MIN, PASSO_MAX, CARENCIA_DEFAULT, CARENCIA_MAX, DIAS_SEMANA, type GradeConfig, type DiaGrade } from "@/lib/grade";
 import AnimatedModal from "@/components/ui/Modal";
@@ -288,9 +289,9 @@ type AgStep = "servico" | "barbeiro" | "dataHora" | "dados";
 // Modal de agendamento do admin — MESMO fluxo do lado cliente (wizard):
 // serviço → barbeiro → data/horário → dados. Telefone opcional, com cupom e crédito de assinatura.
 // Se vier de um slot da grade (preData+preHorario), pula a etapa de data/horário.
-function AgendarModal({ open, onClose, servicos, barbeiros, grade, passoMin, carenciaMin, preData, preHorario, onCriar }: {
+function AgendarModal({ open, onClose, servicos, categorias, barbeiros, grade, passoMin, carenciaMin, preData, preHorario, onCriar }: {
   open: boolean; onClose: () => void;
-  servicos: Item[]; barbeiros: Barbeiro[]; grade: GradeConfig; passoMin: number; carenciaMin: number;
+  servicos: Item[]; categorias: CategoriaServico[]; barbeiros: Barbeiro[]; grade: GradeConfig; passoMin: number; carenciaMin: number;
   preData?: string | null; preHorario?: string | null;
   onCriar: (dados: { nome: string; telefone: string; servico: string; preco: string; data: string; horario: string; duracaoMin?: number; barbeiroId?: string; barbeiroNome?: string; usarCredito?: boolean; assinaturaId?: string; cupom?: string | null }) => Promise<void>;
 }) {
@@ -301,6 +302,7 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, passoMin, car
   const [step, setStep] = useState<AgStep>("servico");
   // multi-serviço: mesmo barbeiro, durações e preços somados (igual ao fluxo do cliente)
   const [servicosSel, setServicosSel] = useState<Item[]>([]);
+  const [catFiltro, setCatFiltro] = useState<string>(""); // ""=todas · "__sem__"=sem categoria · id
   const [precoEditado, setPrecoEditado] = useState<string | null>(null); // admin sobrescreveu o preço somado?
   const [barbeiroId, setBarbeiroId] = useState<string | null>(null);
   const [barbeiroNome, setBarbeiroNome] = useState<string | null>(null);
@@ -402,6 +404,17 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, passoMin, car
     setServicosSel((prev) => prev.some((x) => x.id === s.id) ? prev.filter((x) => x.id !== s.id) : [...prev, s]);
   }
 
+  // Filtro por categoria (igual ao fluxo do cliente): só mostra chips quando há
+  // 2+ categorias com serviço; "Outros" cobre serviços sem categoria.
+  const catsComServico = categorias.filter((c) => servicos.some((s) => s.categoriaId === c.id));
+  const temSemCategoria = servicos.some((s) => !s.categoriaId || !categorias.some((c) => c.id === s.categoriaId));
+  const mostrarFiltros = catsComServico.length > 1;
+  const servicosVisiveis = catFiltro === ""
+    ? servicos
+    : catFiltro === "__sem__"
+    ? servicos.filter((s) => !s.categoriaId || !categorias.some((c) => c.id === s.categoriaId))
+    : servicos.filter((s) => s.categoriaId === catFiltro);
+
   async function aplicarCupom() {
     if (!codigoCupom.trim()) return;
     setValidandoCupom(true); setErroCupom("");
@@ -457,19 +470,45 @@ function AgendarModal({ open, onClose, servicos, barbeiros, grade, passoMin, car
           servicos.length === 0 ? <p className="text-sm text-gray-500 text-center py-6">Nenhum serviço cadastrado.</p> :
           <>
             <p className="text-[11px] text-gray-500 -mt-1">Pode marcar mais de um — a duração e o preço somam.</p>
-            {servicos.map((s) => {
+            {mostrarFiltros && (
+              <div className="shrink-0 flex gap-2 flex-nowrap overflow-x-auto pb-1 -mx-1 px-1">
+                <button onClick={() => setCatFiltro("")}
+                  className={`shrink-0 px-3.5 py-1.5 text-xs font-medium rounded-full border transition ${catFiltro === "" ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]"}`}>
+                  Todos
+                </button>
+                {catsComServico.map((c) => (
+                  <button key={c.id} onClick={() => setCatFiltro(c.id)}
+                    className={`shrink-0 px-3.5 py-1.5 text-xs font-medium rounded-full border transition ${catFiltro === c.id ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]"}`}>
+                    {c.nome}
+                  </button>
+                ))}
+                {temSemCategoria && (
+                  <button onClick={() => setCatFiltro("__sem__")}
+                    className={`shrink-0 px-3.5 py-1.5 text-xs font-medium rounded-full border transition ${catFiltro === "__sem__" ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]"}`}>
+                    Outros
+                  </button>
+                )}
+              </div>
+            )}
+            {servicosVisiveis.length === 0 ? <p className="text-sm text-gray-500 text-center py-6">Nenhum serviço nesta categoria.</p> :
+            servicosVisiveis.map((s) => {
               const marcado = servicosSel.some((x) => x.id === s.id);
               return (
                 <button key={s.id} onClick={() => { toggleServico(s); setCupom(null); }}
-                  className={`text-left border p-3.5 rounded-xl transition group ${marcado ? "border-[#b8944a] bg-[#b8944a]/10" : "border-[#2d2d2d] bg-[#111] hover:border-[#b8944a] hover:bg-[#b8944a]/5"}`}>
-                  <div className="flex items-start gap-3">
-                    <div className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition ${marcado ? "bg-[#b8944a] border-[#b8944a]" : "border-[#3d3d3d]"}`}>
-                      {marcado && <IconCheck size={13} className="text-[#0A0A0A]" />}
+                  className={`text-left border p-4 rounded-xl active:scale-[0.98] transition-all duration-200 group ${marcado ? "border-[#b8944a] bg-[#b8944a]/10" : "border-[#2d2d2d] bg-[#111] hover:border-[#b8944a] hover:bg-[#b8944a]/5"}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition ${marcado ? "bg-[#b8944a] border-[#b8944a]" : "border-[#3d3d3d]"}`}>
+                        {marcado && <IconCheck size={13} className="text-[#0A0A0A]" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition">{s.titulo}</p>
+                        {s.descricao && <p className="text-sm text-gray-500 mt-1 leading-relaxed line-clamp-2">{s.descricao}</p>}
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1"><p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition truncate">{s.titulo}</p>{s.descricao && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{s.descricao}</p>}</div>
                     <div className="text-right shrink-0">
                       {s.preco && <p className="text-[#b8944a] font-bold text-sm">R$ {s.preco}</p>}
-                      {(s.duracaoMin || s.duracao) && <p className="text-[10px] text-gray-600 mt-0.5">{resolverDuracaoMin(s, passoMin)} min</p>}
+                      {(s.duracaoMin || s.duracao) && <p className="text-xs text-gray-600 mt-0.5">{resolverDuracaoMin(s, passoMin)} min</p>}
                     </div>
                   </div>
                 </button>
@@ -1068,6 +1107,7 @@ export default function AgendamentosAdminPage() {
   const [agendarPre, setAgendarPre] = useState<{ data: string; horario: string } | null>(null);
   const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
   const [servicos, setServicos] = useState<Item[]>([]);
+  const [categorias, setCategorias] = useState<CategoriaServico[]>([]);
   const [reagendarAg, setReagendarAg] = useState<Agendamento | null>(null);
   // Confirmação antes de ir editar a comanda no Caixa (a partir do lápis da grade).
   const [confirmarEditarComanda, setConfirmarEditarComanda] = useState<Agendamento | null>(null);
@@ -1229,6 +1269,7 @@ export default function AgendamentosAdminPage() {
     };
     getJson("/api/admin/barbeiros").then((d) => setBarbeiros(d?.barbeiros ?? []));
     getJson("/api/publico/servicos").then((d) => setServicos(d?.items ?? []));
+    getJson("/api/admin/categorias-servicos").then((d) => setCategorias(d?.categorias ?? []));
     getJson("/api/grade").then((d) => { if (d?.grade) setGrade(mesclarGrade(d.grade)); if (d?.passoMin) setPassoMin(d.passoMin); if (d?.carenciaMin !== undefined) setCarenciaMin(d.carenciaMin); });
   }, []);
 
@@ -1502,7 +1543,7 @@ export default function AgendamentosAdminPage() {
       </AnimatedModal>
       {/* Sempre montados (key força reset do form ao reabrir) — assim o AnimatePresence
           interno do Modal roda a animação de SAÍDA ao fechar. */}
-      <AgendarModal open={agendarOpen} onClose={() => setAgendarOpen(false)} servicos={servicos} barbeiros={barbeiros} grade={grade} passoMin={passoMin} carenciaMin={carenciaMin} preData={agendarPre?.data ?? null} preHorario={agendarPre?.horario ?? null} onCriar={criarAgendamento} />
+      <AgendarModal open={agendarOpen} onClose={() => setAgendarOpen(false)} servicos={servicos} categorias={categorias} barbeiros={barbeiros} grade={grade} passoMin={passoMin} carenciaMin={carenciaMin} preData={agendarPre?.data ?? null} preHorario={agendarPre?.horario ?? null} onCriar={criarAgendamento} />
       {reagendarRender && (
         <ReagendarModal key={reagendarRender.key} open={!!reagendarAg} ag={reagendarRender.ag} dataSelecionada={dataSelecionada} agsDia={agsDia} slotsBloqueados={slotsBloqueados} grade={grade} passoMin={passoMin} carenciaMin={carenciaMin} onConfirm={reagendar} onCancel={() => setReagendarAg(null)} />
       )}
