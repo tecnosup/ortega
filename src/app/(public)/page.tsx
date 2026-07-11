@@ -41,6 +41,21 @@ export default async function HomePage() {
 
   const descontos = new Map<string, Desconto>(descontosList.map((d) => [d.entityId, d]));
 
+  // Peça em destaque (opcional): só resolve se o admin ativou E escolheu uma peça
+  // publicada. Busca no catálogo já carregado — sem query extra.
+  const destaque = (() => {
+    if (!("destaqueAtivo" in settings) || !settings.destaqueAtivo || !settings.destaqueId) return null;
+    if (settings.destaqueTipo === "servico") {
+      const s = items.find((i) => i.id === settings.destaqueId);
+      return s ? { titulo: s.titulo, preco: s.preco, imagem: s.imagem, tipo: "servico" as const } : null;
+    }
+    if (settings.destaqueTipo === "produto") {
+      const p = produtos.find((x) => x.id === settings.destaqueId);
+      return p ? { titulo: p.titulo, preco: p.preco, imagem: p.imagem, tipo: "produto" as const } : null;
+    }
+    return null;
+  })();
+
   return (
     <>
       <Hero
@@ -49,6 +64,7 @@ export default async function HomePage() {
         whatsappNumber={settings.whatsappNumber}
         imagemFundo={settings.heroImagemFundo}
         imagemRetrato={settings.heroImagemRetrato}
+        destaque={destaque}
       />
       <Sobre texto={settings.sobreTexto} imagem={settings.sobreImagem} />
       <Servicos items={items} descontos={descontos} categorias={categoriasServicos} />

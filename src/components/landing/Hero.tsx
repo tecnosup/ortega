@@ -3,15 +3,23 @@
 import Image from "next/image";
 import { motion } from "framer-motion";
 
+interface HeroDestaque {
+  titulo: string;
+  preco: string;
+  imagem?: string;
+  tipo: "servico" | "produto";
+}
+
 interface HeroProps {
   titulo: string;
   subtitulo: string;
   whatsappNumber: string;
   imagemFundo?: string;
   imagemRetrato?: string;
+  destaque?: HeroDestaque | null;
 }
 
-export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, imagemRetrato }: HeroProps) {
+export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, imagemRetrato, destaque }: HeroProps) {
   const words = titulo.split(" ");
 
   const whatsappHref = whatsappNumber
@@ -149,6 +157,20 @@ export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, i
             >
               Ver status do meu agendamento →
             </a>
+
+            {/* destaque no mobile (no desktop ele fica sobre o retrato) */}
+            {destaque && (
+              <a href="/agendamento" className="md:hidden mt-1 bg-[#0A0A0A]/80 border border-[#C9A84C]/40 px-4 py-3 flex items-center gap-3">
+                {destaque.imagem && (
+                  <img src={destaque.imagem} alt={destaque.titulo} className="w-11 h-11 object-cover rounded shrink-0" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[#C9A84C] text-[9px] tracking-[0.25em] uppercase font-medium">Em destaque</p>
+                  <p className="text-[#F5E6C8] text-sm font-semibold truncate">{destaque.titulo}</p>
+                  {destaque.preco && <p className="text-[#C9A84C] text-xs font-bold">R$ {destaque.preco}</p>}
+                </div>
+              </a>
+            )}
           </motion.div>
 
           <motion.div
@@ -186,9 +208,24 @@ export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, i
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A]/70 via-transparent to-transparent" />
             </div>
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-[#0A0A0A]/90 border border-[#C9A84C]/30 px-5 py-3 text-center whitespace-nowrap">
-              <p className="text-[#C9A84C] text-xs tracking-[0.3em] uppercase font-medium">Desde 2026</p>
-            </div>
+            {/* card de destaque (só quando o admin ativa e escolhe uma peça) —
+                substitui o selo "Desde 2026" pela peça em destaque. */}
+            {destaque ? (
+              <a href="/agendamento" className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[88%] bg-[#0A0A0A]/95 border border-[#C9A84C]/40 px-4 py-3 flex items-center gap-3 hover:border-[#C9A84C] transition group/dest">
+                {destaque.imagem && (
+                  <img src={destaque.imagem} alt={destaque.titulo} className="w-11 h-11 object-cover rounded shrink-0" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[#C9A84C] text-[9px] tracking-[0.25em] uppercase font-medium">Em destaque</p>
+                  <p className="text-[#F5E6C8] text-sm font-semibold truncate">{destaque.titulo}</p>
+                  {destaque.preco && <p className="text-[#C9A84C] text-xs font-bold">R$ {destaque.preco}</p>}
+                </div>
+              </a>
+            ) : (
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-[#0A0A0A]/90 border border-[#C9A84C]/30 px-5 py-3 text-center whitespace-nowrap">
+                <p className="text-[#C9A84C] text-xs tracking-[0.3em] uppercase font-medium">Desde 2026</p>
+              </div>
+            )}
             <div className="absolute -bottom-3 -right-3 w-12 h-12 border-r-2 border-b-2 border-[#C9A84C]/50" />
             <div className="absolute -top-3 -left-3 w-12 h-12 border-l-2 border-t-2 border-[#C9A84C]/50" />
           </motion.div>

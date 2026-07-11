@@ -90,6 +90,19 @@
   .success-pop { animation: none; }
 }
 
+/* Retrátil genérico: expande/recolhe suave via grid-template-rows (0fr→1fr).
+   O filho direto precisa de overflow-hidden. Usado no toggle da vitrine. */
+.collapse-anim {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.collapse-anim[data-open="true"] { grid-template-rows: 1fr; }
+.collapse-anim > * { overflow: hidden; min-height: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .collapse-anim { transition: none; }
+}
+
 /* Skeleton shimmer — placeholder de carregamento. */
 @keyframes shimmer { 100% { transform: translateX(100%); } }
 .skeleton {
