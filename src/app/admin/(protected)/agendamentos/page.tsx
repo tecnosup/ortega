@@ -473,18 +473,18 @@ function AgendarModal({ open, onClose, servicos, categorias, barbeiros, grade, p
             {mostrarFiltros && (
               <div className="flex gap-2 flex-nowrap overflow-x-auto pb-1 -mx-1 px-1">
                 <button onClick={() => setCatFiltro("")}
-                  className={`shrink-0 px-3 py-1.5 text-xs font-medium rounded-full border transition ${catFiltro === "" ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]"}`}>
+                  className={`shrink-0 px-3.5 py-1.5 text-xs font-medium rounded-full border transition ${catFiltro === "" ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]"}`}>
                   Todos
                 </button>
                 {catsComServico.map((c) => (
                   <button key={c.id} onClick={() => setCatFiltro(c.id)}
-                    className={`shrink-0 px-3 py-1.5 text-xs font-medium rounded-full border transition ${catFiltro === c.id ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]"}`}>
+                    className={`shrink-0 px-3.5 py-1.5 text-xs font-medium rounded-full border transition ${catFiltro === c.id ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]"}`}>
                     {c.nome}
                   </button>
                 ))}
                 {temSemCategoria && (
                   <button onClick={() => setCatFiltro("__sem__")}
-                    className={`shrink-0 px-3 py-1.5 text-xs font-medium rounded-full border transition ${catFiltro === "__sem__" ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]"}`}>
+                    className={`shrink-0 px-3.5 py-1.5 text-xs font-medium rounded-full border transition ${catFiltro === "__sem__" ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]"}`}>
                     Outros
                   </button>
                 )}
@@ -495,15 +495,20 @@ function AgendarModal({ open, onClose, servicos, categorias, barbeiros, grade, p
               const marcado = servicosSel.some((x) => x.id === s.id);
               return (
                 <button key={s.id} onClick={() => { toggleServico(s); setCupom(null); }}
-                  className={`text-left border p-3.5 rounded-xl transition group ${marcado ? "border-[#b8944a] bg-[#b8944a]/10" : "border-[#2d2d2d] bg-[#111] hover:border-[#b8944a] hover:bg-[#b8944a]/5"}`}>
-                  <div className="flex items-start gap-3">
-                    <div className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition ${marcado ? "bg-[#b8944a] border-[#b8944a]" : "border-[#3d3d3d]"}`}>
-                      {marcado && <IconCheck size={13} className="text-[#0A0A0A]" />}
+                  className={`text-left border p-4 rounded-xl active:scale-[0.98] transition-all duration-200 group ${marcado ? "border-[#b8944a] bg-[#b8944a]/10" : "border-[#2d2d2d] bg-[#111] hover:border-[#b8944a] hover:bg-[#b8944a]/5"}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition ${marcado ? "bg-[#b8944a] border-[#b8944a]" : "border-[#3d3d3d]"}`}>
+                        {marcado && <IconCheck size={13} className="text-[#0A0A0A]" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition">{s.titulo}</p>
+                        {s.descricao && <p className="text-sm text-gray-500 mt-1 leading-relaxed line-clamp-2">{s.descricao}</p>}
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1"><p className="font-semibold text-[#F5E6C8] group-hover:text-[#b8944a] transition truncate">{s.titulo}</p>{s.descricao && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{s.descricao}</p>}</div>
                     <div className="text-right shrink-0">
                       {s.preco && <p className="text-[#b8944a] font-bold text-sm">R$ {s.preco}</p>}
-                      {(s.duracaoMin || s.duracao) && <p className="text-[10px] text-gray-600 mt-0.5">{resolverDuracaoMin(s, passoMin)} min</p>}
+                      {(s.duracaoMin || s.duracao) && <p className="text-xs text-gray-600 mt-0.5">{resolverDuracaoMin(s, passoMin)} min</p>}
                     </div>
                   </div>
                 </button>
