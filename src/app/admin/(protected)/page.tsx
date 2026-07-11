@@ -15,7 +15,8 @@ import type { Gasto } from "@/lib/gastos-tipos";
 import { gastoMensalEquivalente } from "@/lib/gastos-tipos";
 import { toDateKey } from "@/lib/date-utils";
 import { useAdminNotificacoes } from "@/hooks/useAdminNotificacoes";
-function brl(v: number) {
+import { usePrivacidade, BotaoPrivacidade } from "@/components/admin/Privacidade";
+function brlRaw(v: number) {
   return `R$ ${v.toFixed(2).replace(".", ",")}`;
 }
 
@@ -105,9 +106,9 @@ function calcularAlertas(
     if (diasRestantes < 0) {
       alertas.push({ id: `gasto_vencido_${g.id}`, nivel: "vermelho", mensagem: `Conta "${g.descricao}" está vencida (dia ${g.vencimento})`, href: "/admin/financeiro" });
     } else if (diasRestantes === 0) {
-      alertas.push({ id: `gasto_hoje_${g.id}`, nivel: "laranja", mensagem: `Conta "${g.descricao}" vence hoje — ${brl(g.valor)}`, href: "/admin/financeiro" });
+      alertas.push({ id: `gasto_hoje_${g.id}`, nivel: "laranja", mensagem: `Conta "${g.descricao}" vence hoje — ${brlRaw(g.valor)}`, href: "/admin/financeiro" });
     } else if (diasRestantes <= 3) {
-      alertas.push({ id: `gasto_em_${g.id}`, nivel: "amarelo", mensagem: `Conta "${g.descricao}" vence em ${diasRestantes} dias — ${brl(g.valor)}`, href: "/admin/financeiro" });
+      alertas.push({ id: `gasto_em_${g.id}`, nivel: "amarelo", mensagem: `Conta "${g.descricao}" vence em ${diasRestantes} dias — ${brlRaw(g.valor)}`, href: "/admin/financeiro" });
     }
   });
 
@@ -128,6 +129,10 @@ function calcularAlertas(
 export default function AdminDashboard() {
   const hoje = new Date();
   const notif = useAdminNotificacoes();
+  const { oculto } = usePrivacidade();
+  // brl "privacy-aware": mascara valores quando o modo privacidade está ligado
+  // (começa oculto). Cobre KPIs, gráfico e listas num só ponto.
+  const brl = (v: number) => (oculto ? "R$ ••••" : brlRaw(v));
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [fechamentos, setFechamentos] = useState<FechamentoDia[]>([]);
   const [gastos, setGastos] = useState<Gasto[]>([]);
@@ -250,6 +255,7 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold text-[#F5E6C8] leading-none">Dashboard</h1>
           <p className="text-xs text-gray-500 capitalize tracking-wide">{hoje.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p>
         </div>
+        <BotaoPrivacidade />
       </div>
 
       {/* ── ALERTAS FINANCEIROS (mesmo estilo do financeiro) ─────────────────── */}
@@ -369,7 +375,7 @@ export default function AdminDashboard() {
               <p className="text-sm text-gray-500">Nenhum fechamento nos últimos 30 dias.</p>
             </div>
           ) : (
-            <div className="h-48">
+            <div className={`h-48 transition ${oculto ? "blur-md pointer-events-none select-none" : ""}`}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={dadosGrafico} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                   <defs>
@@ -380,7 +386,7 @@ export default function AdminDashboard() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e1e1e" vertical={false} />
                   <XAxis dataKey="data" tick={{ fill: "#555", fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: "#555", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$${(v / 1000).toFixed(1)}k`} width={42} />
+                  <YAxis tick={{ fill: "#555", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => oculto ? "•••" : `R$${(v / 1000).toFixed(1)}k`} width={42} />
                   <Tooltip
                     contentStyle={{ background: "#111", border: "1px solid #2d2d2d", borderRadius: 6, fontSize: 12 }}
                     labelStyle={{ color: "#F5E6C8", marginBottom: 4 }}
@@ -420,7 +426,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-[#b8944a]">{ag.preco ? `R$ ${ag.preco}` : "—"}</p>
+                    <p className="text-sm font-bold text-[#b8944a]">{ag.preco ? (oculto ? "R$ ••••" : `R$ ${ag.preco}`) : "—"}</p>
                     <p className={`text-xs font-medium ${statusColor}`}>{statusLabel}</p>
                   </div>
                 </Link>
