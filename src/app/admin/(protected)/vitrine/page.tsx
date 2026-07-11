@@ -455,6 +455,20 @@ export default function VitrinePage() {
             <label className="text-xs text-gray-400 uppercase tracking-wide">E-mail de contato</label>
             <input name="emailContato" type="email" defaultValue={settings.emailContato} spellCheck={false} className={inp} />
           </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-400 uppercase tracking-wide">Instagram (URL completa, ex: https://instagram.com/ortegabarber)</label>
+            <input name="instagramUrl" defaultValue={settings.instagramUrl} placeholder="https://instagram.com/seuperfil" spellCheck={false} className={inp} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-400 uppercase tracking-wide">Endereço</label>
+            <input name="enderecoTexto" defaultValue={settings.enderecoTexto} placeholder="Rua, número — Bairro, Cidade" spellCheck={false} className={inp} />
+            <span className="text-[11px] text-gray-500">Aparece no rodapé e o mapa da página é gerado automaticamente a partir dele.</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-400 uppercase tracking-wide">Mapa — link de embed (opcional)</label>
+            <input name="enderecoEmbed" defaultValue={settings.enderecoEmbed} placeholder="Deixe vazio para usar o endereço acima" spellCheck={false} className={inp} />
+            <span className="text-[11px] text-gray-500">Só preencha se quiser fixar um embed específico do Google Maps. Em branco, o mapa segue o endereço.</span>
+          </div>
         </div>
 
         <button type="submit" disabled={salvando}

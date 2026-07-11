@@ -9,6 +9,7 @@ export interface LandingSettings {
   sobreImagem: string;
   whatsappNumber: string;
   emailContato: string;
+  instagramUrl: string;
   enderecoTexto: string;
   enderecoEmbed: string;
   destaqueId: string;
@@ -27,9 +28,10 @@ const DEFAULTS: LandingSettings = {
     "A Ortega nasceu da paixão pelo artesanato da barbearia tradicional aliado ao estilo contemporâneo. Em nosso espaço, você encontra profissionais dedicados, ambiente premium e os melhores produtos do mercado.",
   sobreImagem: "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=800&q=80",
   whatsappNumber: "5512982585538",
-  emailContato: "contato@ortegabarber.com.br",
+  emailContato: "",
+  instagramUrl: "",
   enderecoTexto: "Rua Capitão Neco, 300 — Cruzeiro, SP",
-  enderecoEmbed: "https://maps.google.com/maps?q=Rua+Capit%C3%A3o+Neco+300+Cruzeiro+SP&output=embed",
+  enderecoEmbed: "",
   destaqueId: "",
   destaqueTipo: "",
   destaqueAtivo: false,

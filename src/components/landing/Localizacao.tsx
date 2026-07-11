@@ -1,3 +1,11 @@
+// Deriva o embed do mapa a partir do endereço em texto, para o mapa acompanhar
+// o endereço sem exigir um segundo campo. enderecoEmbed é override opcional.
+function mapaSrc(enderecoTexto: string, enderecoEmbed: string) {
+  if (enderecoEmbed) return enderecoEmbed;
+  if (!enderecoTexto.trim()) return "";
+  return `https://maps.google.com/maps?q=${encodeURIComponent(enderecoTexto)}&output=embed`;
+}
+
 export default function Localizacao({
   enderecoTexto,
   enderecoEmbed,
@@ -5,7 +13,8 @@ export default function Localizacao({
   enderecoTexto: string;
   enderecoEmbed: string;
 }) {
-  if (!enderecoEmbed) return null;
+  const src = mapaSrc(enderecoTexto, enderecoEmbed);
+  if (!src) return null;
 
   return (
     <section className="py-16 md:py-24 bg-[#0A0A0A] relative overflow-hidden">
@@ -33,7 +42,7 @@ export default function Localizacao({
           <div className="relative rounded-sm overflow-hidden border border-[#2d2d2d] shadow-[0_0_40px_rgba(0,0,0,0.6)]">
             <div className="absolute inset-0 pointer-events-none z-10 rounded-sm ring-1 ring-inset ring-[#C9A84C]/10" />
             <iframe
-              src={enderecoEmbed}
+              src={src}
               width="100%"
               height="400"
               style={{ border: 0, display: "block", filter: "grayscale(30%) contrast(1.05)" }}

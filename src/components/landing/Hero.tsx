@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { IconBrandWhatsappFilled } from "@tabler/icons-react";
 
 interface HeroDestaque {
   titulo: string;
@@ -146,8 +147,9 @@ export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, i
                 href={whatsappHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 sm:px-8 py-4 border-2 border-[#C9A84C] text-[#C9A84C] text-sm font-bold tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] active:scale-[0.97] transition-all duration-300"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-8 py-4 border-2 border-[#C9A84C] text-[#C9A84C] text-sm font-bold tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] active:scale-[0.97] transition-all duration-300"
               >
+                <IconBrandWhatsappFilled size={16} />
                 WhatsApp
               </a>
             </div>
