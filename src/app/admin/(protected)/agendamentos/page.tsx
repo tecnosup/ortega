@@ -471,7 +471,7 @@ function AgendarModal({ open, onClose, servicos, categorias, barbeiros, grade, p
           <>
             <p className="text-[11px] text-gray-500 -mt-1">Pode marcar mais de um — a duração e o preço somam.</p>
             {mostrarFiltros && (
-              <div className="flex gap-2 flex-nowrap overflow-x-auto pb-1 -mx-1 px-1">
+              <div className="shrink-0 flex gap-2 flex-nowrap overflow-x-auto pb-1 -mx-1 px-1">
                 <button onClick={() => setCatFiltro("")}
                   className={`shrink-0 px-3.5 py-1.5 text-xs font-medium rounded-full border transition ${catFiltro === "" ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]"}`}>
                   Todos
