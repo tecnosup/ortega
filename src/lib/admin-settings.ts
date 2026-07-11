@@ -13,6 +13,7 @@ export interface LandingSettings {
   enderecoEmbed: string;
   destaqueId: string;
   destaqueTipo: "servico" | "produto" | "";
+  destaqueAtivo: boolean;
   autoConfirmMode: "manual" | "tempo" | "automatico";
   autoConfirmMinutos: number;
 }
@@ -31,6 +32,7 @@ const DEFAULTS: LandingSettings = {
   enderecoEmbed: "https://maps.google.com/maps?q=Rua+Capit%C3%A3o+Neco+300+Cruzeiro+SP&output=embed",
   destaqueId: "",
   destaqueTipo: "",
+  destaqueAtivo: false,
   autoConfirmMode: "manual",
   autoConfirmMinutos: 20,
 };

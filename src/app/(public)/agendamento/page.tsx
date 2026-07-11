@@ -5,11 +5,13 @@ import {
   IconCheck, IconChevronLeft, IconChevronRight, IconTag,
 } from "@tabler/icons-react";
 import type { Item } from "@/lib/admin-items";
+import type { CategoriaServico } from "@/lib/admin-categorias-servicos";
 import { type Agendamento, resolverDuracaoMin, parsePriceNum } from "@/lib/agendamentos-types";
 import type { Barbeiro } from "@/lib/barbeiros-types";
 import { toDateKey } from "@/lib/date-utils";
 import { gerarSlotsDia, calcularSlotsLivres, mesclarGrade, GRADE_DEFAULT, PASSO_DEFAULT, CARENCIA_DEFAULT, type GradeConfig } from "@/lib/grade";
 
+const STORAGE_KEY = "ortega:agendamento:v1";
 const MESES =["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const DIAS_SEMANA = ["D","S","T","Q","Q","S","S"];
 
@@ -35,6 +37,25 @@ const STATUS_CONFIG = {
 };
 
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2.5 text-sm text-[#F5E6C8] placeholder-gray-600 focus:outline-none focus:border-[#b8944a] transition";
+
+// ── telefone ──────────────────────────────────────────────────────────────
+// A API (route.ts) sanitiza para só dígitos e exige >= 10 (DDD + número).
+// Aqui aplicamos a MESMA régua no front para o cliente não passar da validação
+// local e tomar erro só na API. Máscara BR: (11) 99999-9999 / (11) 9999-9999.
+function soDigitosTelefone(v: string) {
+  return v.replace(/\D/g, "").slice(0, 11);
+}
+function formatarTelefone(v: string) {
+  const d = soDigitosTelefone(v);
+  if (d.length === 0) return "";
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+function telefoneValido(v: string) {
+  return soDigitosTelefone(v).length >= 10;
+}
 
 type Step = "servico" | "barbeiro" | "calendario" | "dados" | "confirmado";
 
@@ -77,6 +98,47 @@ function StepIndicator({ atual }: { atual: 1 | 2 | 3 | 4 }) {
   );
 }
 
+// Botão voltar padronizado no topo de cada step (mesmo lugar sempre).
+// Fica alinhado à esquerda, sobre o StepIndicator centralizado.
+function VoltarTopo({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="absolute left-0 top-0 flex items-center gap-1 text-sm text-gray-500 hover:text-[#b8944a] transition active:scale-95 py-1 pr-2"
+      aria-label="Voltar"
+    >
+      <IconChevronLeft size={18} /> <span className="hidden sm:inline">Voltar</span>
+    </button>
+  );
+}
+
+// Skeletons de carregamento (reduzem a sensação de espera vs. texto "Carregando...")
+function SkeletonServicos() {
+  return (
+    <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3 sm:gap-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="border border-[#2d2d2d] bg-[#111] p-4 sm:p-5 rounded-xl flex items-start gap-3">
+          <div className="skeleton w-5 h-5 rounded-md shrink-0" />
+          <div className="flex-1 flex flex-col gap-2">
+            <div className="skeleton h-4 w-2/3 rounded" />
+            <div className="skeleton h-3 w-full rounded" />
+          </div>
+          <div className="skeleton h-4 w-12 rounded shrink-0" />
+        </div>
+      ))}
+    </div>
+  );
+}
+function SkeletonSlots() {
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-2 gap-2">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="skeleton h-10 rounded-lg" />
+      ))}
+    </div>
+  );
+}
+
 // ─── componente principal ─────────────────────────────────────────────────────
 
 export default function AgendamentoPage() {
@@ -85,8 +147,13 @@ export default function AgendamentoPage() {
 
   const [step, setStep] = useState<Step>("servico");
   const [servicos, setServicos] = useState<Item[]>([]);
+  const [categorias, setCategorias] = useState<CategoriaServico[]>([]);
+  // filtro de categoria no step 1 (""=todas). Evita rolar a lista inteira.
+  const [catFiltro, setCatFiltro] = useState<string>("");
   const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
-  const [whatsappNumber, setWhatsappNumber] = useState("5511999999999");
+  // vazio = não configurado. Só mostramos o botão de WhatsApp se o admin
+  // configurou um número real (evita mandar o cliente pro número fantasma).
+  const [whatsappNumber, setWhatsappNumber] = useState("");
   const [selecao, setSelecao] = useState<Selecao>({
     servico: "", preco: "", duracaoMin: 0, data: null, horario: "", nome: "", telefone: "",
     barbeiroId: null, barbeiroNome: null,
@@ -145,8 +212,10 @@ export default function AgendamentoPage() {
       fetch("/api/publico/barbeiros").then((r) => r.json()).catch(() => ({ barbeiros: [] })),
       fetch("/api/publico/settings").then((r) => r.json()).catch(() => ({})),
       fetch("/api/grade").then((r) => r.json()).catch(() => ({})),
-    ]).then(([dServicos, dBarbeiros, dSettings, dGrade]) => {
+      fetch("/api/publico/categorias-servicos").then((r) => r.json()).catch(() => ({ categorias: [] })),
+    ]).then(([dServicos, dBarbeiros, dSettings, dGrade, dCategorias]) => {
       setServicos(dServicos.items ?? []);
+      setCategorias(dCategorias.categorias ?? []);
       setBarbeiros(dBarbeiros.barbeiros ?? []);
       if (dSettings.whatsappNumber) setWhatsappNumber(dSettings.whatsappNumber);
       if (dGrade.grade) setGrade(mesclarGrade(dGrade.grade));
@@ -155,6 +224,53 @@ export default function AgendamentoPage() {
       setCarregandoDados(false);
     });
   }, []);
+
+  // ── persistência do progresso (sessionStorage) ────────────────────────────
+  // Recarregar a página no meio (comum no mobile) não deve zerar o fluxo.
+  // Guardamos só o necessário; o Date vira ISO e é reidratado no load. Não
+  // persistimos no step "confirmado" (já foi enviado) nem restauramos nele.
+  const [restaurado, setRestaurado] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p.step && p.step !== "confirmado") {
+          if (p.selecao) setSelecao({ ...p.selecao, data: p.selecao.data ? new Date(p.selecao.data) : null });
+          if (Array.isArray(p.servicosSel)) setServicosSel(p.servicosSel);
+          if (typeof p.nome === "string") setNome(p.nome);
+          if (typeof p.telefone === "string") setTelefone(p.telefone);
+          if (p.mesAtual) setMesAtual(new Date(p.mesAtual));
+          setStep(p.step);
+        }
+      }
+    } catch { /* storage indisponível/corrompido → começa do zero */ }
+    setRestaurado(true);
+  }, []);
+
+  useEffect(() => {
+    if (!restaurado) return; // não sobrescreve antes de restaurar
+    if (step === "confirmado") { sessionStorage.removeItem(STORAGE_KEY); return; }
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+        step, selecao: { ...selecao, data: selecao.data ? selecao.data.toISOString() : null },
+        servicosSel, nome, telefone, mesAtual: mesAtual.toISOString(),
+      }));
+    } catch { /* quota/privado → ignora, fluxo segue em memória */ }
+  }, [restaurado, step, selecao, servicosSel, nome, telefone, mesAtual]);
+
+  // ── ao AVANÇAR de step, leva o cliente ao topo do novo conteúdo ───────────
+  // Sem isso a página fica na posição de scroll anterior (cliente cai no footer).
+  // Só dispara em troca de step após o mount — não no carregamento inicial, e
+  // não no calendário (lá o scroll é para a seção de horários, tratado à parte).
+  const stepMontou = useRef(false);
+  useEffect(() => {
+    if (!stepMontou.current) { stepMontou.current = true; return; }
+    // usa requestAnimationFrame p/ rolar só após o novo step pintar
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }, [step]);
 
   // busca slots ocupados do barbeiro escolhido quando muda de data/barbeiro.
   // A API /api/slots já expande a duração de cada agendamento do barbeiro.
@@ -236,6 +352,18 @@ export default function AgendamentoPage() {
     return "livre";
   }
 
+  // Próximo dia ATENDIDO a partir do dia seguinte ao 'base' (varre até 60 dias).
+  // Usa só a grade (dia ativo com slots) — não promete horário específico (isso
+  // exigiria fetch por dia), mas guia o cliente para um dia que ao menos abre.
+  function proximaDataAtendida(base: Date): Date | null {
+    for (let i = 1; i <= 60; i++) {
+      const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+      const dia = grade[d.getDay()];
+      if (dia?.ativo && gerarSlotsDia(dia, passoMin).length > 0) return d;
+    }
+    return null;
+  }
+
   function selecionarData(dia: number, mes: number, ano: number) {
     const d = new Date(ano, mes, dia);
     if (d < hoje || !grade[d.getDay()]?.ativo) return;
@@ -277,7 +405,7 @@ export default function AgendamentoPage() {
   async function confirmarAgendamento() {
     const e: { nome?: string; telefone?: string } = {};
     if (nome.trim().length < 2) e.nome = "Nome obrigatório";
-    if (telefone.trim().length < 8) e.telefone = "Telefone obrigatório";
+    if (!telefoneValido(telefone)) e.telefone = "Informe DDD + número (ex: (11) 99999-9999)";
     if (Object.keys(e).length > 0) { setErros(e); return; }
 
     setSalvando(true);
@@ -340,10 +468,21 @@ export default function AgendamentoPage() {
     ? selecao.data.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })
     : null;
 
+  // categorias que realmente têm serviço publicado (não mostra chip vazio).
+  // "sem categoria" vira um grupo próprio no fim, só se houver itens soltos.
+  const catsComServico = categorias.filter((c) => servicos.some((s) => s.categoriaId === c.id));
+  const temSemCategoria = servicos.some((s) => !s.categoriaId || !categorias.some((c) => c.id === s.categoriaId));
+  const mostrarFiltros = catsComServico.length > 1; // só vale filtrar com 2+ categorias
+  const servicosVisiveis = catFiltro === ""
+    ? servicos
+    : catFiltro === "__sem__"
+    ? servicos.filter((s) => !s.categoriaId || !categorias.some((c) => c.id === s.categoriaId))
+    : servicos.filter((s) => s.categoriaId === catFiltro);
+
   // ── STEP: SERVIÇO ─────────────────────────────────────────────────────────
   if (step === "servico") {
     return (
-      <section className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A]">
+      <section key={step} className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A] step-anim">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-8">
             <StepIndicator atual={1} />
@@ -352,13 +491,48 @@ export default function AgendamentoPage() {
           </div>
           <p className="text-center text-gray-500 text-xs mb-4 -mt-4">Você pode escolher mais de um serviço.</p>
           {carregandoDados ? (
-            <p className="text-center text-gray-500 text-sm py-10">Carregando serviços...</p>
+            <SkeletonServicos />
           ) : servicos.length === 0 ? (
             <p className="text-center text-gray-500 text-sm py-10">Nenhum serviço disponível no momento.</p>
           ) : (
             <>
+              {/* filtro por categoria — centralizado quando cabe; no mobile rola
+                  na horizontal se houver muitas categorias (flex-nowrap + overflow) */}
+              {mostrarFiltros && (
+                <div className="flex gap-2 justify-start sm:justify-center flex-nowrap sm:flex-wrap overflow-x-auto pb-3 mb-1 nice-scroll -mx-4 px-4 sm:mx-0 sm:px-0">
+                  <button
+                    onClick={() => setCatFiltro("")}
+                    className={`shrink-0 px-3.5 py-1.5 text-xs font-medium rounded-full border transition ${
+                      catFiltro === "" ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]"
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  {catsComServico.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => setCatFiltro(c.id)}
+                      className={`shrink-0 px-3.5 py-1.5 text-xs font-medium rounded-full border transition ${
+                        catFiltro === c.id ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]"
+                      }`}
+                    >
+                      {c.nome}
+                    </button>
+                  ))}
+                  {temSemCategoria && (
+                    <button
+                      onClick={() => setCatFiltro("__sem__")}
+                      className={`shrink-0 px-3.5 py-1.5 text-xs font-medium rounded-full border transition ${
+                        catFiltro === "__sem__" ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]"
+                      }`}
+                    >
+                      Outros
+                    </button>
+                  )}
+                </div>
+              )}
               <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3 sm:gap-4 pb-28">
-                {servicos.map((s) => {
+                {servicosVisiveis.map((s) => {
                   const marcado = servicosSel.some((x) => x.id === s.id);
                   return (
                     <button
@@ -423,12 +597,27 @@ export default function AgendamentoPage() {
   // ── STEP: BARBEIRO ────────────────────────────────────────────────────────
   if (step === "barbeiro") {
     return (
-      <section className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A]">
+      <section key={step} className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A] step-anim">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-8">
+          <div className="relative text-center mb-8">
+            <VoltarTopo onClick={() => setStep("servico")} />
             <StepIndicator atual={2} />
             <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 2 de 4</span>
             <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Escolha o barbeiro</h1>
+          </div>
+
+          {/* contexto do que já foi escolhido (não some ao trocar de step) */}
+          <div className="flex items-center justify-between bg-[#111] border border-[#2d2d2d] rounded-xl px-4 py-3 mb-5">
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <p className="text-xs text-gray-600 uppercase tracking-wider">Serviço</p>
+              <p className="font-semibold text-[#F5E6C8] text-sm truncate">{selecao.servico}
+                {selecao.preco && <span className="text-[#b8944a] ml-2">R$ {selecao.preco}</span>}
+              </p>
+              {selecao.duracaoMin > 0 && <p className="text-xs text-gray-500">{selecao.duracaoMin} min</p>}
+            </div>
+            <button onClick={() => setStep("servico")} className="text-xs text-gray-600 hover:text-[#b8944a] transition px-2 py-1 shrink-0">
+              Trocar
+            </button>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -462,13 +651,6 @@ export default function AgendamentoPage() {
               </button>
             ))}
           </div>
-
-          <button
-            onClick={() => setStep("servico")}
-            className="mt-6 text-sm text-gray-600 hover:text-[#b8944a] transition"
-          >
-            ← Voltar
-          </button>
         </div>
       </section>
     );
@@ -477,23 +659,25 @@ export default function AgendamentoPage() {
   // ── STEP: CALENDÁRIO ──────────────────────────────────────────────────────
   if (step === "calendario") {
     return (
-      <section className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A]">
+      <section key={step} className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A] step-anim">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-6">
+          <div className="relative text-center mb-6">
+            <VoltarTopo onClick={() => setStep("barbeiro")} />
             <StepIndicator atual={3} />
             <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 3 de 4</span>
             <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Data e horário</h1>
           </div>
 
-          {/* serviço + barbeiro selecionado — pill no topo */}
-          <div className="flex items-center justify-between bg-[#111] border border-[#2d2d2d] rounded-xl px-4 py-3 mb-4">
-            <div className="flex flex-col gap-0.5">
+          {/* serviço + barbeiro selecionado — pill no topo (sticky no mobile p/
+              o cliente manter o contexto enquanto rola o calendário/horários) */}
+          <div className="flex items-center justify-between gap-3 bg-[#111] border border-[#2d2d2d] rounded-xl px-4 py-3 mb-4 sticky top-16 z-10 md:static">
+            <div className="flex flex-col gap-0.5 min-w-0">
               <p className="text-xs text-gray-600 uppercase tracking-wider">Serviço</p>
-              <p className="font-semibold text-[#F5E6C8] text-sm">{selecao.servico}
+              <p className="font-semibold text-[#F5E6C8] text-sm truncate">{selecao.servico}
                 {selecao.preco && <span className="text-[#b8944a] ml-2">R$ {selecao.preco}</span>}
               </p>
               {selecao.barbeiroNome && (
-                <p className="text-xs text-gray-500">com {selecao.barbeiroNome}</p>
+                <p className="text-xs text-gray-500 truncate">com {selecao.barbeiroNome}</p>
               )}
             </div>
             <button onClick={() => setStep("barbeiro")} className="text-xs text-gray-600 hover:text-[#b8944a] transition px-2 py-1">
@@ -578,9 +762,27 @@ export default function AgendamentoPage() {
                     <span className="text-[#b8944a] normal-case font-medium capitalize">{dataFormatada}</span>
                   </p>
                   {carregandoSlots ? (
-                    <p className="text-sm text-gray-600 py-4 text-center">Carregando...</p>
+                    <SkeletonSlots />
                   ) : slotsDisponiveis.length === 0 ? (
-                    <p className="text-sm text-gray-500 py-4 text-center">Sem horários disponíveis.<br />Escolha outra data.</p>
+                    (() => {
+                      const prox = selecao.data ? proximaDataAtendida(selecao.data) : null;
+                      return (
+                        <div className="py-4 text-center flex flex-col items-center gap-3">
+                          <p className="text-sm text-gray-500">Sem horários disponíveis neste dia.</p>
+                          {prox && (
+                            <button
+                              onClick={() => {
+                                setMesAtual(new Date(prox.getFullYear(), prox.getMonth(), 1));
+                                selecionarData(prox.getDate(), prox.getMonth(), prox.getFullYear());
+                              }}
+                              className="inline-flex items-center gap-1.5 text-xs font-medium text-[#b8944a] border border-[#b8944a]/40 rounded-lg px-3 py-2 hover:bg-[#b8944a]/10 transition active:scale-95"
+                            >
+                              <IconChevronRight size={13} /> Ir para {prox.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" })}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()
                   ) : (
                     // scroll interno: com passo pequeno (ex: 5 min) a lista fica enorme;
                     // limita a altura e rola dentro da div em vez de esticar a página no mobile
@@ -634,7 +836,7 @@ export default function AgendamentoPage() {
   // ── STEP: DADOS PESSOAIS ──────────────────────────────────────────────────
   if (step === "dados") {
     return (
-      <section className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A]">
+      <section key={step} className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A] step-anim">
         <div className="max-w-xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-6">
             <StepIndicator atual={4} />
@@ -644,28 +846,28 @@ export default function AgendamentoPage() {
 
           {/* resumo compacto */}
           <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 mb-5 flex flex-col gap-1.5 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Serviço</span>
-              <span className="font-medium text-[#F5E6C8]">{selecao.servico}</span>
+            <div className="flex justify-between gap-3">
+              <span className="text-gray-500 shrink-0">Serviço</span>
+              <span className="font-medium text-[#F5E6C8] text-right">{selecao.servico}</span>
             </div>
             {selecao.barbeiroNome && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Barbeiro</span>
-                <span className="font-medium text-[#F5E6C8]">{selecao.barbeiroNome}</span>
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-500 shrink-0">Barbeiro</span>
+                <span className="font-medium text-[#F5E6C8] text-right">{selecao.barbeiroNome}</span>
               </div>
             )}
-            <div className="flex justify-between">
-              <span className="text-gray-500">Data</span>
-              <span className="font-medium text-[#F5E6C8] capitalize">{dataFormatada}</span>
+            <div className="flex justify-between gap-3">
+              <span className="text-gray-500 shrink-0">Data</span>
+              <span className="font-medium text-[#F5E6C8] capitalize text-right">{dataFormatada}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Horário</span>
-              <span className="font-medium text-[#F5E6C8]">{selecao.horario}</span>
+            <div className="flex justify-between gap-3">
+              <span className="text-gray-500 shrink-0">Horário</span>
+              <span className="font-medium text-[#F5E6C8] text-right">{selecao.horario}</span>
             </div>
             {selecao.preco && (
-              <div className="flex justify-between border-t border-[#2d2d2d] pt-2 mt-1">
-                <span className="text-gray-500">Valor</span>
-                <span className={`font-semibold ${cupomAplicado ? "line-through text-gray-600" : "text-[#b8944a]"}`}>
+              <div className="flex justify-between gap-3 border-t border-[#2d2d2d] pt-2 mt-1">
+                <span className="text-gray-500 shrink-0">Valor</span>
+                <span className={`font-semibold text-right ${cupomAplicado ? "line-through text-gray-600" : "text-[#b8944a]"}`}>
                   R$ {selecao.preco}
                 </span>
               </div>
@@ -720,7 +922,7 @@ export default function AgendamentoPage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-400">Telefone / WhatsApp</label>
-              <input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(11) 99999-9999" inputMode="tel" className={`${inp} ${erros.telefone ? "border-red-500" : ""}`} />
+              <input value={telefone} onChange={(e) => { setTelefone(formatarTelefone(e.target.value)); if (erros.telefone) setErros((x) => ({ ...x, telefone: undefined })); }} placeholder="(11) 99999-9999" inputMode="tel" maxLength={16} className={`${inp} ${erros.telefone ? "border-red-500" : ""}`} />
               {erros.telefone && <span className="text-xs text-red-400">{erros.telefone}</span>}
             </div>
             {erros.geral && <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg text-sm text-red-400 text-center">{erros.geral}</div>}
@@ -728,8 +930,8 @@ export default function AgendamentoPage() {
               <button onClick={() => setStep("calendario")} className="flex-1 py-3.5 border border-[#2d2d2d] text-sm text-gray-500 rounded-xl hover:border-[#b8944a] hover:text-[#b8944a] transition active:scale-[0.98]">
                 ← Voltar
               </button>
-              <button onClick={confirmarAgendamento} disabled={salvando} className="flex-1 py-3.5 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-xl hover:bg-[#c9a84c] transition disabled:opacity-50 active:scale-[0.98]">
-                {salvando ? "Enviando..." : "Confirmar"}
+              <button onClick={confirmarAgendamento} disabled={salvando} className="flex-1 py-3.5 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-xl hover:bg-[#c9a84c] transition disabled:opacity-60 active:scale-[0.98] flex items-center justify-center gap-2">
+                {salvando ? (<><span className="btn-spinner" /> Enviando...</>) : "Confirmar"}
               </button>
             </div>
           </div>
@@ -742,14 +944,14 @@ export default function AgendamentoPage() {
   const statusConfig = STATUS_CONFIG[statusAtual as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pendente;
 
   return (
-    <section className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A]">
+    <section key={step} className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A] step-anim">
       <div className="max-w-xl mx-auto px-4 sm:px-6 flex flex-col gap-4">
         <div className={`border rounded-lg p-5 flex items-start gap-4 ${statusConfig.cor}`}>
-          <span className="text-2xl">{statusConfig.icone}</span>
+          <span key={statusAtual} className="text-2xl success-pop inline-block">{statusConfig.icone}</span>
           <div>
             <p className="font-semibold">{statusConfig.label}</p>
             <p className="text-sm mt-0.5 opacity-80">{statusConfig.desc}</p>
-            {statusAtual === "pendente" && <p className="text-xs mt-2 opacity-60">Esta página atualiza automaticamente.</p>}
+            {statusAtual === "pendente" && <p className="text-xs mt-2 opacity-60">Pode deixar esta página aberta — ela atualiza sozinha assim que o Ortega confirmar. Você não precisa fazer mais nada.</p>}
           </div>
         </div>
 
@@ -759,27 +961,27 @@ export default function AgendamentoPage() {
             <p>Nome: <strong className="text-[#F5E6C8]">{selecao.nome}</strong></p>
           </div>
           <div className="bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg p-4 flex flex-col gap-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Serviço</span>
-              <span className="text-[#b8944a] font-medium">{selecao.servico}</span>
+            <div className="flex justify-between gap-3">
+              <span className="text-gray-500 shrink-0">Serviço</span>
+              <span className="text-[#b8944a] font-medium text-right">{selecao.servico}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Data</span>
-              <span className="text-[#F5E6C8]">{dataFormatada}</span>
+            <div className="flex justify-between gap-3">
+              <span className="text-gray-500 shrink-0">Data</span>
+              <span className="text-[#F5E6C8] text-right capitalize">{dataFormatada}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Horário</span>
-              <span className="text-[#F5E6C8]">{selecao.horario}</span>
+            <div className="flex justify-between gap-3">
+              <span className="text-gray-500 shrink-0">Horário</span>
+              <span className="text-[#F5E6C8] text-right">{selecao.horario}</span>
             </div>
             {selecao.preco && (
-              <div className="flex justify-between border-t border-[#2d2d2d] pt-2 mt-1">
-                <span className="text-gray-500">Valor</span>
-                <span className="text-[#b8944a] font-semibold">R$ {selecao.preco}</span>
+              <div className="flex justify-between gap-3 border-t border-[#2d2d2d] pt-2 mt-1">
+                <span className="text-gray-500 shrink-0">Valor</span>
+                <span className="text-[#b8944a] font-semibold text-right">R$ {selecao.preco}</span>
               </div>
             )}
           </div>
 
-          {statusAtual === "confirmado" && (
+          {statusAtual === "confirmado" && whatsappNumber && (
             <a
               href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Olá! Quero confirmar meu agendamento:\n*${selecao.servico}*\nData: ${dataFormatada}\nHorário: ${selecao.horario}`)}`}
               target="_blank"
