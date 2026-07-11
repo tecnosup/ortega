@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
-  IconAdjustments, IconAlertCircle, IconAlertTriangle, IconArrowBackUp, IconBan, IconBell, IconCalendar, IconCalendarCheck, IconCalendarPlus, IconCalendarX, IconCheck, IconChevronDown, IconChevronLeft, IconChevronRight, IconCircleCheck, IconCircleX, IconClock, IconCoffee, IconLayoutGrid, IconList, IconLock, IconLockOpen, IconMessageCircle, IconPencil, IconPlus, IconRefresh, IconTag, IconTrash, IconTrendingUp, IconX,
+  IconAdjustments, IconAlertCircle, IconAlertTriangle, IconArrowBackUp, IconBan, IconBell, IconCalendar, IconCalendarCheck, IconCalendarPlus, IconCalendarX, IconCheck, IconChevronDown, IconChevronLeft, IconChevronRight, IconCircleCheck, IconCircleX, IconClock, IconCoffee, IconLayoutGrid, IconList, IconLock, IconLockOpen, IconMessageCircle, IconPencil, IconPlus, IconReceipt, IconRefresh, IconTag, IconTrash, IconTrendingUp, IconX,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -720,7 +720,7 @@ function ReagendarModal({ open, ag, dataSelecionada, agsDia, slotsBloqueados, gr
   );
 }
 
-type ModalState = { tipo: "concluir" | "excluir" | "fechar_caixa" | "bloquear" | "fechar_dia" | "fechar_dia_2" | "liberar_dia" | "caixa_fechado_retro"; id?: string; horario?: string } | null;
+type ModalState = { tipo: "concluir" | "nao_compareceu" | "excluir" | "fechar_caixa" | "bloquear" | "fechar_dia" | "fechar_dia_2" | "liberar_dia" | "caixa_fechado_retro"; id?: string; horario?: string } | null;
 
 // Modal de configuração da grade — horários padrão por dia da semana + almoço.
 function ConfigGradeModal({ open, grade, passoMin, carenciaMin, salvando, agendamentos, onSave, onClose }: {
@@ -1059,7 +1059,6 @@ export default function AgendamentosAdminPage() {
   const [carregando, setCarregando] = useState(true);
   const [processando, setProcessando] = useState<string | null>(null);
   const [editandoId, setEditandoId] = useState<string | null>(null);
-  const [editLinhas, setEditLinhas] = useState<{ servico: string; preco: string }[]>([]);
   const [fechamentos, setFechamentos] = useState<FechamentoDia[]>([]);
   const [fechandoCaixa, setFechandoCaixa] = useState(false);
   const [caixaFechado, setCaixaFechado] = useState(false);
@@ -1070,8 +1069,12 @@ export default function AgendamentosAdminPage() {
   const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
   const [servicos, setServicos] = useState<Item[]>([]);
   const [reagendarAg, setReagendarAg] = useState<Agendamento | null>(null);
+  // Confirmação antes de ir editar a comanda no Caixa (a partir do lápis da grade).
+  const [confirmarEditarComanda, setConfirmarEditarComanda] = useState<Agendamento | null>(null);
   const [notificacaoLink, setNotificacaoLink] = useState<string | null>(null);
   const [aba, setAba] = useState<"lista" | "grade">("lista");
+  // No mobile a lista começa retraída (só cabeçalho); no desktop fica sempre aberta.
+  const [listaMobileAberta, setListaMobileAberta] = useState(false);
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
   const [alertasExpandidos, setAlertasExpandidos] = useState<Set<string>>(new Set());
   const [grade, setGrade] = useState<GradeConfig>(GRADE_DEFAULT);
@@ -1115,13 +1118,19 @@ export default function AgendamentosAdminPage() {
 
   useEffect(() => {
     if (!scrollTarget || carregando) return;
-    const el = document.getElementById(`ag-${scrollTarget}`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.classList.add("ring-1", "ring-[#b8944a]");
-      setTimeout(() => el.classList.remove("ring-1", "ring-[#b8944a]"), 2000);
-    }
+    // garante que a lista esteja aberta (no mobile ela começa retraída)
+    setListaMobileAberta(true);
+    const id = scrollTarget;
     setScrollTarget(null);
+    // adia o scroll pra depois da lista expandir (item alvo fica display:none até lá)
+    setTimeout(() => {
+      const el = document.getElementById(`ag-${id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-1", "ring-[#b8944a]");
+        setTimeout(() => el.classList.remove("ring-1", "ring-[#b8944a]"), 2000);
+      }
+    }, 80);
   }, [scrollTarget, carregando]);
 
   function irParaAgendamento(ag: Agendamento) {
@@ -1156,8 +1165,9 @@ export default function AgendamentosAdminPage() {
     if (acao !== "agendar" && acao !== "grade") return;
     if (acao === "agendar") fabAgendarHorario();
     if (acao === "grade") fabGradeHoje();
-    // limpa o param pra não repetir ao dar refresh
-    router.replace("/admin/agendamentos");
+    // limpa o param pra não repetir ao dar refresh (scroll: false evita resetar
+    // o scroll pro topo por cima do scrollIntoView do FAB)
+    router.replace("/admin/agendamentos", { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carregando, searchParams]);
 
@@ -1260,7 +1270,9 @@ export default function AgendamentosAdminPage() {
   });
   const diaSemana = new Date(dataSelecionada + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long" });
 
-  async function atualizarStatus(id: string, status: AgendamentoStatus) {
+  // notificar=false suprime a abertura do WhatsApp (ex.: "Desfazer" volta pra
+  // confirmado mas NÃO deve reenviar a mensagem de confirmação ao cliente).
+  async function atualizarStatus(id: string, status: AgendamentoStatus, notificar = true) {
     setProcessando(id);
     const res = await fetch(`/api/agendamentos/${id}`, { credentials: "include", method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
     const data = await res.json();
@@ -1268,7 +1280,7 @@ export default function AgendamentosAdminPage() {
     setProcessando(null);
     const msgStatus: Partial<Record<AgendamentoStatus, string>> = { concluido: "Atendimento concluído!", nao_compareceu: "Marcado como não compareceu", confirmado: "Agendamento confirmado!", cancelado: "Agendamento cancelado" };
     if (msgStatus[status]) mostrarSucesso(msgStatus[status]!);
-    if (data.whatsappLink) window.open(data.whatsappLink, "_blank");
+    if (notificar && data.whatsappLink) window.open(data.whatsappLink, "_blank");
   }
 
   async function avisarCliente(id: string) {
@@ -1278,20 +1290,6 @@ export default function AgendamentosAdminPage() {
     setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, avisoPendente: false } : a));
     setProcessando(null);
     if (data.whatsappLink) window.open(data.whatsappLink, "_blank");
-  }
-
-  async function salvarEdicao(id: string) {
-    const linhas = editLinhas.filter((l) => l.servico.trim());
-    if (linhas.length === 0) return;
-    const servicoFinal = linhas.map((l) => l.servico).join(" + ");
-    const precoTotal = linhas.reduce((s, l) => s + parsePriceNum(l.preco), 0);
-    const precoFinal = precoTotal > 0 ? precoTotal.toFixed(2).replace(".", ",") : "";
-    setProcessando(id);
-    await fetch(`/api/agendamentos/${id}`, { credentials: "include", method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ servico: servicoFinal, preco: precoFinal }) });
-    setAgendamentos((prev) => prev.map((a) => a.id === id ? { ...a, servico: servicoFinal, preco: precoFinal } : a));
-    setEditandoId(null);
-    setProcessando(null);
-    mostrarSucesso("Comanda atualizada");
   }
 
   async function excluir(id: string) {
@@ -1396,6 +1394,7 @@ export default function AgendamentosAdminPage() {
   function confirmarModal() {
     if (!modal) return;
     if (modal.tipo === "concluir" && modal.id) atualizarStatus(modal.id, "concluido");
+    if (modal.tipo === "nao_compareceu" && modal.id) atualizarStatus(modal.id, "nao_compareceu");
     if (modal.tipo === "excluir" && modal.id) excluir(modal.id);
     if (modal.tipo === "fechar_caixa") fecharCaixa();
     if (modal.tipo === "bloquear" && modal.horario) toggleBloquearSlot(modal.horario);
@@ -1410,6 +1409,7 @@ export default function AgendamentosAdminPage() {
 
   const modalConfig = {
     concluir: { titulo: "Marcar como concluído?", mensagem: "Será incluído no caixa do dia.", confirmLabel: "Concluir", confirmClass: "bg-green-700 hover:bg-green-600" },
+    nao_compareceu: { titulo: "Marcar como não compareceu?", mensagem: "O horário será liberado e a comanda vinculada será cancelada. Você pode desfazer depois.", confirmLabel: "Não compareceu", confirmClass: "bg-[#2d2d2d] hover:bg-[#3d3d3d]" },
     excluir: { titulo: "Remover agendamento?", mensagem: "Esta ação remove o agendamento da lista.", confirmLabel: "Remover", confirmClass: "bg-red-600 hover:bg-red-500" },
     fechar_caixa: { titulo: "Fechar o caixa do dia?", mensagem: `${concluidos.length} serviços · R$ ${totalDia.toFixed(2).replace(".", ",")}`, confirmLabel: "Fechar caixa", confirmClass: "bg-[#b8944a] hover:bg-[#c9a84c] text-[#0A0A0A]" },
     bloquear: {
@@ -1450,7 +1450,6 @@ export default function AgendamentosAdminPage() {
   const modalConfigVazio = { titulo: "", mensagem: "", confirmLabel: "", confirmClass: "" };
 
   const cardDark = "bg-[#111] border border-[#2d2d2d] rounded-xl";
-  const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2 py-1 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a]";
 
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-5">
@@ -1507,6 +1506,15 @@ export default function AgendamentosAdminPage() {
       {reagendarRender && (
         <ReagendarModal key={reagendarRender.key} open={!!reagendarAg} ag={reagendarRender.ag} dataSelecionada={dataSelecionada} agsDia={agsDia} slotsBloqueados={slotsBloqueados} grade={grade} passoMin={passoMin} carenciaMin={carenciaMin} onConfirm={reagendar} onCancel={() => setReagendarAg(null)} />
       )}
+      <Modal
+        open={!!confirmarEditarComanda}
+        titulo="Editar no Caixa"
+        mensagem={<>A edição da comanda acontece na tela de <strong className="text-[#F5E6C8]">Caixa</strong>, onde ficam os itens, produtos e valores. Deseja ir para lá agora?</>}
+        confirmLabel="Ir para o Caixa"
+        confirmClass="bg-[#b8944a] !text-[#0A0A0A] font-bold hover:bg-[#c9a55a]"
+        onConfirm={() => { const ag = confirmarEditarComanda; setConfirmarEditarComanda(null); if (ag) router.push(`/admin/caixa?dia=${ag.data}&editarComanda=${ag.id}#comandas-abertas`); }}
+        onCancel={() => setConfirmarEditarComanda(null)}
+      />
       <AnimatePresence>
         {notificacaoLink && (
           <motion.div
@@ -1700,7 +1708,9 @@ export default function AgendamentosAdminPage() {
       </div>
 
       {/* ── Calendário + Lista lado a lado ───────────────────────────────────── */}
-      <div className="flex flex-col lg:flex-row gap-5 items-start">
+      {/* items-stretch: no mobile a lista ocupa a largura total ao empilhar; no
+          desktop a lista estica pra bater a altura do calendário (base alinhada). */}
+      <div className="flex flex-col lg:flex-row gap-5 items-stretch">
 
         {/* calendário — no desktop fica ao lado; no mobile vai pro overlay abaixo */}
         <div className="hidden lg:block w-full lg:w-[420px] shrink-0">
@@ -1713,23 +1723,34 @@ export default function AgendamentosAdminPage() {
           />
         </div>
 
-        {/* Lista do dia — self-stretch + absolute para igualar altura do calendário */}
-        <div className="flex-1 self-stretch relative min-h-0">
+        {/* Lista do dia — no desktop a lista é absoluta e preenche a altura do
+            calendário (base sempre alinhada, rola por dentro se passar). No mobile
+            volta ao fluxo normal com altura pelo conteúdo (com teto de 70vh). */}
+        <div className="flex-1 min-w-0 relative">
           {diaFechado ? (
-            <div className={`${cardDark} text-sm text-gray-500 py-16 text-center h-full`}>Barbearia fechada neste dia.</div>
+            <div className={`${cardDark} text-sm text-gray-500 py-16 text-center w-full lg:absolute lg:inset-0`}>Barbearia fechada neste dia.</div>
           ) : (
-            <div className={`absolute inset-0 ${cardDark} overflow-hidden flex flex-col`}>
-              {/* cabeçalho */}
-              <div className="flex items-center justify-between px-5 py-2.5 border-b border-[#1a1a1a] gap-2 flex-wrap shrink-0">
-                <div>
-                  <p className="text-sm font-bold text-[#F5E6C8] capitalize flex items-center gap-2"><IconList size={14} /> {diaSemana}, {dataLabel}</p>
-                  <p className="text-xs text-gray-500">
+            <div className={`${cardDark} overflow-hidden flex flex-col w-full lg:absolute lg:inset-0`}>
+              {/* cabeçalho — no mobile funciona como toggle pra abrir/fechar a lista */}
+              <button
+                type="button"
+                onClick={() => setListaMobileAberta((v) => !v)}
+                aria-expanded={listaMobileAberta}
+                className="flex items-center justify-between px-5 py-2.5 border-b border-[#1a1a1a] gap-2 shrink-0 text-left w-full lg:cursor-default"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-[#F5E6C8] flex items-center gap-2"><IconList size={14} className="shrink-0" /> Lista de horários marcados</p>
+                  <p className="text-xs text-gray-500 capitalize truncate">
                     {ehHoje && <span className="text-[#b8944a] font-medium">Hoje · </span>}
-                    {agsDia.length === 0 ? "Nenhum agendamento" : `${agsDia.length} agendamento${agsDia.length !== 1 ? "s" : ""}`}
+                    {diaSemana}, {dataLabel} · {agsDia.length === 0 ? "nenhum agendamento" : `${agsDia.length} agendamento${agsDia.length !== 1 ? "s" : ""}`}
                   </p>
                 </div>
-              </div>
+                <IconChevronDown size={18} className={`shrink-0 text-gray-500 transition-transform lg:hidden ${listaMobileAberta ? "rotate-180" : ""}`} />
+              </button>
 
+              {/* corpo colapsável (mobile) / sempre aberto (desktop) — anima via CSS */}
+              <div className="lista-collapse" data-open={listaMobileAberta ? "true" : "false"}>
+               <div className="lista-collapse-inner">
               {/* conteúdo com scroll */}
               <div className="overflow-y-auto flex-1 min-h-0">
                 {carregando ? (
@@ -1747,7 +1768,6 @@ export default function AgendamentosAdminPage() {
                     key={dataSelecionada}
                   >
                     {agsDia.map((ag) => {
-                      const editando = editandoId === ag.id;
                       const ocupado = processando === ag.id;
                       const ehConcluido = ag.status === "concluido";
                       const finalizado = ehConcluido || ag.status === "nao_compareceu" || ag.status === "cancelado";
@@ -1778,23 +1798,6 @@ export default function AgendamentosAdminPage() {
                             </div>
                             <div className="flex-1 min-w-0 flex gap-2">
                               <div className="flex-1 min-w-0">
-                              {editando ? (
-                                <div className="mt-2 flex flex-col gap-2">
-                                  {editLinhas.map((linha, idx) => (
-                                    <div key={idx} className="flex gap-2 items-center flex-wrap">
-                                      <select value={linha.servico} onChange={(e) => { const nome = e.target.value; const svc = servicos.find((s) => s.titulo === nome); setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, servico: nome, preco: svc?.preco ?? l.preco } : l)); }} className={inp}>{servicos.map((s) => <option key={s.id}>{s.titulo}</option>)}</select>
-                                      <input value={linha.preco} onChange={(e) => setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, preco: e.target.value } : l))} placeholder="Preço" className={`${inp} w-24`} />
-                                      {editLinhas.length > 1 && <button onClick={() => setEditLinhas((prev) => prev.filter((_, i) => i !== idx))} className="p-1 text-red-400 hover:text-red-300 rounded transition"><IconX size={13} /></button>}
-                                    </div>
-                                  ))}
-                                  {editLinhas.length > 1 && <p className="text-xs text-[#b8944a] font-medium">Total: R$ {editLinhas.reduce((s, l) => s + parsePriceNum(l.preco), 0).toFixed(2).replace(".", ",")}</p>}
-                                  <div className="flex gap-2 flex-wrap">
-                                    <button onClick={() => setEditLinhas((prev) => [...prev, { servico: servicos[0]?.titulo ?? "", preco: servicos[0]?.preco ?? "" }])} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><IconPlus size={11} /> Serviço</button>
-                                    <button onClick={() => salvarEdicao(ag.id)} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 bg-green-900/30 text-green-400 border border-green-700/50 rounded text-xs hover:bg-green-900/50 transition"><IconCheck size={12} /> Salvar</button>
-                                    <button onClick={() => setEditandoId(null)} className="flex items-center gap-1 px-2 py-1 border border-[#2d2d2d] text-gray-400 rounded text-xs hover:border-[#b8944a] transition"><IconX size={12} /> Cancelar</button>
-                                  </div>
-                                </div>
-                              ) : (
                                 <>
                                   <p className="text-sm font-semibold text-[#F5E6C8]">{ag.servico}</p>
                                   {/* cliente + telefone na MESMA linha (usa a largura, encurta o card) */}
@@ -1830,42 +1833,7 @@ export default function AgendamentosAdminPage() {
                                       </div>
                                     </details>
                                   )}
-                                  {ag.avisoPendente && (
-                                    <div className="mt-2 flex flex-col min-[420px]:flex-row min-[420px]:items-center gap-2 px-2.5 py-2 rounded-lg bg-amber-950/40 border border-amber-700/40">
-                                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                                        <IconAlertTriangle size={12} className="text-amber-400 shrink-0" />
-                                        <span className="text-xs text-amber-300 truncate">Avise o cliente da confirmação.</span>
-                                      </div>
-                                      <button onClick={() => avisarCliente(ag.id)} disabled={ocupado} className="flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs text-green-300 bg-green-900/30 border border-green-700/50 rounded-lg hover:bg-green-900/50 transition shrink-0 w-full min-[420px]:w-auto"><IconMessageCircle size={12} className="shrink-0" /> <span className="truncate">Avisar no WhatsApp</span></button>
-                                    </div>
-                                  )}
-                                  {!caixaFechado && (
-                                    <div className="flex items-center gap-1.5 flex-wrap mt-3 pt-3 border-t border-[#1a1a1a]">
-                                      {ag.status === "pendente" && (
-                                        <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-400 border border-blue-700/40 rounded-lg hover:bg-blue-900/20 transition"><IconCheck size={12} /> Confirmar</button>
-                                      )}
-                                      {(ag.status === "confirmado" || ag.status === "pendente") && (
-                                        <button onClick={() => setModal({ tipo: "concluir", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-green-400 border border-green-700/40 rounded-lg hover:bg-green-900/20 transition"><IconCircleCheck size={12} /> Concluir</button>
-                                      )}
-                                      {!finalizado && (
-                                        <button onClick={() => setReagendarAg(ag)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><IconCalendarPlus size={12} /> Reagendar</button>
-                                      )}
-                                      {(ag.status === "confirmado" || ag.status === "pendente") && (
-                                        <button onClick={() => atualizarStatus(ag.id, "nao_compareceu")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconClock size={12} /> Não compareceu</button>
-                                      )}
-                                      {(ehConcluido || ag.status === "nao_compareceu") && (
-                                        <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconArrowBackUp size={12} /> Desfazer</button>
-                                      )}
-                                      <div className="flex items-center gap-1 ml-auto">
-                                        {!finalizado && (
-                                          <button onClick={() => { setEditandoId(ag.id); const srvs = ag.servico.split(" + "); const precos = ag.preco.split(" + "); setEditLinhas(srvs.map((s, i) => ({ servico: s.trim(), preco: precos[i]?.trim() ?? "" }))); }} className="p-1.5 text-gray-500 hover:text-gray-300 border border-transparent hover:border-[#2d2d2d] rounded-lg transition" title="Editar"><IconPencil size={13} /></button>
-                                        )}
-                                        <button onClick={() => setModal({ tipo: "excluir", id: ag.id })} className="p-1.5 text-red-500/50 hover:text-red-400 border border-transparent hover:border-red-900/40 rounded-lg transition" title="Excluir"><IconTrash size={13} /></button>
-                                      </div>
-                                    </div>
-                                  )}
                                 </>
-                              )}
                               </div>
 
                               {/* coluna direita: preço + status + selo auto (alinhados à direita) */}
@@ -1886,6 +1854,42 @@ export default function AgendamentosAdminPage() {
                               </div>
                             </div>
                           </div>
+
+                          {/* aviso WhatsApp — largura total do card (fora da coluna espremida).
+                              O botão vira só ícone quando o banner fica estreito (container query). */}
+                          {editandoId !== ag.id && ag.avisoPendente && (
+                            <div className="zap-aviso mt-3 flex flex-row items-center gap-2 px-2.5 py-2 rounded-lg bg-amber-950/40 border border-amber-700/40">
+                              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                <IconAlertTriangle size={12} className="text-amber-400 shrink-0" />
+                                <span className="text-xs text-amber-300 truncate">Avise o cliente da confirmação.</span>
+                              </div>
+                              <button onClick={() => avisarCliente(ag.id)} disabled={ocupado} title="Avisar no WhatsApp" aria-label="Avisar no WhatsApp" className="flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs text-green-300 bg-green-900/30 border border-green-700/50 rounded-lg hover:bg-green-900/50 transition shrink-0"><IconMessageCircle size={12} className="shrink-0" /> <span className="zap-aviso-label whitespace-nowrap">Avisar no WhatsApp</span></button>
+                            </div>
+                          )}
+
+                          {/* barra de ações — largura total do card, quebra em vez de rolar */}
+                          {editandoId !== ag.id && !caixaFechado && (
+                            <div className="flex items-center gap-1.5 flex-wrap mt-3 pt-3 border-t border-[#1a1a1a]">
+                              {ag.status === "pendente" && (
+                                <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-400 border border-blue-700/40 rounded-lg hover:bg-blue-900/20 transition whitespace-nowrap"><IconCheck size={12} /> Confirmar</button>
+                              )}
+                              {(ag.status === "confirmado" || ag.status === "pendente") && (
+                                <button onClick={() => setModal({ tipo: "concluir", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-green-400 border border-green-700/40 rounded-lg hover:bg-green-900/20 transition whitespace-nowrap"><IconCircleCheck size={12} /> Concluir</button>
+                              )}
+                              {!finalizado && (
+                                <button onClick={() => setReagendarAg(ag)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition whitespace-nowrap"><IconCalendarPlus size={12} /> Reagendar</button>
+                              )}
+                              {(ag.status === "confirmado" || ag.status === "pendente") && (
+                                <button onClick={() => setModal({ tipo: "nao_compareceu", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition whitespace-nowrap"><IconClock size={12} /> Não compareceu</button>
+                              )}
+                              {(ehConcluido || ag.status === "nao_compareceu") && (
+                                <button onClick={() => atualizarStatus(ag.id, "confirmado", false)} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition whitespace-nowrap"><IconArrowBackUp size={12} /> Desfazer</button>
+                              )}
+                              <div className="flex items-center gap-1 ml-auto">
+                                <button onClick={() => setModal({ tipo: "excluir", id: ag.id })} className="p-1.5 text-red-500/50 hover:text-red-400 border border-transparent hover:border-red-900/40 rounded-lg transition" title="Excluir"><IconTrash size={13} /></button>
+                              </div>
+                            </div>
+                          )}
                         </motion.div>
                       );
                     })}
@@ -1901,12 +1905,14 @@ export default function AgendamentosAdminPage() {
                     {caixaFechado ? <span className="text-green-400">Caixa fechado · </span> : null}
                     {concluidos.length} concluídos · R$ {totalDia.toFixed(2).replace(".", ",")} faturados
                   </p>
-                  <Link href={`/admin/caixa?dia=${dataSelecionada}#caixa`}
+                  <Link href={`/admin/caixa?dia=${dataSelecionada}&foco=comandas#comandas-abertas`}
                     className="flex items-center gap-1.5 px-3 py-1.5 border border-[#b8944a]/40 text-[#b8944a] text-xs font-bold hover:border-[#b8944a] hover:bg-[#b8944a]/5 transition rounded-lg">
-                    <IconTrendingUp size={12} /> Ir pro caixa
+                    <IconReceipt size={12} /> Ir pra comandas
                   </Link>
                 </div>
               )}
+               </div>{/* fim lista-collapse-inner */}
+              </div>{/* fim lista-collapse */}
             </div>
           )}
         </div>
@@ -1997,7 +2003,6 @@ export default function AgendamentosAdminPage() {
                     ) : (
                       <>
                         {agsNoSlot.map((ag) => {
-                          const editando = editandoId === ag.id;
                           const ocupado = processando === ag.id;
                           const ehConcluido = ag.status === "concluido";
                           const finalizado = ehConcluido || ag.status === "nao_compareceu" || ag.status === "cancelado";
@@ -2005,48 +2010,26 @@ export default function AgendamentosAdminPage() {
                             <div key={ag.id} className={`bg-[#0d0d0d] border rounded-lg p-3 flex flex-col gap-2.5 ${ehConcluido ? "border-green-900/40" : ag.status === "nao_compareceu" ? "border-[#2a2a2a] opacity-70" : "border-[#2a2a2a]"}`}>
                               <div className="flex items-start gap-2">
                                 <div className="flex-1 min-w-0">
-                                  {editando ? (
-                                    <div className="flex flex-col gap-2">
-                                      {editLinhas.map((linha, idx) => (
-                                        <div key={idx} className="flex gap-2 items-center flex-wrap">
-                                          <select value={linha.servico} onChange={(e) => { const nome = e.target.value; const svc = servicos.find((s) => s.titulo === nome); setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, servico: nome, preco: svc?.preco ?? l.preco } : l)); }} className={inp}>{servicos.map((s) => <option key={s.id}>{s.titulo}</option>)}</select>
-                                          <input value={linha.preco} onChange={(e) => setEditLinhas((prev) => prev.map((l, i) => i === idx ? { ...l, preco: e.target.value } : l))} placeholder="Preço" className={`${inp} w-24`} />
-                                          {editLinhas.length > 1 && <button onClick={() => setEditLinhas((prev) => prev.filter((_, i) => i !== idx))} className="p-1 text-red-400 hover:text-red-300 rounded transition"><IconX size={13} /></button>}
-                                        </div>
-                                      ))}
-                                      {editLinhas.length > 1 && <p className="text-xs text-[#b8944a]">Total: R$ {editLinhas.reduce((s, l) => s + parsePriceNum(l.preco), 0).toFixed(2).replace(".", ",")}</p>}
-                                      <div className="flex gap-2 flex-wrap">
-                                        <button onClick={() => setEditLinhas((prev) => [...prev, { servico: servicos[0]?.titulo ?? "", preco: servicos[0]?.preco ?? "" }])} className="flex items-center gap-1 px-2 py-1 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded hover:bg-[#b8944a]/10 transition"><IconPlus size={11} /> Serviço</button>
-                                        <button onClick={() => salvarEdicao(ag.id)} disabled={ocupado} className="flex items-center gap-1 px-2 py-1 bg-green-900/30 text-green-400 border border-green-700/50 rounded text-xs hover:bg-green-900/50 transition"><IconCheck size={12} /> Salvar</button>
-                                        <button onClick={() => setEditandoId(null)} className="flex items-center gap-1 px-2 py-1 border border-[#2d2d2d] text-gray-400 rounded text-xs hover:border-[#b8944a] transition"><IconX size={12} /> Cancelar</button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <p className="text-sm font-semibold text-[#F5E6C8] truncate">{ag.nome}</p>
-                                      <p className="text-xs text-gray-500 truncate mt-0.5">✂️ {ag.servico}{ag.barbeiroNome ? ` · ${ag.barbeiroNome}` : ""}</p>
-                                      {ag.telefone && ag.telefone !== "00000000000" && (
-                                        <a href={`https://wa.me/55${ag.telefone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-600 hover:text-green-400 transition truncate block mt-0.5">{ag.telefone}</a>
-                                      )}
-                                    </>
+                                  <p className="text-sm font-semibold text-[#F5E6C8] truncate">{ag.nome}</p>
+                                  <p className="text-xs text-gray-500 truncate mt-0.5">✂️ {ag.servico}{ag.barbeiroNome ? ` · ${ag.barbeiroNome}` : ""}</p>
+                                  {ag.telefone && ag.telefone !== "00000000000" && (
+                                    <a href={`https://wa.me/55${ag.telefone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-600 hover:text-green-400 transition truncate block mt-0.5">{ag.telefone}</a>
                                   )}
                                 </div>
-                                {!editando && (
-                                  <div className="flex flex-col items-end gap-1 shrink-0">
-                                    {ag.preco && <span className="text-xs font-bold text-[#b8944a]">R$ {ag.preco}</span>}
-                                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap ${STATUS_STYLE[ag.status]}`}>{STATUS_LABEL[ag.status]}</span>
-                                  </div>
-                                )}
+                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                  {ag.preco && <span className="text-xs font-bold text-[#b8944a]">R$ {ag.preco}</span>}
+                                  <span className={`text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap ${STATUS_STYLE[ag.status]}`}>{STATUS_LABEL[ag.status]}</span>
+                                </div>
                               </div>
-                              {!caixaFechado && !editando && (
+                              {!caixaFechado && (
                                 <div className="flex items-center gap-1.5 flex-wrap pt-2.5 border-t border-[#1a1a1a]">
                                   {ag.status === "pendente" && <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-400 border border-blue-700/40 rounded-lg hover:bg-blue-900/20 transition"><IconCheck size={12} /> Confirmar</button>}
                                   {(ag.status === "confirmado" || ag.status === "pendente") && <button onClick={() => setModal({ tipo: "concluir", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-green-400 border border-green-700/40 rounded-lg hover:bg-green-900/20 transition"><IconCircleCheck size={12} /> Concluir</button>}
                                   {!finalizado && <button onClick={() => setReagendarAg(ag)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-[#b8944a] border border-[#b8944a]/30 rounded-lg hover:bg-[#b8944a]/10 transition"><IconCalendarPlus size={12} /> Reagendar</button>}
-                                  {(ag.status === "confirmado" || ag.status === "pendente") && <button onClick={() => atualizarStatus(ag.id, "nao_compareceu")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconClock size={12} /> Não compareceu</button>}
-                                  {(ehConcluido || ag.status === "nao_compareceu") && <button onClick={() => atualizarStatus(ag.id, "confirmado")} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconArrowBackUp size={12} /> Desfazer</button>}
+                                  {(ag.status === "confirmado" || ag.status === "pendente") && <button onClick={() => setModal({ tipo: "nao_compareceu", id: ag.id })} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconClock size={12} /> Não compareceu</button>}
+                                  {(ehConcluido || ag.status === "nao_compareceu") && <button onClick={() => atualizarStatus(ag.id, "confirmado", false)} disabled={ocupado} className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-400 border border-[#2d2d2d] rounded-lg hover:border-[#b8944a] transition"><IconArrowBackUp size={12} /> Desfazer</button>}
                                   <div className="flex items-center gap-1 ml-auto">
-                                    {!finalizado && <button onClick={() => { setEditandoId(ag.id); const srvs = ag.servico.split(" + "); const precos = ag.preco.split(" + "); setEditLinhas(srvs.map((s, i) => ({ servico: s.trim(), preco: precos[i]?.trim() ?? "" }))); }} className="p-1.5 text-gray-500 hover:text-gray-300 border border-transparent hover:border-[#2d2d2d] rounded-lg transition" title="Editar"><IconPencil size={13} /></button>}
+                                    {!finalizado && <button onClick={() => setConfirmarEditarComanda(ag)} className="p-1.5 text-gray-500 hover:text-gray-300 border border-transparent hover:border-[#2d2d2d] rounded-lg transition" title="Editar comanda no Caixa"><IconPencil size={13} /></button>}
                                     <button onClick={() => setModal({ tipo: "excluir", id: ag.id })} className="p-1.5 text-red-500/50 hover:text-red-400 border border-transparent hover:border-red-900/40 rounded-lg transition" title="Excluir"><IconTrash size={13} /></button>
                                   </div>
                                 </div>

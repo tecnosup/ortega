@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   IconChevronLeft, IconChevronRight, IconChevronDown, IconLock, IconLockOpen,
   IconPlus, IconTrash, IconTrendingDown, IconUser, IconCheck, IconX, IconClock, IconCashRegister,
-  IconQrcode, IconCreditCard, IconCashBanknote,
+  IconQrcode, IconCreditCard, IconCashBanknote, IconAlertTriangle,
 } from "@tabler/icons-react";
 import type { Icon } from "@tabler/icons-react";
 import { useSearchParams } from "next/navigation";
@@ -14,9 +14,10 @@ import type { Comanda, ItemComanda } from "@/lib/comandas-types";
 import { calcularTotalItens } from "@/lib/comandas-types";
 import type { GastoDia } from "@/lib/gastos-dia-tipos";
 import Modal from "@/components/ui/Modal";
+import Select from "@/components/ui/Select";
 import { useModalMount } from "@/components/ui/useModalMount";
 import { useToast } from "@/components/ui/Toast";
-import { useConfirm } from "@/components/ui/Confirm";
+import { useConfirm, type ConfirmOpts } from "@/components/ui/Confirm";
 import { useSucesso } from "@/components/ui/Sucesso";
 import Revelar from "@/components/ui/Revelar";
 import { hojeBR } from "@/lib/date-utils";
@@ -233,6 +234,28 @@ function useItensEditor(inicial?: ItemComanda[]) {
   const servicos = catalog.filter((c) => c.tipo === "servico");
   const produtos = catalog.filter((c) => c.tipo === "produto");
 
+  // Itens carregados de uma comanda existente vêm com catalogKey "manual" (o doc não
+  // guarda a referência). Ao carregar o catálogo, religa cada item ao seu item do
+  // catálogo (produto por id, serviço por título) — assim só sobra "manual" o que é
+  // realmente livre, e o aviso de "não cadastrado" não dispara em item legítimo.
+  const reconciliado = useRef(false);
+  useEffect(() => {
+    if (reconciliado.current || catalog.length === 0) return;
+    reconciliado.current = true;
+    setItens((prev) => prev.map((it) => {
+      if (it.catalogKey !== "manual") return it;
+      if (it.tipo === "produto" && it.produtoId) {
+        const p = catalog.find((c) => c.tipo === "produto" && c.id === it.produtoId);
+        if (p) return { ...it, catalogKey: `p:${p.id}` };
+      }
+      if (it.tipo === "servico" && it.descricao.trim()) {
+        const s = catalog.find((c) => c.tipo === "servico" && c.titulo.toLowerCase() === it.descricao.trim().toLowerCase());
+        if (s) return { ...it, catalogKey: `s:${s.id}` };
+      }
+      return it;
+    }));
+  }, [catalog]);
+
   function addItem() { setItens((p) => [{ uid: newUid(), catalogKey: "manual", tipo: "servico", descricao: "", valor: "" }, ...p]); }
   function removeItem(i: number) { setItens((p) => p.filter((_, idx) => idx !== i)); }
   function changeTipo(i: number, tipo: "servico" | "produto") {
@@ -247,8 +270,19 @@ function useItensEditor(inicial?: ItemComanda[]) {
   }
   function updateValor(i: number, v: string) { setItens((p) => p.map((it, idx) => idx === i ? { ...it, valor: v } : it)); }
   function updateDesc(i: number, v: string) { setItens((p) => p.map((it, idx) => idx === i ? { ...it, descricao: v } : it)); }
+  // Item livre (não catalogado): mantém o valor já digitado, só troca a descrição.
+  function setManual(i: number, desc: string) {
+    setItens((p) => p.map((it, idx) => idx === i ? { ...it, catalogKey: "manual", descricao: desc, produtoId: undefined } : it));
+  }
 
   const somaItens = itens.reduce((s, it) => s + (Number(it.valor) || 0), 0);
+
+  /** Descrições dos itens válidos que NÃO vieram do catálogo (não rastreáveis). */
+  function itensNaoCadastrados(): string[] {
+    return itens
+      .filter((i) => i.catalogKey === "manual" && i.descricao.trim() && Number(i.valor) > 0)
+      .map((i) => i.descricao.trim());
+  }
 
   /** Converte para ItemComanda[] (só itens válidos). */
   function paraItensComanda(): ItemComanda[] {
@@ -260,7 +294,7 @@ function useItensEditor(inicial?: ItemComanda[]) {
       }));
   }
 
-  return { servicos, produtos, itens, addItem, removeItem, changeTipo, selecionarCatalog, updateValor, updateDesc, somaItens, paraItensComanda };
+  return { servicos, produtos, itens, addItem, removeItem, changeTipo, selecionarCatalog, updateValor, updateDesc, setManual, somaItens, paraItensComanda, itensNaoCadastrados };
 }
 
 type ItensEditor = ReturnType<typeof useItensEditor>;
@@ -295,13 +329,19 @@ function ItensEditorView({ ed, titulo = "Itens *" }: { ed: ItensEditor; titulo?:
                 </div>
                 {ed.itens.length > 1 && <button onClick={() => ed.removeItem(i)} className="text-gray-600 hover:text-red-400 transition p-1"><IconTrash size={13} /></button>}
               </div>
-              <select value={item.catalogKey} onChange={(e) => ed.selecionarCatalog(i, e.target.value)}
-                className="w-full bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2.5 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a]">
-                <option value="manual">— Digitar manualmente —</option>
-                {catalogDaTipo.map((c) => <option key={c.id} value={`${c.tipo[0]}:${c.id}`}>{c.titulo} — R$ {c.preco.toFixed(2).replace(".", ",")}</option>)}
-              </select>
-              {item.catalogKey === "manual" && (
-                <input value={item.descricao} onChange={(e) => ed.updateDesc(i, e.target.value)} placeholder={item.tipo === "servico" ? "Nome do serviço..." : "Nome do produto..."} className={inp} />
+              <Select
+                value={item.catalogKey}
+                onChange={(v) => ed.selecionarCatalog(i, v)}
+                onManual={(t) => ed.setManual(i, t)}
+                displayLabel={item.catalogKey === "manual" && item.descricao.trim() ? item.descricao : undefined}
+                allowManual
+                searchable
+                searchPlaceholder={item.tipo === "servico" ? "Buscar serviço..." : "Buscar produto..."}
+                placeholder={item.tipo === "servico" ? "Selecionar serviço" : "Selecionar produto"}
+                options={catalogDaTipo.map((c) => ({ value: `${c.tipo[0]}:${c.id}`, label: `${c.titulo} — R$ ${c.preco.toFixed(2).replace(".", ",")}` }))}
+              />
+              {item.catalogKey === "manual" && item.descricao.trim() && (
+                <p className="flex items-center gap-1.5 text-[10px] text-amber-400/80 leading-snug"><IconAlertTriangle size={12} className="shrink-0" /> Item não cadastrado — não entra em estoque nem nas estatísticas.</p>
               )}
               <div className="flex items-center gap-2">
                 <label className="text-[10px] text-gray-600 tracking-widest uppercase shrink-0">Valor (R$)</label>
@@ -316,6 +356,23 @@ function ItensEditorView({ ed, titulo = "Itens *" }: { ed: ItensEditor; titulo?:
   );
 }
 
+// Aviso ao salvar/finalizar com itens fora do catálogo: dá liberdade, mas explica
+// que não entram em rastreio/estoque/estatísticas. Retorna true se pode prosseguir.
+async function avisarSeNaoCadastrados(
+  confirmar: (o: ConfirmOpts | string) => Promise<boolean>,
+  naoCad: string[],
+): Promise<boolean> {
+  if (naoCad.length === 0) return true;
+  const varios = naoCad.length > 1;
+  return confirmar({
+    titulo: varios ? "Itens não cadastrados" : "Item não cadastrado",
+    mensagem: `${naoCad.map((n) => `“${n}”`).join(", ")} ${varios ? "não estão" : "não está"} no catálogo do sistema. ${varios ? "Eles não serão rastreados" : "Ele não será rastreado"} e não ${varios ? "contarão" : "contará"} para controle de estoque nem estatísticas (ex.: serviços mais feitos no período). Deseja salvar mesmo assim?`,
+    confirmar: "Salvar mesmo assim",
+    cancelar: "Revisar itens",
+    tom: "ouro",
+  });
+}
+
 // ── Modal criar/editar comanda ──────────────────────────────────────────────────
 function FormComanda({ open = true, data, inicial, onSalvo, onCancelar }: {
   open?: boolean; data: string; inicial?: Comanda; onSalvo: () => void; onCancelar: () => void;
@@ -326,6 +383,7 @@ function FormComanda({ open = true, data, inicial, onSalvo, onCancelar }: {
   const [salvando, setSalvando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
   const [erro, setErro] = useState("");
+  const confirmar = useConfirm();
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -336,6 +394,7 @@ function FormComanda({ open = true, data, inicial, onSalvo, onCancelar }: {
     if (!clienteNome.trim()) { setErro("Nome do cliente obrigatório"); return; }
     const itensFmt = ed.paraItensComanda();
     if (!itensFmt.length) { setErro("Adicione ao menos um item com descrição e valor válido"); return; }
+    if (!(await avisarSeNaoCadastrados(confirmar, ed.itensNaoCadastrados()))) return;
     setErro(""); setSalvando(true);
     const payload = { data, clienteNome: clienteNome.trim(), clienteTelefone: clienteTelefone.trim() || undefined, itens: itensFmt };
     if (inicial) {
@@ -410,6 +469,7 @@ function FormFinalizar({ open = true, comanda, onFinalizado, onCancelar }: {
   const [finalizando, setFinalizando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
   const ed = useItensEditor(comanda.itens);
+  const confirmar = useConfirm();
   // Total editável: começa com a soma dos itens, mas o Igor pode sobrescrever.
   const [totalManual, setTotalManual] = useState<string | null>(null);
   const totalFinal = totalManual !== null ? (Number(totalManual) || 0) : ed.somaItens;
@@ -420,6 +480,7 @@ function FormFinalizar({ open = true, comanda, onFinalizado, onCancelar }: {
   }, []);
 
   async function finalizar() {
+    if (!(await avisarSeNaoCadastrados(confirmar, ed.itensNaoCadastrados()))) return;
     setFinalizando(true);
     const itens = ed.paraItensComanda();
     // 1) salva itens editados + total ajustado
@@ -571,12 +632,35 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
       setRefSemana(p);
       const d = new Date(p + "T12:00:00");
       setAno(d.getFullYear()); setMes(d.getMonth());
-      setTimeout(() => document.getElementById("caixa")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+      // foco=comandas rola até a seção de comandas em aberto; senão, topo do caixa
+      const alvo = searchParams.get("foco") === "comandas" ? "comandas-abertas" : "caixa";
+      setTimeout(() => {
+        (document.getElementById(alvo) ?? document.getElementById("caixa"))?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 150);
     }
     if (searchParams.get("acao") === "nova-comanda") {
       setNovaComanda(true);
     }
   }, [searchParams]); // eslint-disable-line
+
+  // Abre o editor real da comanda quando chega ?editarComanda=<agendamentoId> (vindo
+  // do lápis da agenda). Espera as comandas carregarem e casa pelo agendamentoId.
+  const editarComandaHandled = useRef<string | null>(null);
+  useEffect(() => {
+    const agId = searchParams.get("editarComanda");
+    if (!agId || comandas.length === 0) return;
+    if (editarComandaHandled.current === agId) return;
+    const comanda = comandas.find((c) => c.agendamentoId === agId);
+    if (comanda) {
+      editarComandaHandled.current = agId;
+      setDiaSel(comanda.data);
+      setRefSemana(comanda.data);
+      const d = new Date(comanda.data + "T12:00:00");
+      setAno(d.getFullYear()); setMes(d.getMonth());
+      setEditandoComanda(comanda);
+      setTimeout(() => document.getElementById("comandas-abertas")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
+    }
+  }, [searchParams, comandas]);
 
   const fechPorData = Object.fromEntries(fechamentos.map((f) => [f.data, f]));
   const gastosPorData: Record<string, GastoDia[]> = {};
