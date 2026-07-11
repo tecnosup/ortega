@@ -51,6 +51,77 @@
   overscroll-behavior-y: none;
 } */
 
+/* Animação de entrada dos steps do agendamento — fade + slide sutil.
+   Guia o olho do cliente ao avançar. Só transform/opacity (sem reflow).
+   Respeita quem pediu menos movimento (acessibilidade / enjoo). */
+@keyframes stepIn {
+  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+  to   { opacity: 1; transform: translateZ(0); }
+}
+.step-anim {
+  animation: stepIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .step-anim { animation: none; }
+}
+
+/* Spinner do botão (envio do agendamento) */
+@keyframes spinnerRot { to { transform: rotate(360deg); } }
+.btn-spinner {
+  width: 16px; height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spinnerRot 0.6s linear infinite;
+}
+
+/* Checkmark de sucesso — círculo que "estoura" + risco que desenha.
+   Só transform/opacity/stroke; respeita reduced-motion. */
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(0.4); }
+  60%  { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.success-pop { animation: popIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .btn-spinner { animation-duration: 1.2s; }
+  .success-pop { animation: none; }
+}
+
+/* Retrátil genérico: expande/recolhe suave via grid-template-rows (0fr→1fr).
+   O filho direto precisa de overflow-hidden. Usado no toggle da vitrine. */
+.collapse-anim {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.collapse-anim[data-open="true"] { grid-template-rows: 1fr; }
+.collapse-anim > * { overflow: hidden; min-height: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .collapse-anim { transition: none; }
+}
+
+/* Skeleton shimmer — placeholder de carregamento. */
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #141414;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(184, 148, 74, 0.08), transparent);
+  animation: shimmer 1.4s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
+}
+
 /* Admin main content area — mobile */
 .admin-main-mobile {
   padding-top: calc(env(safe-area-inset-top) + 56px);
@@ -102,6 +173,30 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #C9A84C88;
+}
+
+/* Lista de horários (agendamentos): no mobile o corpo colapsa/expande com animação
+   (grid-template-rows 0fr→1fr). No desktop (lg+) fica sempre aberto em flex normal,
+   pra manter o scroll interno do card absoluto ao lado do calendário. */
+.lista-collapse { display: flex; flex-direction: column; flex: 1 1 0%; min-height: 0; }
+.lista-collapse-inner { display: flex; flex-direction: column; flex: 1 1 0%; min-height: 0; }
+@media (max-width: 1023px) {
+  .lista-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    flex: 0 0 auto;
+  }
+  .lista-collapse[data-open="true"] { grid-template-rows: 1fr; }
+  .lista-collapse-inner { overflow: hidden; }
+}
+
+/* Banner "avisar cliente": o botão do WhatsApp colapsa para só o ícone quando o
+   card fica estreito. Usa container query nativa (responde à largura do próprio
+   banner, não da viewport), então funciona igual no desktop apertado e no mobile. */
+.zap-aviso { container-type: inline-size; }
+@container (max-width: 400px) {
+  .zap-aviso-label { display: none; }
 }
 
 /* Remove as setinhas (spinner) dos inputs numéricos — mantém o teclado numérico */

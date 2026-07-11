@@ -578,7 +578,7 @@ export default function FinanceiroPage() {
   gastosDia.forEach((g) => { gastosDiaPorData[g.data] = (gastosDiaPorData[g.data] ?? 0) + g.valor; });
 
   const dadosGrafico = calcDadosGrafico(periodo, fechamentos, gastosDia);
-  const totalGrafico = dadosGrafico.reduce((s, d) => s + d.fat, 0);
+  const totalGrafico = dadosGrafico.length > 0 ? dadosGrafico[dadosGrafico.length - 1].fat : 0;
   const totalGastosGrafico = dadosGrafico.reduce((s, d) => s + d.gastos, 0);
 
   const lucroValues = dadosGrafico.map((d) => d.lucro);
