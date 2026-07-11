@@ -29,11 +29,23 @@ export default function AdminFab() {
     }
   }
 
+  // Abrir comanda: se JÁ estamos no Caixa, abre o modal direto por evento (sem
+  // navegação — o router.push viraria uma transição RSC que, no dev lento, fica
+  // pendurada e o modal só abriria após um reload). De outra página, navega
+  // normalmente e a própria página do Caixa abre o modal pelo ?acao=nova-comanda.
+  function abrirComanda() {
+    if (window.location.pathname === "/admin/caixa") {
+      window.dispatchEvent(new CustomEvent("ortega:nova-comanda", { detail: { dia: hojeKey } }));
+    } else {
+      router.push(`/admin/caixa?acao=nova-comanda&dia=${hojeKey}`);
+    }
+  }
+
   return (
     <Fab actions={[
       { label: "Agendar horário", icon: IconCalendarPlus, onClick: () => router.push("/admin/agendamentos?acao=agendar") },
       { label: "Link de agendamento", icon: IconLink, onClick: copiarLink },
-      { label: "Abrir comanda", icon: IconFileText, onClick: () => router.push(`/admin/caixa?acao=nova-comanda&dia=${hojeKey}`) },
+      { label: "Abrir comanda", icon: IconFileText, onClick: abrirComanda },
       { label: "Grade de hoje", icon: IconCalendarClock, onClick: () => router.push("/admin/agendamentos?acao=grade") },
     ]} />
   );

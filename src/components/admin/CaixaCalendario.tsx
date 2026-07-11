@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   IconChevronLeft, IconChevronRight, IconChevronDown, IconLock, IconLockOpen,
-  IconPlus, IconTrash, IconTrendingDown, IconUser, IconCheck, IconX, IconClock, IconCashRegister,
-  IconQrcode, IconCreditCard, IconCashBanknote, IconAlertTriangle,
+  IconPlus, IconMinus, IconTrash, IconTrendingDown, IconUser, IconCheck, IconX, IconClock, IconCashRegister,
+  IconQrcode, IconCreditCard, IconCashBanknote, IconAlertTriangle, IconSearch, IconScissors, IconPackage,
 } from "@tabler/icons-react";
 import type { Icon } from "@tabler/icons-react";
 import { useSearchParams } from "next/navigation";
@@ -14,7 +14,6 @@ import type { Comanda, ItemComanda } from "@/lib/comandas-types";
 import { calcularTotalItens } from "@/lib/comandas-types";
 import type { GastoDia } from "@/lib/gastos-dia-tipos";
 import Modal from "@/components/ui/Modal";
-import Select from "@/components/ui/Select";
 import { useModalMount } from "@/components/ui/useModalMount";
 import { useToast } from "@/components/ui/Toast";
 import { useConfirm, type ConfirmOpts } from "@/components/ui/Confirm";
@@ -193,19 +192,25 @@ function FormGastoDia({ open = true, data, onSalvo, onCancelar }: { open?: boole
 
 // ── Itens + catálogo (compartilhado entre criar e finalizar comanda) ────────────
 type CatalogItem = { id: string; titulo: string; preco: number; tipo: "servico" | "produto" };
-type ItemForm = { uid: string; catalogKey: string; tipo: "servico" | "produto"; descricao: string; valor: string; produtoId?: string };
+type ItemForm = { uid: string; catalogKey: string; tipo: "servico" | "produto"; descricao: string; valor: string; quantidade: number; produtoId?: string };
 
 let _uidSeq = 0;
 const newUid = () => `it_${_uidSeq++}`;
+const catKey = (tipo: "servico" | "produto", id: string) => `${tipo[0]}:${id}`;
 
 function itensParaForm(itens?: ItemComanda[]): ItemForm[] {
-  return itens?.map((i) => ({ uid: newUid(), catalogKey: "manual", tipo: i.tipo, descricao: i.descricao, valor: String(i.valor), produtoId: i.produtoId }))
-    ?? [{ uid: newUid(), catalogKey: "manual", tipo: "servico", descricao: "", valor: "" }];
+  // Começa vazio: os itens são escolhidos no catálogo (picker). Ao editar uma
+  // comanda existente, cada item vem como "manual" e a reconciliação religa ao catálogo.
+  return itens?.map((i) => ({
+    uid: newUid(), catalogKey: "manual", tipo: i.tipo, descricao: i.descricao,
+    valor: String(i.valor), quantidade: i.quantidade ?? 1, produtoId: i.produtoId,
+  })) ?? [];
 }
 
 /** Carrega catálogo de serviços/produtos e gerencia a lista de itens editáveis. */
 function useItensEditor(inicial?: ItemComanda[]) {
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+  const [carregando, setCarregando] = useState(true);
   const [itens, setItens] = useState<ItemForm[]>(() => itensParaForm(inicial));
 
   useEffect(() => {
@@ -226,6 +231,7 @@ function useItensEditor(inicial?: ItemComanda[]) {
       const servs: CatalogItem[] = (s.items ?? []).filter((i: { status: string }) => i.status === "published").map((i: { id: string; titulo: string; preco: unknown }) => ({ ...i, preco: parsePreco(i.preco), tipo: "servico" as const }));
       const prods: CatalogItem[] = (p.produtos ?? []).filter((i: { status: string }) => i.status === "published").map((i: { id: string; titulo: string; preco: unknown }) => ({ ...i, preco: parsePreco(i.preco), tipo: "produto" as const }));
       setCatalog([...servs, ...prods]);
+      setCarregando(false);
     }
     carregar();
     return () => { cancelado = true; };
@@ -256,26 +262,37 @@ function useItensEditor(inicial?: ItemComanda[]) {
     }));
   }, [catalog]);
 
-  function addItem() { setItens((p) => [{ uid: newUid(), catalogKey: "manual", tipo: "servico", descricao: "", valor: "" }, ...p]); }
-  function removeItem(i: number) { setItens((p) => p.filter((_, idx) => idx !== i)); }
-  function changeTipo(i: number, tipo: "servico" | "produto") {
-    setItens((p) => p.map((it, idx) => idx === i ? { ...it, tipo, catalogKey: "manual", descricao: "", valor: "", produtoId: undefined } : it));
-  }
-  function selecionarCatalog(i: number, key: string) {
-    if (key === "manual") { setItens((p) => p.map((it, idx) => idx === i ? { ...it, catalogKey: "manual", descricao: "", valor: "", produtoId: undefined } : it)); return; }
-    const found = catalog.find((c) => `${c.tipo[0]}:${c.id}` === key);
-    if (found) setItens((p) => p.map((it, idx) => idx === i
-      ? { uid: it.uid, catalogKey: key, tipo: found.tipo, descricao: found.titulo, valor: String(found.preco), produtoId: found.tipo === "produto" ? found.id : undefined }
-      : it));
-  }
-  function updateValor(i: number, v: string) { setItens((p) => p.map((it, idx) => idx === i ? { ...it, valor: v } : it)); }
-  function updateDesc(i: number, v: string) { setItens((p) => p.map((it, idx) => idx === i ? { ...it, descricao: v } : it)); }
-  // Item livre (não catalogado): mantém o valor já digitado, só troca a descrição.
-  function setManual(i: number, desc: string) {
-    setItens((p) => p.map((it, idx) => idx === i ? { ...it, catalogKey: "manual", descricao: desc, produtoId: undefined } : it));
-  }
+  /** Quantidade atual de um item do catálogo (0 se não escolhido). */
+  const qtdDe = (key: string) => itens.find((it) => it.catalogKey === key)?.quantidade ?? 0;
 
-  const somaItens = itens.reduce((s, it) => s + (Number(it.valor) || 0), 0);
+  /** Adiciona 1 unidade de um item do catálogo (cria a linha se ainda não existe). */
+  function adicionarCatalog(c: CatalogItem) {
+    const key = catKey(c.tipo, c.id);
+    setItens((p) => {
+      if (p.some((it) => it.catalogKey === key)) {
+        return p.map((it) => it.catalogKey === key ? { ...it, quantidade: it.quantidade + 1 } : it);
+      }
+      return [...p, { uid: newUid(), catalogKey: key, tipo: c.tipo, descricao: c.titulo, valor: String(c.preco), quantidade: 1, produtoId: c.tipo === "produto" ? c.id : undefined }];
+    });
+  }
+  /** Remove 1 unidade de um item do catálogo (some ao chegar em 0). */
+  function decrementarCatalog(key: string) {
+    setItens((p) => p.flatMap((it) => it.catalogKey === key ? (it.quantidade > 1 ? [{ ...it, quantidade: it.quantidade - 1 }] : []) : [it]));
+  }
+  /** Adiciona uma linha de item manual (livre) já completa (descrição + valor + qtd). */
+  function adicionarManual(descricao = "", valor = "", quantidade = 1) {
+    setItens((p) => [...p, { uid: newUid(), catalogKey: "manual", tipo: "servico", descricao, valor, quantidade }]);
+  }
+  function updateManual(uid: string, patch: Partial<Pick<ItemForm, "descricao" | "valor">>) {
+    setItens((p) => p.map((it) => it.uid === uid ? { ...it, ...patch } : it));
+  }
+  /** Define a quantidade de uma linha (por uid); some ao chegar em 0. */
+  function setQtd(uid: string, q: number) {
+    setItens((p) => p.flatMap((it) => it.uid === uid ? (q >= 1 ? [{ ...it, quantidade: q }] : []) : [it]));
+  }
+  function removerItem(uid: string) { setItens((p) => p.filter((it) => it.uid !== uid)); }
+
+  const somaItens = itens.reduce((s, it) => s + (Number(it.valor) || 0) * it.quantidade, 0);
 
   /** Descrições dos itens válidos que NÃO vieram do catálogo (não rastreáveis). */
   function itensNaoCadastrados(): string[] {
@@ -284,73 +301,211 @@ function useItensEditor(inicial?: ItemComanda[]) {
       .map((i) => i.descricao.trim());
   }
 
-  /** Converte para ItemComanda[] (só itens válidos). */
+  /** Converte para ItemComanda[] (só itens válidos), preservando quantidade. */
   function paraItensComanda(): ItemComanda[] {
     return itens
-      .filter((i) => i.descricao.trim() && !isNaN(Number(i.valor)) && Number(i.valor) > 0)
+      .filter((i) => i.descricao.trim() && !isNaN(Number(i.valor)) && Number(i.valor) > 0 && i.quantidade >= 1)
       .map((it, idx) => ({
-        id: String(Date.now() + idx), tipo: it.tipo, descricao: it.descricao.trim(), valor: Number(it.valor),
+        id: String(Date.now() + idx), tipo: it.tipo, descricao: it.descricao.trim(), valor: Number(it.valor), quantidade: it.quantidade,
         ...(it.produtoId ? { produtoId: it.produtoId } : {}),
       }));
   }
 
-  return { servicos, produtos, itens, addItem, removeItem, changeTipo, selecionarCatalog, updateValor, updateDesc, setManual, somaItens, paraItensComanda, itensNaoCadastrados };
+  return { servicos, produtos, carregando, itens, qtdDe, adicionarCatalog, decrementarCatalog, adicionarManual, updateManual, setQtd, removerItem, somaItens, paraItensComanda, itensNaoCadastrados };
 }
 
 type ItensEditor = ReturnType<typeof useItensEditor>;
 
-/** Renderiza a lista de itens editáveis (usa o hook useItensEditor). */
+/** Botão de quantidade (−/+) compartilhado pelos cards e itens manuais. */
+function QtdStepper({ qtd, onMenos, onMais }: { qtd: number; onMenos: () => void; onMais: () => void }) {
+  return (
+    <div className="flex items-center gap-1.5 shrink-0">
+      <button type="button" onClick={onMenos} className="w-7 h-7 rounded-lg bg-[#1a1a1a] border border-[#2d2d2d] text-[#F5E6C8] flex items-center justify-center hover:text-[#b8944a] transition"><IconMinus size={14} /></button>
+      <span className="w-5 text-center text-sm font-bold text-[#b8944a]">{qtd}</span>
+      <button type="button" onClick={onMais} className="w-7 h-7 rounded-lg bg-[#1a1a1a] border border-[#2d2d2d] text-[#F5E6C8] flex items-center justify-center hover:text-[#b8944a] transition"><IconPlus size={14} /></button>
+    </div>
+  );
+}
+
+/**
+ * Picker de itens da comanda: abas Serviços/Produtos + busca por lupa (abre só ao
+ * clicar) + lista de cards do catálogo com quantidade. A busca é um input inline
+ * (não um dropdown em portal), então o teclado do celular não fecha/reabre sozinho.
+ * Mantém o "item manual" do ortega para lançamentos livres (não rastreados).
+ */
 function ItensEditorView({ ed, titulo = "Itens *" }: { ed: ItensEditor; titulo?: string }) {
+  const [tab, setTab] = useState<"servico" | "produto">("servico");
+  const [busca, setBusca] = useState("");
+  const [buscaAberta, setBuscaAberta] = useState(false);
+
+  const catalogo = (tab === "servico" ? ed.servicos : ed.produtos).filter((c) =>
+    c.titulo.toLowerCase().includes(busca.trim().toLowerCase())
+  );
+  const manuais = ed.itens.filter((it) => it.catalogKey === "manual");
+  const totalQtd = ed.itens.reduce((s, it) => s + it.quantidade, 0);
+
+  // Rascunho do item manual (criação/edição guiada). uid presente = editando.
+  const [draft, setDraft] = useState<{ uid?: string; descricao: string; valor: string } | null>(null);
+  function abrirManual(descricao = "") { setDraft({ descricao, valor: "" }); setBusca(""); setBuscaAberta(false); }
+  function confirmarDraft() {
+    if (!draft) return;
+    const desc = draft.descricao.trim();
+    if (!desc || !(Number(draft.valor) > 0)) return;
+    if (draft.uid) ed.updateManual(draft.uid, { descricao: desc, valor: draft.valor });
+    else ed.adicionarManual(desc, draft.valor, 1);
+    setDraft(null);
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
         <p className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">{titulo}</p>
-        <button onClick={ed.addItem} className="flex items-center gap-1 text-[10px] text-[#b8944a]/70 hover:text-[#b8944a] transition font-semibold tracking-widest uppercase">
-          <IconPlus size={10} /> Adicionar item
-        </button>
+        <span className="text-[10px] text-gray-500">{totalQtd} {totalQtd === 1 ? "item" : "itens"}</span>
       </div>
-      <div className="flex flex-col gap-2">
-        <AnimatePresence initial={false}>
-        {ed.itens.map((item, i) => {
-          const catalogDaTipo = item.tipo === "servico" ? ed.servicos : ed.produtos;
-          return (
-            <motion.div key={item.uid} layout
-              initial={{ opacity: 0, y: -10, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.96, height: 0, paddingTop: 0, paddingBottom: 0, marginTop: 0 }}
-              transition={{ type: "spring", stiffness: 420, damping: 32 }}
-              className="bg-[#0f0f0f] border border-[#2d2d2d] rounded-lg p-3 flex flex-col gap-2.5 overflow-hidden">
-              <div className="flex items-center justify-between">
-                <div className="flex gap-1">
-                  <button onClick={() => ed.changeTipo(i, "servico")}
-                    className={`px-3 py-1.5 text-xs rounded border transition ${item.tipo === "servico" ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-bold" : "text-gray-500 border-[#2d2d2d] hover:border-[#b8944a]"}`}>✂️ Serviço</button>
-                  <button onClick={() => ed.changeTipo(i, "produto")}
-                    className={`px-3 py-1.5 text-xs rounded border transition ${item.tipo === "produto" ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a] font-bold" : "text-gray-500 border-[#2d2d2d] hover:border-[#b8944a]"}`}>📦 Produto</button>
-                </div>
-                {ed.itens.length > 1 && <button onClick={() => ed.removeItem(i)} className="text-gray-600 hover:text-red-400 transition p-1"><IconTrash size={13} /></button>}
-              </div>
-              <Select
-                value={item.catalogKey}
-                onChange={(v) => ed.selecionarCatalog(i, v)}
-                onManual={(t) => ed.setManual(i, t)}
-                displayLabel={item.catalogKey === "manual" && item.descricao.trim() ? item.descricao : undefined}
-                allowManual
-                searchable
-                searchPlaceholder={item.tipo === "servico" ? "Buscar serviço..." : "Buscar produto..."}
-                placeholder={item.tipo === "servico" ? "Selecionar serviço" : "Selecionar produto"}
-                options={catalogDaTipo.map((c) => ({ value: `${c.tipo[0]}:${c.id}`, label: `${c.titulo} — R$ ${c.preco.toFixed(2).replace(".", ",")}` }))}
+
+      {/* Abas + lupa (a busca abre só ao clicar na lupa; a barra cresce/encolhe da direita) */}
+      <div className="mb-2 min-h-[38px]">
+        <AnimatePresence mode="wait" initial={false}>
+          {buscaAberta ? (
+            <motion.div key="busca" className="relative origin-right"
+              initial={{ opacity: 0, scaleX: 0.7 }} animate={{ opacity: 1, scaleX: 1 }} exit={{ opacity: 0, scaleX: 0.7 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}>
+              <IconSearch size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                autoFocus
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder={tab === "servico" ? "Buscar serviço..." : "Buscar produto..."}
+                className="w-full bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg pl-9 pr-9 py-2 text-sm text-[#F5E6C8] placeholder-gray-600 focus:outline-none focus:border-[#b8944a]"
               />
-              {item.catalogKey === "manual" && item.descricao.trim() && (
-                <p className="flex items-center gap-1.5 text-[10px] text-amber-400/80 leading-snug"><IconAlertTriangle size={12} className="shrink-0" /> Item não cadastrado — não entra em estoque nem nas estatísticas.</p>
-              )}
-              <div className="flex items-center gap-2">
-                <label className="text-[10px] text-gray-600 tracking-widest uppercase shrink-0">Valor (R$)</label>
-                <input type="number" min="0" step="0.01" value={item.valor} onChange={(e) => ed.updateValor(i, e.target.value)} placeholder="0,00" className={`${inp} flex-1`} />
-              </div>
+              <button type="button" onClick={() => { setBusca(""); setBuscaAberta(false); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-[#b8944a] transition"><IconX size={15} /></button>
             </motion.div>
+          ) : (
+            <motion.div key="abas" className="flex gap-1.5"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}>
+              {(["servico", "produto"] as const).map((t) => (
+                <button key={t} type="button" onClick={() => setTab(t)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold border transition ${tab === t ? "bg-[#b8944a]/15 text-[#b8944a] border-[#b8944a]/40" : "bg-[#0f0f0f] text-gray-400 border-[#2d2d2d] hover:border-[#3d3d3d]"}`}>
+                  {t === "servico" ? <IconScissors size={15} /> : <IconPackage size={15} />}
+                  {t === "servico" ? "Serviços" : "Produtos"}
+                </button>
+              ))}
+              <button type="button" onClick={() => setBuscaAberta(true)}
+                className="shrink-0 w-10 rounded-lg bg-[#0f0f0f] border border-[#2d2d2d] text-gray-400 flex items-center justify-center hover:text-[#b8944a] hover:border-[#3d3d3d] transition"><IconSearch size={16} /></button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Itens manuais (livres, não rastreados) — no TOPO, sempre visíveis ── */}
+      <div className="flex flex-col gap-2 mb-2">
+        <AnimatePresence initial={false}>
+          {manuais.map((it) => {
+            // Enquanto o catálogo carrega, ainda não dá pra saber se o item veio do
+            // catálogo (a reconciliação só roda após carregar). Antes disso mostramos
+            // neutro, SEM o alarme de "não cadastrado" — evita assustar em item legítimo.
+            const alerta = !ed.carregando;
+            return (
+              <motion.div key={it.uid} layout
+                initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                className={`rounded-lg border overflow-hidden ${alerta ? "border-amber-800/40 bg-amber-950/20" : "border-[#2d2d2d] bg-[#0f0f0f]"}`}>
+                <div className="px-3 py-2.5 flex items-center gap-2">
+                  {alerta ? (
+                    <button type="button" onClick={() => setDraft({ uid: it.uid, descricao: it.descricao, valor: it.valor })} className="flex-1 min-w-0 text-left">
+                      <div className="flex items-center gap-1.5">
+                        <IconAlertTriangle size={12} className="text-amber-400/90 shrink-0" />
+                        <p className="text-sm font-medium text-[#F5E6C8] truncate">{it.descricao.trim() || "Item manual"}</p>
+                      </div>
+                      <p className="text-xs text-amber-400/80 mt-0.5">{brl(Number(it.valor) || 0)} · não cadastrado — toque p/ editar</p>
+                    </button>
+                  ) : (
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#F5E6C8] truncate">{it.descricao.trim() || "Item"}</p>
+                      <p className="text-xs text-[#b8944a] mt-0.5">{brl(Number(it.valor) || 0)}</p>
+                    </div>
+                  )}
+                  <QtdStepper qtd={it.quantidade} onMenos={() => ed.setQtd(it.uid, it.quantidade - 1)} onMais={() => ed.setQtd(it.uid, it.quantidade + 1)} />
+                  <button type="button" onClick={() => ed.removerItem(it.uid)} className="text-gray-600 hover:text-red-400 transition p-1 shrink-0"><IconTrash size={14} /></button>
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+
+        {draft ? (
+          // Criação/edição guiada: descrição + valor num passo só, aqui no topo.
+          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
+            className="rounded-lg border border-[#b8944a]/40 bg-[#0f0f0f] p-3 flex flex-col gap-2.5">
+            <p className="text-[10px] font-bold tracking-widest uppercase text-[#b8944a]">{draft.uid ? "Editar item manual" : "Novo item manual"}</p>
+            <input autoFocus={!draft.descricao.trim()} value={draft.descricao}
+              onChange={(e) => setDraft({ ...draft, descricao: e.target.value })}
+              placeholder="Descrição do item" className={inp} />
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] text-gray-600 tracking-widest uppercase shrink-0">Valor (R$)</label>
+              <input autoFocus={!!draft.descricao.trim()} type="number" min="0" step="0.01" value={draft.valor}
+                onChange={(e) => setDraft({ ...draft, valor: e.target.value })}
+                onKeyDown={(e) => { if (e.key === "Enter") confirmarDraft(); }}
+                placeholder="0,00" className={`${inp} flex-1`} />
+            </div>
+            <p className="flex items-center gap-1.5 text-[10px] text-amber-400/80 leading-snug"><IconAlertTriangle size={12} className="shrink-0" /> Item não cadastrado — não entra em estoque nem nas estatísticas.</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={confirmarDraft} disabled={!draft.descricao.trim() || !(Number(draft.valor) > 0)}
+                className="flex-1 py-2 rounded-lg bg-[#b8944a] text-[#0A0A0A] text-xs font-bold tracking-widest uppercase hover:bg-[#c9a84c] transition disabled:opacity-40 disabled:cursor-not-allowed">
+                {draft.uid ? "Salvar" : "Adicionar item"}
+              </button>
+              <button type="button" onClick={() => setDraft(null)} className="px-4 py-2 rounded-lg border border-[#2d2d2d] text-gray-400 text-xs hover:border-[#b8944a] transition">Cancelar</button>
+            </div>
+          </motion.div>
+        ) : (
+          <button type="button" onClick={() => abrirManual()}
+            className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-[#2d2d2d] text-[10px] font-semibold tracking-widest uppercase text-[#b8944a]/70 hover:text-[#b8944a] hover:border-[#b8944a]/50 transition">
+            <IconPlus size={12} /> Item manual
+          </button>
+        )}
+      </div>
+
+      {/* Lista do catálogo (rola dentro de uma altura limitada) */}
+      <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto pr-0.5">
+        {catalogo.length === 0 ? (
+          ed.carregando ? (
+            <p className="flex items-center justify-center gap-2 text-sm text-gray-500 text-center py-6">
+              <span className="w-3.5 h-3.5 border-2 border-gray-600 border-t-[#b8944a] rounded-full animate-spin" /> Carregando catálogo…
+            </p>
+          ) : busca.trim() ? (
+            // Nada no catálogo bate com a busca: oferece lançar como item manual, em
+            // destaque, abrindo o form guiado (já com a descrição preenchida).
+            <div className="flex flex-col items-center gap-2 py-4 px-1 text-center">
+              <p className="text-sm text-gray-500">Nenhum {tab === "servico" ? "serviço" : "produto"} encontrado para “{busca.trim()}”.</p>
+              <button type="button" onClick={() => abrirManual(busca.trim())}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#b8944a] text-[#0A0A0A] text-sm font-bold hover:bg-[#c9a84c] transition shadow-lg shadow-[#b8944a]/20">
+                <IconPlus size={16} /> Adicionar “{busca.trim()}” como item manual
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 text-center py-6">Nada encontrado.</p>
+          )
+        ) : catalogo.map((c) => {
+          const key = catKey(c.tipo, c.id);
+          const q = ed.qtdDe(key);
+          return (
+            <div key={c.id} className={`rounded-lg px-3 py-2.5 flex items-center gap-2 border transition ${q > 0 ? "bg-[#b8944a]/10 border-[#b8944a]/30" : "bg-[#0f0f0f] border-[#2d2d2d]"}`}>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[#F5E6C8] truncate">{c.titulo}</p>
+                <p className="text-xs text-[#b8944a]">{brl(c.preco)}</p>
+              </div>
+              {q > 0 ? (
+                <QtdStepper qtd={q} onMenos={() => ed.decrementarCatalog(key)} onMais={() => ed.adicionarCatalog(c)} />
+              ) : (
+                <button type="button" onClick={() => ed.adicionarCatalog(c)}
+                  className="w-8 h-8 rounded-lg bg-[#b8944a]/15 text-[#b8944a] hover:bg-[#b8944a]/25 flex items-center justify-center shrink-0 transition"><IconPlus size={16} /></button>
+              )}
+            </div>
           );
         })}
-        </AnimatePresence>
       </div>
     </div>
   );
@@ -384,6 +539,10 @@ function FormComanda({ open = true, data, inicial, onSalvo, onCancelar }: {
   const [sucesso, setSucesso] = useState(false);
   const [erro, setErro] = useState("");
   const confirmar = useConfirm();
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const totalItens = ed.itens.reduce((s, it) => s + it.quantidade, 0);
+  // Erro aparece no topo do corpo — rola pra lá pro usuário ver (mesmo se estava no fim).
+  function mostrarErro(msg: string) { setErro(msg); bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" }); }
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -391,9 +550,9 @@ function FormComanda({ open = true, data, inicial, onSalvo, onCancelar }: {
   }, []);
 
   async function salvar() {
-    if (!clienteNome.trim()) { setErro("Nome do cliente obrigatório"); return; }
+    if (!clienteNome.trim()) { mostrarErro("Nome do cliente obrigatório"); return; }
     const itensFmt = ed.paraItensComanda();
-    if (!itensFmt.length) { setErro("Adicione ao menos um item com descrição e valor válido"); return; }
+    if (!itensFmt.length) { mostrarErro("Adicione ao menos um item com descrição e valor válido"); return; }
     if (!(await avisarSeNaoCadastrados(confirmar, ed.itensNaoCadastrados()))) return;
     setErro(""); setSalvando(true);
     const payload = { data, clienteNome: clienteNome.trim(), clienteTelefone: clienteTelefone.trim() || undefined, itens: itensFmt };
@@ -437,7 +596,7 @@ function FormComanda({ open = true, data, inicial, onSalvo, onCancelar }: {
         </div>
       </div>
 
-      <div className="px-5 py-4 flex flex-col gap-4 overflow-y-auto flex-1 min-h-0">
+      <div ref={bodyRef} className="px-5 py-4 flex flex-col gap-4 overflow-y-auto flex-1 min-h-0">
         {erro && <p className="text-xs text-red-400 bg-red-900/10 border border-red-900/30 rounded px-3 py-2">{erro}</p>}
 
         <div>
@@ -451,11 +610,17 @@ function FormComanda({ open = true, data, inicial, onSalvo, onCancelar }: {
         <ItensEditorView ed={ed} />
       </div>
 
-      <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-2 shrink-0">
-        <button onClick={salvar} disabled={salvando || sucesso} className="flex-1 py-2.5 bg-[#b8944a] text-[#0A0A0A] text-xs font-bold tracking-widest uppercase rounded-lg hover:bg-[#c9a84c] transition disabled:opacity-50">
-          {salvando ? "Salvando..." : inicial ? "Salvar comanda" : "Abrir comanda"}
-        </button>
-        <button onClick={onCancelar} disabled={sucesso} className="px-5 py-2.5 border border-[#2d2d2d] text-gray-400 text-xs rounded-lg hover:border-[#b8944a] transition disabled:opacity-50">Cancelar</button>
+      <div className="px-5 pt-3 pb-4 border-t border-[#1e1e1e] shrink-0 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-400">{totalItens} {totalItens === 1 ? "item" : "itens"}</span>
+          <span className="text-lg font-bold text-[#F5E6C8]">{brl(ed.somaItens)}</span>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={salvar} disabled={salvando || sucesso} className="flex-1 py-2.5 bg-[#b8944a] text-[#0A0A0A] text-xs font-bold tracking-widest uppercase rounded-lg hover:bg-[#c9a84c] transition disabled:opacity-50">
+            {salvando ? "Salvando..." : inicial ? "Salvar comanda" : "Abrir comanda"}
+          </button>
+          <button onClick={onCancelar} disabled={sucesso} className="px-5 py-2.5 border border-[#2d2d2d] text-gray-400 text-xs rounded-lg hover:border-[#b8944a] transition disabled:opacity-50">Cancelar</button>
+        </div>
       </div>
     </Modal>
   );
@@ -642,6 +807,21 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
       setNovaComanda(true);
     }
   }, [searchParams]); // eslint-disable-line
+
+  // Abertura instantânea vinda do FAB quando já estamos nesta página (sem navegação).
+  useEffect(() => {
+    function abrir(e: Event) {
+      const dia = (e as CustomEvent<{ dia?: string }>).detail?.dia;
+      if (dia && /^\d{4}-\d{2}-\d{2}$/.test(dia)) {
+        setDiaSel(dia); setRefSemana(dia);
+        const d = new Date(dia + "T12:00:00");
+        setAno(d.getFullYear()); setMes(d.getMonth());
+      }
+      setNovaComanda(true);
+    }
+    window.addEventListener("ortega:nova-comanda", abrir);
+    return () => window.removeEventListener("ortega:nova-comanda", abrir);
+  }, []);
 
   // Abre o editor real da comanda quando chega ?editarComanda=<agendamentoId> (vindo
   // do lápis da agenda). Espera as comandas carregarem e casa pelo agendamentoId.
