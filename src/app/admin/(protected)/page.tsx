@@ -245,7 +245,7 @@ export default function AdminDashboard() {
   if (carregando) return <div className="flex items-center justify-center h-64 text-gray-500 text-sm">Carregando...</div>;
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-6">
+    <div className="max-w-6xl mx-auto flex flex-col gap-6 overflow-x-hidden">
 
       <AdminFab />
 
@@ -329,7 +329,7 @@ export default function AdminDashboard() {
       )}
 
       {/* ── KPIs ────────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 [&>*]:min-w-0">
         <div className={`${card} p-3.5`}>
           <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 mb-1 truncate">Faturamento</p>
           <p className="text-xl font-bold text-[#F5E6C8]">{brl(faturamentoMes)}</p>

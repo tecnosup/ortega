@@ -465,13 +465,13 @@ function AgendarModal({ open, onClose, servicos, categorias, barbeiros, grade, p
         {preSel && <p className="text-xs text-[#b8944a] mt-0.5 capitalize">{dataLabel} às {horario}</p>}
       </div>
 
-      <div className="px-5 py-4 flex flex-col gap-3 max-h-[58vh] overflow-y-auto">
+      <div className="px-5 py-4 flex flex-col gap-3 max-h-[58vh] overflow-y-auto overflow-x-hidden">
         {step === "servico" && (
           servicos.length === 0 ? <p className="text-sm text-gray-500 text-center py-6">Nenhum serviço cadastrado.</p> :
           <>
             <p className="text-[11px] text-gray-500 -mt-1">Pode marcar mais de um — a duração e o preço somam.</p>
             {mostrarFiltros && (
-              <div className="shrink-0 flex gap-2 flex-nowrap overflow-x-auto pb-1 -mx-1 px-1">
+              <div className="flex flex-wrap gap-2 pb-1">
                 <button onClick={() => setCatFiltro("")}
                   className={`shrink-0 px-3.5 py-1.5 text-xs font-medium rounded-full border transition ${catFiltro === "" ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]" : "text-gray-400 border-[#2d2d2d] hover:border-[#b8944a] hover:text-[#b8944a]"}`}>
                   Todos
