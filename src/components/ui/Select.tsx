@@ -85,13 +85,19 @@ export default function Select({
   useEffect(() => {
     if (!aberto) return;
     const fechar = () => setAberto(false);
+    // No celular, abrir o teclado dispara "resize" (muda só a ALTURA da viewport).
+    // Se fechássemos aí, o dropdown de busca sumiria assim que o teclado subisse —
+    // e o teclado ficaria abrindo/fechando em loop. Só fechamos quando a LARGURA
+    // muda (rotação/redimensionar janela), que aí sim exige reposicionar.
+    const larguraInicial = window.innerWidth;
+    const onResize = () => { if (window.innerWidth !== larguraInicial) setAberto(false); };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setAberto(false); };
     window.addEventListener("scroll", fechar, true);
-    window.addEventListener("resize", fechar);
+    window.addEventListener("resize", onResize);
     document.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("scroll", fechar, true);
-      window.removeEventListener("resize", fechar);
+      window.removeEventListener("resize", onResize);
       document.removeEventListener("keydown", onKey);
     };
   }, [aberto]);

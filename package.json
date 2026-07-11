@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "set NODE_TLS_REJECT_UNAUTHORIZED=0 && set NODE_OPTIONS=--max-old-space-size=4096 && next dev",
-    "dev:emulator": "cross-env NEXT_PUBLIC_USE_EMULATOR=1 FIRESTORE_EMULATOR_HOST=localhost:8080 FIREBASE_AUTH_EMULATOR_HOST=localhost:9099 NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_OPTIONS=--max-old-space-size=4096 next dev",
+    "dev": "set NODE_TLS_REJECT_UNAUTHORIZED=0 && set NODE_OPTIONS=--max-old-space-size=4096 && next dev --turbopack",
+    "dev:webpack": "set NODE_TLS_REJECT_UNAUTHORIZED=0 && set NODE_OPTIONS=--max-old-space-size=4096 && next dev",
+    "dev:emulator": "cross-env NEXT_PUBLIC_USE_EMULATOR=1 FIRESTORE_EMULATOR_HOST=localhost:8080 FIREBASE_AUTH_EMULATOR_HOST=localhost:9099 NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_OPTIONS=--max-old-space-size=4096 next dev --turbopack",
     "emulator": "firebase emulators:start --project demo-ortega",
     "seed:emulator": "node scripts/seed-emulator.mjs",
     "build": "next build",

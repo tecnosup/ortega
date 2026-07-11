@@ -25,8 +25,9 @@ import DatePicker from "@/components/ui/DatePicker";
 import Select from "@/components/ui/Select";
 import Revelar from "@/components/ui/Revelar";
 import AdminFab from "@/components/admin/AdminFab";
+import { usePrivacidade, BotaoPrivacidade } from "@/components/admin/Privacidade";
 
-function brl(v: number) { return `R$ ${v.toFixed(2).replace(".", ",")}` }
+function brlRaw(v: number) { return `R$ ${v.toFixed(2).replace(".", ",")}` }
 const card = "bg-[#111] border border-[#2d2d2d] rounded-lg";
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-1.5 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a]";
 
@@ -389,6 +390,10 @@ export default function FinanceiroPage() {
   const toast = useToast();
   const confirmar = useConfirm();
   const sucesso = useSucesso();
+  const { oculto } = usePrivacidade();
+  // brl "privacy-aware": mascara todos os valores quando o modo privacidade está
+  // ligado. Cobre os 14 pontos de valor da tela num só lugar (começa oculto).
+  const brl = (v: number) => (oculto ? "R$ ••••" : brlRaw(v));
   const [fechamentos, setFechamentos] = useState<FechamentoDia[]>([]);
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [gastosDia, setGastosDia] = useState<GastoDia[]>([]);
@@ -635,9 +640,12 @@ export default function FinanceiroPage() {
     <div className="max-w-5xl mx-auto flex flex-col gap-5">
       <AdminFab />
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-[#F5E6C8]">Financeiro</h1>
-        <p className="text-xs text-gray-500 hidden sm:block">Faturamento, gastos e lucro estimado</p>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-gray-500 hidden sm:block">Faturamento, gastos e lucro estimado</p>
+          <BotaoPrivacidade />
+        </div>
       </div>
 
       {/* ── Modal de pagamento ── */}
@@ -851,7 +859,7 @@ export default function FinanceiroPage() {
         {dadosGrafico.length === 0 ? (
           <p className="text-sm text-gray-500 py-12 text-center">Nenhum fechamento de caixa no período.</p>
         ) : (
-          <div className="h-56">
+          <div className={`h-56 transition ${oculto ? "blur-md pointer-events-none select-none" : ""}`}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={dadosGrafico} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                 <defs>
@@ -876,7 +884,7 @@ export default function FinanceiroPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" vertical={false} />
                 <XAxis dataKey="data" tick={{ fill: "#444", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#444", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$${v >= 1000 ? (v / 1000).toFixed(1) + "k" : v}`} width={46} />
+                <YAxis tick={{ fill: "#444", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => oculto ? "•••" : `R$${v >= 1000 ? (v / 1000).toFixed(1) + "k" : v}`} width={46} />
                 <Tooltip
                   contentStyle={{ background: "#111", border: "1px solid #2d2d2d", borderRadius: 8, fontSize: 12 }}
                   labelStyle={{ color: "#F5E6C8", marginBottom: 4 }}

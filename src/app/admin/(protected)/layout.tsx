@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import AdminAuthGuard from "@/components/admin/AdminAuthGuard";
 import AdminNav from "@/components/admin/AdminNav";
 import { AdminNotificacoesProvider } from "@/components/admin/AdminNotificacoesProvider";
+import { PrivacidadeProvider } from "@/components/admin/Privacidade";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ConfirmProvider } from "@/components/ui/Confirm";
 import { SucessoProvider } from "@/components/ui/Sucesso";
@@ -13,6 +14,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <ToastProvider>
         <SucessoProvider>
         <ConfirmProvider>
+        <PrivacidadeProvider>
         <AdminNotificacoesProvider>
           <div className="min-h-screen-safe bg-[#0A0A0A] flex">
             <AdminNav />
@@ -23,6 +25,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </main>
           </div>
         </AdminNotificacoesProvider>
+        </PrivacidadeProvider>
         </ConfirmProvider>
         </SucessoProvider>
       </ToastProvider>
