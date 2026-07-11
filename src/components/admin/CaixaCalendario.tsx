@@ -308,6 +308,7 @@ function useItensEditor(inicial?: ItemComanda[]) {
       .map((it, idx) => ({
         id: String(Date.now() + idx), tipo: it.tipo, descricao: it.descricao.trim(), valor: Number(it.valor), quantidade: it.quantidade,
         ...(it.produtoId ? { produtoId: it.produtoId } : {}),
+        ...(it.catalogKey === "manual" ? { manual: true } : {}),
       }));
   }
 

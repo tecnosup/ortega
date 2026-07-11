@@ -206,9 +206,28 @@ export default function AdminDashboard() {
     return agendamentos.filter((a) => a.data === key && a.status !== "cancelado").length;
   }
 
-  // Ranking de serviços (todos os fechamentos)
+  // Ranking de serviços realizados — agrega TODAS as fontes dos fechamentos:
+  // comandas finalizadas (fonte de verdade no modelo atual) + agendamentos concluídos
+  // e avulsos (legados). Itens manuais (não cadastrados) ficam de fora, como avisado.
   const contadorServicos: Record<string, { quantidade: number; total: number }> = {};
-  fechamentos.forEach((f) => { f.agendamentos.forEach((a) => { if (!contadorServicos[a.servico]) contadorServicos[a.servico] = { quantidade: 0, total: 0 }; contadorServicos[a.servico].quantidade++; contadorServicos[a.servico].total += parsePriceNum(a.preco); }); });
+  const acumularServico = (nome: string, qtd: number, valor: number) => {
+    const chave = nome.trim();
+    if (!chave || qtd <= 0) return;
+    if (!contadorServicos[chave]) contadorServicos[chave] = { quantidade: 0, total: 0 };
+    contadorServicos[chave].quantidade += qtd;
+    contadorServicos[chave].total += valor;
+  };
+  fechamentos.forEach((f) => {
+    (f.comandas ?? []).forEach((c) => (c.itens ?? []).forEach((it) => {
+      if (it.tipo !== "servico" || it.manual) return;
+      const q = it.quantidade ?? 1;
+      acumularServico(it.descricao, q, it.valor * q);
+    }));
+    (f.agendamentos ?? []).forEach((a) => acumularServico(a.servico, 1, parsePriceNum(a.preco)));
+    (f.avulsos ?? []).forEach((av) => (av.itens ?? []).forEach((it) => {
+      if (it.tipo === "servico") acumularServico(it.descricao, 1, it.valor);
+    }));
+  });
   const rankServicos = Object.entries(contadorServicos).sort((a, b) => b[1].quantidade - a[1].quantidade).slice(0, 5);
 
   // Alertas locais (agendamentos) — notificações financeiras ficam no banner separado

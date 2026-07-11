@@ -13,6 +13,7 @@ export interface ItemComanda {
   valor: number;
   quantidade?: number;   // default 1
   produtoId?: string;    // referência p/ baixa de estoque
+  manual?: boolean;      // item livre (não catalogado) — fora de estoque/estatísticas
 }
 
 export interface ComandaLog {
