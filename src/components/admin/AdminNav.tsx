@@ -280,7 +280,7 @@ export default function AdminNav() {
               key={href}
               href={href}
               className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition relative ${
-                active ? "text-[#b8944a]" : "text-gray-600 hover:text-gray-400"
+                active ? "text-[#b8944a]" : "text-gray-200 hover:text-white"
               }`}
             >
               <div className="relative">
@@ -301,7 +301,7 @@ export default function AdminNav() {
         })}
         <button
           onClick={() => setOpen(true)}
-          className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-gray-600 hover:text-gray-400 transition"
+          className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-gray-200 hover:text-white transition"
         >
           <IconMenu2 size={20} strokeWidth={1.8} />
           <span>Mais</span>
