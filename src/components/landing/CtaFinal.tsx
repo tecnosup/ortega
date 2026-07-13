@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { IconBrandWhatsappFilled } from "@tabler/icons-react";
 
 export default function CtaFinal() {
   const [whatsapp, setWhatsapp] = useState("");
@@ -50,8 +51,9 @@ export default function CtaFinal() {
               href={`https://wa.me/${whatsapp}?text=${encodeURIComponent("Olá! Gostaria de agendar um horário na Ortega.")}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center px-10 py-4 border-2 border-[#C9A84C] text-[#C9A84C] text-sm font-bold tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] active:scale-[0.97] transition-all duration-300"
+              className="inline-flex items-center justify-center gap-2 px-10 py-4 border-2 border-[#C9A84C] text-[#C9A84C] text-sm font-bold tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] active:scale-[0.97] transition-all duration-300"
             >
+              <IconBrandWhatsappFilled size={16} />
               WhatsApp
             </a>
           )}

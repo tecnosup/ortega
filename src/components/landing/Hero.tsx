@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { IconBrandWhatsappFilled, IconCalendarSearch } from "@tabler/icons-react";
 
 interface HeroDestaque {
   titulo: string;
@@ -146,16 +147,19 @@ export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, i
                 href={whatsappHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 sm:px-8 py-4 border-2 border-[#C9A84C] text-[#C9A84C] text-sm font-bold tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] active:scale-[0.97] transition-all duration-300"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 sm:px-8 py-4 border-2 border-[#C9A84C] text-[#C9A84C] text-sm font-bold tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] active:scale-[0.97] transition-all duration-300"
               >
+                <IconBrandWhatsappFilled size={16} />
                 WhatsApp
               </a>
             </div>
             <a
               href="/agendamento/status"
-              className="text-xs text-[#F5E6C8]/40 hover:text-[#C9A84C]/70 transition text-center sm:text-left tracking-wide"
+              className="group/status inline-flex items-center justify-center sm:justify-start gap-2.5 self-stretch sm:self-start px-4 py-2.5 rounded-full border border-[#C9A84C]/30 bg-[#C9A84C]/[0.06] text-sm text-[#F5E6C8]/80 hover:border-[#C9A84C]/60 hover:bg-[#C9A84C]/10 hover:text-[#F5E6C8] transition-all duration-300"
             >
-              Ver status do meu agendamento →
+              <IconCalendarSearch size={16} className="text-[#C9A84C] shrink-0" />
+              <span className="tracking-wide">Já agendou? <span className="font-semibold text-[#C9A84C]">Ver meu status</span></span>
+              <span className="text-[#C9A84C] transition-transform duration-300 group-hover/status:translate-x-0.5">→</span>
             </a>
 
             {/* destaque no mobile (no desktop ele fica sobre o retrato) */}

@@ -2,8 +2,10 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
-  IconCheck, IconChevronLeft, IconChevronRight, IconTag,
+  IconCheck, IconChevronLeft, IconChevronRight, IconTag, IconCalendarPlus,
+  IconBrandGoogle, IconBrandWindows, IconBrandApple,
 } from "@tabler/icons-react";
+import { baixarICS, linkGoogleAgenda, linkOutlook, type EventoAgenda } from "@/lib/ics";
 import type { Item } from "@/lib/admin-items";
 import type { CategoriaServico } from "@/lib/admin-categorias-servicos";
 import { type Agendamento, resolverDuracaoMin, parsePriceNum } from "@/lib/agendamentos-types";
@@ -154,6 +156,8 @@ export default function AgendamentoPage() {
   // vazio = não configurado. Só mostramos o botão de WhatsApp se o admin
   // configurou um número real (evita mandar o cliente pro número fantasma).
   const [whatsappNumber, setWhatsappNumber] = useState("");
+  // endereço da barbearia — usado como LOCAL no evento de calendário (.ics)
+  const [enderecoBarbearia, setEnderecoBarbearia] = useState("");
   const [selecao, setSelecao] = useState<Selecao>({
     servico: "", preco: "", duracaoMin: 0, data: null, horario: "", nome: "", telefone: "",
     barbeiroId: null, barbeiroNome: null,
@@ -218,6 +222,7 @@ export default function AgendamentoPage() {
       setCategorias(dCategorias.categorias ?? []);
       setBarbeiros(dBarbeiros.barbeiros ?? []);
       if (dSettings.whatsappNumber) setWhatsappNumber(dSettings.whatsappNumber);
+      if (dSettings.enderecoTexto) setEnderecoBarbearia(dSettings.enderecoTexto);
       if (dGrade.grade) setGrade(mesclarGrade(dGrade.grade));
       if (dGrade.passoMin) setPassoMin(dGrade.passoMin);
       if (dGrade.carenciaMin !== undefined) setCarenciaMin(dGrade.carenciaMin);
@@ -943,6 +948,19 @@ export default function AgendamentoPage() {
   // ── STEP: CONFIRMADO + STATUS ─────────────────────────────────────────────
   const statusConfig = STATUS_CONFIG[statusAtual as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pendente;
 
+  // evento para "adicionar à agenda" (Google/Outlook/Apple) — montado uma vez.
+  const eventoAgenda: EventoAgenda | null = selecao.data ? {
+    titulo: `${selecao.servico} — Ortega Barber`,
+    descricao: [
+      selecao.barbeiroNome ? `Barbeiro: ${selecao.barbeiroNome}` : "",
+      selecao.preco ? `Valor: R$ ${selecao.preco}` : "",
+    ].filter(Boolean).join("\n") || undefined,
+    local: enderecoBarbearia || undefined,
+    data: toDateKey(selecao.data),
+    horario: selecao.horario,
+    duracaoMin: selecao.duracaoMin || undefined,
+  } : null;
+
   return (
     <section key={step} className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A] step-anim">
       <div className="max-w-xl mx-auto px-4 sm:px-6 flex flex-col gap-4">
@@ -981,12 +999,52 @@ export default function AgendamentoPage() {
             )}
           </div>
 
+          {/* adicionar à agenda do cliente — Google/Outlook abrem já preenchido;
+              Apple/iPhone baixa o .ics. Aparece desde o status pendente: o
+              cliente garante o horário na agenda dele com lembrete, sem e-mail. */}
+          {eventoAgenda && (
+            <div className="flex flex-col items-center gap-3 border-t border-[#2d2d2d] pt-4 mt-1">
+              <p className="flex items-center gap-2 text-sm font-medium text-[#F5E6C8]">
+                <IconCalendarPlus size={16} className="text-[#b8944a]" />
+                Adicionar à minha agenda
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <a
+                  href={linkGoogleAgenda(eventoAgenda)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 border border-[#2d2d2d] text-[#F5E6C8] text-sm font-medium rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition active:scale-[0.98]"
+                >
+                  <IconBrandGoogle size={16} /> Google
+                </a>
+                <a
+                  href={linkOutlook(eventoAgenda)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 border border-[#2d2d2d] text-[#F5E6C8] text-sm font-medium rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition active:scale-[0.98]"
+                >
+                  <IconBrandWindows size={16} /> Outlook
+                </a>
+                <button
+                  type="button"
+                  onClick={() => baixarICS(eventoAgenda)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 border border-[#2d2d2d] text-[#F5E6C8] text-sm font-medium rounded-lg hover:border-[#b8944a] hover:text-[#b8944a] transition active:scale-[0.98]"
+                >
+                  <IconBrandApple size={16} /> Apple
+                </button>
+              </div>
+              <p className="text-xs text-gray-600 text-center max-w-xs">
+                Salva o horário com lembrete automático. No iPhone, use o botão Apple.
+              </p>
+            </div>
+          )}
+
           {statusAtual === "confirmado" && whatsappNumber && (
             <a
               href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Olá! Quero confirmar meu agendamento:\n*${selecao.servico}*\nData: ${dataFormatada}\nHorário: ${selecao.horario}`)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="self-start inline-flex items-center px-6 py-3 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded-lg hover:bg-[#c9a84c] transition"
+              className="self-center inline-flex items-center px-6 py-3 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded-lg hover:bg-[#c9a84c] transition"
             >
               Falar pelo WhatsApp
             </a>

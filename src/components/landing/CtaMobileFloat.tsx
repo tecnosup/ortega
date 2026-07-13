@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { IconBrandWhatsappFilled } from "@tabler/icons-react";
 
 export default function CtaMobileFloat({ whatsappNumber }: { whatsappNumber?: string }) {
   const [visible, setVisible] = useState(false);
@@ -37,8 +38,9 @@ export default function CtaMobileFloat({ whatsappNumber }: { whatsappNumber?: st
               href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 py-4 bg-[#0A0A0A] border-l border-[#C9A84C]/30 text-[#C9A84C] text-xs font-bold tracking-widest uppercase text-center active:scale-[0.97] transition-transform"
+              className="flex-1 py-4 bg-[#0A0A0A] border-l border-[#C9A84C]/30 text-[#C9A84C] text-xs font-bold tracking-widest uppercase flex items-center justify-center gap-2 active:scale-[0.97] transition-transform"
             >
+              <IconBrandWhatsappFilled size={16} />
               WhatsApp
             </a>
           )}

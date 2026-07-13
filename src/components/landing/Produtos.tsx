@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import {
-  IconShoppingBag, IconTag, IconX,
+  IconShoppingBag, IconTag, IconX, IconBrandWhatsappFilled,
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import type { Produto } from "@/lib/admin-produtos";
@@ -103,8 +103,9 @@ function ProdutoModal({
               href={`https://wa.me/${whatsappNumber}?text=${mensagemWpp}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-1 w-full py-3 bg-[#C9A84C] text-[#0A0A0A] text-sm font-black tracking-widest uppercase text-center rounded hover:bg-[#E2C06A] transition"
+              className="mt-1 w-full inline-flex items-center justify-center gap-2 py-3 bg-[#C9A84C] text-[#0A0A0A] text-sm font-black tracking-widest uppercase rounded hover:bg-[#E2C06A] transition"
             >
+              <IconBrandWhatsappFilled size={16} />
               Comprar via WhatsApp
             </a>
           )}

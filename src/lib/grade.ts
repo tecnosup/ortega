@@ -158,6 +158,48 @@ export function gerarSlotsData(dateKey: string, grade: GradeConfig, passoMin: nu
   return gerarSlotsDia(grade[dow], passoMin);
 }
 
+// "09:00" → "9h", "09:30" → "9h30". Formato curto para exibição pública.
+function horaCurta(hhmm: string): string {
+  const [h, m] = hhmm.split(":");
+  const hh = String(parseInt(h, 10));
+  return m === "00" ? `${hh}h` : `${hh}h${m}`;
+}
+
+/**
+ * Formata a grade em texto amigável para exibição (rodapé/contato), agrupando
+ * dias consecutivos com o mesmo horário. Ex: "Seg a Sex 9h–19h · Sáb 9h–18h".
+ * Dias inativos são omitidos. Retorna "" se nada estiver aberto.
+ * A semana é percorrida de Seg a Dom (não da ordem interna 0=Dom).
+ */
+export function formatarHorarioFuncionamento(grade: GradeConfig): string {
+  const ordem = [1, 2, 3, 4, 5, 6, 0]; // Seg…Dom
+  const curto: Record<number, string> = { 1: "Seg", 2: "Ter", 3: "Qua", 4: "Qui", 5: "Sex", 6: "Sáb", 0: "Dom" };
+
+  const partes: string[] = [];
+  let i = 0;
+  while (i < ordem.length) {
+    const dia = grade[ordem[i]];
+    if (!dia?.ativo) { i++; continue; }
+    // estende o bloco enquanto os dias seguintes tiverem o mesmo horário
+    let j = i;
+    while (
+      j + 1 < ordem.length &&
+      grade[ordem[j + 1]]?.ativo &&
+      grade[ordem[j + 1]].inicio === dia.inicio &&
+      grade[ordem[j + 1]].fim === dia.fim
+    ) j++;
+
+    const faixa = `${horaCurta(dia.inicio)}–${horaCurta(dia.fim)}`;
+    const rotulo =
+      i === j ? curto[ordem[i]]
+      : j === i + 1 ? `${curto[ordem[i]]} e ${curto[ordem[j]]}`
+      : `${curto[ordem[i]]} a ${curto[ordem[j]]}`;
+    partes.push(`${rotulo} ${faixa}`);
+    i = j + 1;
+  }
+  return partes.join(" · ");
+}
+
 // ─── FONTE DA VERDADE de disponibilidade ─────────────────────────────────────
 // Toda tela de agendamento (cliente público, cliente logado, admin manual,
 // reagendar) DEVE usar estas funções para calcular horários livres. Não
