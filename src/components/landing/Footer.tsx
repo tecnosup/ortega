@@ -28,7 +28,7 @@ export default function Footer() {
   const horarioFuncionamento = grade ? formatarHorarioFuncionamento(grade) : "";
 
   return (
-    <footer className="bg-[#080808] border-t border-[#C9A84C]/15 pt-12 md:pt-16 pb-[calc(2.5rem+env(safe-area-inset-bottom))] md:pb-[calc(3rem+env(safe-area-inset-bottom))]">
+    <footer className="bg-[#080808] border-t border-[#C9A84C]/15 pt-12 md:pt-16 pb-[calc(2.5rem+4rem+env(safe-area-inset-bottom))] md:pb-[calc(3rem+env(safe-area-inset-bottom))]">
       <div className="max-w-6xl mx-auto px-6 sm:px-8">
 
         {/* mobile: marca full-width + 2 colunas; desktop: 3 colunas alinhadas */}
