@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
-  IconCheck, IconChevronLeft, IconChevronRight, IconTag,
+  IconCheck, IconChevronLeft, IconChevronRight, IconTag, IconCalendarPlus,
 } from "@tabler/icons-react";
+import { baixarICS } from "@/lib/ics";
 import type { Item } from "@/lib/admin-items";
 import type { CategoriaServico } from "@/lib/admin-categorias-servicos";
 import { type Agendamento, resolverDuracaoMin, parsePriceNum } from "@/lib/agendamentos-types";
@@ -154,6 +155,8 @@ export default function AgendamentoPage() {
   // vazio = não configurado. Só mostramos o botão de WhatsApp se o admin
   // configurou um número real (evita mandar o cliente pro número fantasma).
   const [whatsappNumber, setWhatsappNumber] = useState("");
+  // endereço da barbearia — usado como LOCAL no evento de calendário (.ics)
+  const [enderecoBarbearia, setEnderecoBarbearia] = useState("");
   const [selecao, setSelecao] = useState<Selecao>({
     servico: "", preco: "", duracaoMin: 0, data: null, horario: "", nome: "", telefone: "",
     barbeiroId: null, barbeiroNome: null,
@@ -218,6 +221,7 @@ export default function AgendamentoPage() {
       setCategorias(dCategorias.categorias ?? []);
       setBarbeiros(dBarbeiros.barbeiros ?? []);
       if (dSettings.whatsappNumber) setWhatsappNumber(dSettings.whatsappNumber);
+      if (dSettings.enderecoTexto) setEnderecoBarbearia(dSettings.enderecoTexto);
       if (dGrade.grade) setGrade(mesclarGrade(dGrade.grade));
       if (dGrade.passoMin) setPassoMin(dGrade.passoMin);
       if (dGrade.carenciaMin !== undefined) setCarenciaMin(dGrade.carenciaMin);
@@ -980,6 +984,35 @@ export default function AgendamentoPage() {
               </div>
             )}
           </div>
+
+          {/* adicionar à agenda do cliente (Outlook/Google/Apple) — gera .ics.
+              Aparece desde o status pendente: o cliente já garante o horário
+              na agenda dele com lembrete, sem precisar de e-mail. */}
+          {selecao.data && (
+            <button
+              type="button"
+              onClick={() => {
+                baixarICS({
+                  titulo: `${selecao.servico} — Ortega Barber`,
+                  descricao: [
+                    selecao.barbeiroNome ? `Barbeiro: ${selecao.barbeiroNome}` : "",
+                    selecao.preco ? `Valor: R$ ${selecao.preco}` : "",
+                  ].filter(Boolean).join("\n"),
+                  local: enderecoBarbearia || undefined,
+                  data: toDateKey(selecao.data!),
+                  horario: selecao.horario,
+                  duracaoMin: selecao.duracaoMin || undefined,
+                });
+              }}
+              className="self-start inline-flex items-center gap-2 px-5 py-3 border border-[#b8944a]/50 text-[#b8944a] text-sm font-semibold rounded-lg hover:bg-[#b8944a]/10 hover:border-[#b8944a] transition active:scale-[0.98]"
+            >
+              <IconCalendarPlus size={18} />
+              Adicionar à minha agenda
+            </button>
+          )}
+          <p className="text-xs text-gray-600 -mt-1">
+            Salva o horário no seu Outlook, Google Agenda ou iPhone, com lembrete automático.
+          </p>
 
           {statusAtual === "confirmado" && whatsappNumber && (
             <a
