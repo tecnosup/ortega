@@ -106,6 +106,58 @@ export function gerarICS(ev: EventoAgenda): string {
   return linhas.join("\r\n");
 }
 
+// ── Links "adicionar direto" (Google / Outlook web) ────────────────────────
+// Ao contrário do .ics, estes serviços recebem o horário via URL. Eles não
+// entendem TZID no link, então convertemos o horário local do Brasil (-03:00)
+// para UTC e mandamos o carimbo "Z". Assim o evento cai no horário certo mesmo
+// que o cliente esteja em outro fuso.
+
+// "YYYY-MM-DD" + "HH:MM" (local -03:00) → { inicio, fim } em UTC "YYYYMMDDTHHMMSSZ".
+function janelaUtc(data: string, horario: string, duracaoMin: number): { inicio: string; fim: string } {
+  const [ano, mes, dia] = data.split("-").map(Number);
+  const [h, min] = horario.split(":").map(Number);
+  // horário local do Brasil é UTC-3 → soma 3h para obter o instante em UTC
+  const inicioMs = Date.UTC(ano, mes - 1, dia, h + 3, min);
+  const fimMs = inicioMs + duracaoMin * 60_000;
+  const fmt = (ms: number) => {
+    const d = new Date(ms);
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}T${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}Z`;
+  };
+  return { inicio: fmt(inicioMs), fim: fmt(fimMs) };
+}
+
+export function linkGoogleAgenda(ev: EventoAgenda): string {
+  const duracao = ev.duracaoMin && ev.duracaoMin > 0 ? ev.duracaoMin : 30;
+  const { inicio, fim } = janelaUtc(ev.data, ev.horario, duracao);
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: ev.titulo,
+    dates: `${inicio}/${fim}`,
+  });
+  if (ev.descricao) params.set("details", ev.descricao);
+  if (ev.local) params.set("location", ev.local);
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+export function linkOutlook(ev: EventoAgenda): string {
+  const duracao = ev.duracaoMin && ev.duracaoMin > 0 ? ev.duracaoMin : 30;
+  const [ano, mes, dia] = ev.data.split("-").map(Number);
+  const [h, min] = ev.horario.split(":").map(Number);
+  const inicioIso = new Date(Date.UTC(ano, mes - 1, dia, h + 3, min)).toISOString();
+  const fimIso = new Date(Date.UTC(ano, mes - 1, dia, h + 3, min) + duracao * 60_000).toISOString();
+  const params = new URLSearchParams({
+    path: "/calendar/action/compose",
+    rru: "addevent",
+    subject: ev.titulo,
+    startdt: inicioIso,
+    enddt: fimIso,
+  });
+  if (ev.descricao) params.set("body", ev.descricao);
+  if (ev.local) params.set("location", ev.local);
+  return `https://outlook.live.com/calendar/0/deeplink/compose?${params.toString()}`;
+}
+
 // Gera o .ics e dispara o download no navegador. Nome do arquivo amigável.
 export function baixarICS(ev: EventoAgenda, nomeArquivo = "agendamento-ortega.ics"): void {
   const conteudo = gerarICS(ev);
