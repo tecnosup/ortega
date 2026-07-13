@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {
-  IconMenu2, IconX,
+  IconMenu2, IconX, IconCalendarSearch,
 } from "@tabler/icons-react";
 import Image from "next/image";
 import { useState, useEffect } from "react";
@@ -74,6 +74,13 @@ export default function Navbar() {
             </Link>
           )}
           <Link
+            href="/agendamento/status"
+            className="inline-flex items-center gap-1.5 px-3 py-2.5 text-[#F5E6C8]/60 text-sm font-medium tracking-wide hover:text-[#C9A84C] transition-colors duration-200"
+          >
+            <IconCalendarSearch size={16} className="text-[#C9A84C]/70" />
+            Meu agendamento
+          </Link>
+          <Link
             href="/agendamento"
             className="inline-flex items-center px-5 py-2.5 border border-[#C9A84C] text-[#C9A84C] text-sm font-medium tracking-wider uppercase hover:bg-[#C9A84C] hover:text-[#0A0A0A] transition-all duration-300"
           >
@@ -121,11 +128,25 @@ export default function Navbar() {
                 </Link>
               </motion.div>
             ))}
+            <motion.div
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.2, delay: NAV_LINKS.length * 0.05 }}
+            >
+              <Link
+                href="/agendamento/status"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 py-3.5 text-base text-[#F5E6C8]/70 hover:text-[#C9A84C] transition-colors tracking-wide border-b border-[#1a1a1a]"
+              >
+                <IconCalendarSearch size={18} className="text-[#C9A84C]/70" />
+                Meu agendamento
+              </Link>
+            </motion.div>
             {ASSINATURAS_ATIVAS && (
               <motion.div
                 initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.2, delay: NAV_LINKS.length * 0.05 }}
+                transition={{ duration: 0.2, delay: (NAV_LINKS.length + 1) * 0.05 }}
               >
                 <Link
                   href="/cliente/login"

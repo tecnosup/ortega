@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  IconScissors, IconShoppingBag, IconStar, IconPhoto, IconEye,
+  IconScissors, IconShoppingBag, IconStar, IconPhoto, IconEye, IconCalendarSearch,
 } from "@tabler/icons-react";
 import type { LandingSettings } from "@/lib/admin-settings";
 import type { Item } from "@/lib/admin-items";
@@ -67,7 +67,7 @@ function ImageUpload({ label, name, current, folder, onUrlChange }: { label: str
 
 // Cena do hero (réplica fiel: fundo 30% + duplo gradiente, grain, linha dourada,
 // título Playfair, traço+tesoura, botões, retrato lateral com molduras).
-function HeroCena({ titulo, subtitulo, fundo, retrato }: { titulo: string; subtitulo: string; fundo: string; retrato: string }) {
+function HeroCena({ titulo, subtitulo, fundo, retrato, destaque }: { titulo: string; subtitulo: string; fundo: string; retrato: string; destaque?: { titulo: string; preco: string; imagem: string } | null }) {
   return (
     <div className="relative w-full h-full bg-[#0A0A0A] overflow-hidden">
       {fundo
@@ -102,6 +102,11 @@ function HeroCena({ titulo, subtitulo, fundo, retrato }: { titulo: string; subti
             <span className="px-2 py-0.5 bg-[#C9A84C] text-[#0A0A0A] text-[6px] font-black tracking-widest uppercase text-center">Agendar</span>
             <span className="px-2 py-0.5 border border-[#C9A84C] text-[#C9A84C] text-[6px] font-bold tracking-wider uppercase text-center">WhatsApp</span>
           </div>
+          {/* réplica do botão "Já agendou? Ver meu status" do hero real */}
+          <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#C9A84C]/30 bg-[#C9A84C]/[0.06] text-[6px] text-[#F5E6C8]/80">
+            <IconCalendarSearch size={7} className="text-[#C9A84C] shrink-0" />
+            <span>Já agendou? <span className="font-semibold text-[#C9A84C]">Ver meu status</span> →</span>
+          </span>
         </div>
         {retrato && (
           <div className="relative w-14 h-24 shrink-0 ml-3">
@@ -112,6 +117,19 @@ function HeroCena({ titulo, subtitulo, fundo, retrato }: { titulo: string; subti
             </div>
             <div className="absolute -bottom-1 -right-1 w-3 h-3 border-r border-b border-[#C9A84C]/50" />
             <div className="absolute -top-1 -left-1 w-3 h-3 border-l border-t border-[#C9A84C]/50" />
+            {/* card de destaque sobre o retrato (fiel ao hero real no desktop) */}
+            {destaque && (
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-[92%] bg-[#0A0A0A]/95 border border-[#C9A84C]/40 px-1 py-0.5 flex items-center gap-1">
+                {destaque.imagem
+                  ? <img src={destaque.imagem} alt={destaque.titulo} className="w-3.5 h-3.5 object-cover rounded shrink-0" />
+                  : <div className="w-3.5 h-3.5 rounded bg-[#141414] flex items-center justify-center shrink-0"><IconStar size={7} className="text-gray-600" /></div>}
+                <div className="min-w-0 flex-1 leading-none">
+                  <p className="text-[#C9A84C] text-[4px] tracking-[0.2em] uppercase font-medium">Em destaque</p>
+                  <p className="text-[#F5E6C8] text-[6px] font-semibold truncate">{destaque.titulo}</p>
+                  {destaque.preco && <p className="text-[#C9A84C] text-[5px] font-bold">R$ {destaque.preco}</p>}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -147,10 +165,10 @@ function MockupComputador({ children, legenda = "Prévia (como aparece no site)"
 }
 
 // Mini-preview do hero num mockup de computador. Atualiza ao vivo. Sem animações.
-function HeroPreview({ titulo, subtitulo, fundo, retrato }: { titulo: string; subtitulo: string; fundo: string; retrato: string }) {
+function HeroPreview({ titulo, subtitulo, fundo, retrato, destaque }: { titulo: string; subtitulo: string; fundo: string; retrato: string; destaque?: { titulo: string; preco: string; imagem: string } | null }) {
   return (
     <MockupComputador>
-      <HeroCena titulo={titulo} subtitulo={subtitulo} fundo={fundo} retrato={retrato} />
+      <HeroCena titulo={titulo} subtitulo={subtitulo} fundo={fundo} retrato={retrato} destaque={destaque} />
     </MockupComputador>
   );
 }
@@ -419,7 +437,10 @@ export default function VitrinePage() {
           {/* mini-preview ao vivo do hero — reflete o que está sendo editado
               ANTES de salvar. Não é o Hero real (sem animações), mas espelha o
               visual: fundo escurecido, título em serifada, subtítulo. */}
-          <HeroPreview titulo={prev.titulo} subtitulo={prev.subtitulo} fundo={prev.fundo} retrato={prev.retrato} />
+          <HeroPreview titulo={prev.titulo} subtitulo={prev.subtitulo} fundo={prev.fundo} retrato={prev.retrato}
+            destaque={destaqueAtivo && destaqueAtual
+              ? { titulo: destaqueAtual.titulo, preco: "preco" in destaqueAtual ? destaqueAtual.preco : "", imagem: destaqueAtual.imagem }
+              : null} />
 
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-400 uppercase tracking-wide">Título do hero</label>
@@ -454,6 +475,20 @@ export default function VitrinePage() {
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-400 uppercase tracking-wide">E-mail de contato</label>
             <input name="emailContato" type="email" defaultValue={settings.emailContato} spellCheck={false} className={inp} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-400 uppercase tracking-wide">Instagram (URL completa, ex: https://instagram.com/ortegabarber)</label>
+            <input name="instagramUrl" defaultValue={settings.instagramUrl} placeholder="https://instagram.com/seuperfil" spellCheck={false} className={inp} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-400 uppercase tracking-wide">Endereço</label>
+            <input name="enderecoTexto" defaultValue={settings.enderecoTexto} placeholder="Rua, número — Bairro, Cidade" spellCheck={false} className={inp} />
+            <span className="text-[11px] text-gray-500">Aparece no rodapé e o mapa da página é gerado automaticamente a partir dele.</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-400 uppercase tracking-wide">Mapa — link de embed (opcional)</label>
+            <input name="enderecoEmbed" defaultValue={settings.enderecoEmbed} placeholder="Deixe vazio para usar o endereço acima" spellCheck={false} className={inp} />
+            <span className="text-[11px] text-gray-500">Só preencha se quiser fixar um embed específico do Google Maps. Em branco, o mapa segue o endereço.</span>
           </div>
         </div>
 
