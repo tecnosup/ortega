@@ -7,6 +7,8 @@ import {
   IconCurrencyDollar, IconEdit, IconPercentage, IconPlus, IconTag, IconToggleLeft, IconToggleRight, IconTrash,
 } from "@tabler/icons-react";
 import type { Cupom, TipoCupom } from "@/lib/cupons-tipos";
+import { useConfirm } from "@/components/ui/Confirm";
+import { useSucesso } from "@/components/ui/Sucesso";
 
 function brl(v: number) {
   return `R$ ${v.toFixed(2).replace(".", ",")}`;
@@ -81,6 +83,8 @@ function FormCupom({ inicial, onSalvar, onCancelar, salvando }: {
 }
 
 export default function CuponsPage() {
+  const confirmar = useConfirm();
+  const sucesso = useSucesso();
   const [cupons, setCupons] = useState<Cupom[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [mostraForm, setMostraForm] = useState(false);
@@ -115,11 +119,12 @@ export default function CuponsPage() {
   }
 
   async function excluir(id: string) {
-    if (!confirm("Excluir este cupom?")) return;
+    if (!(await confirmar({ titulo: "Excluir cupom", mensagem: "Excluir este cupom? Esta ação é irreversível.", confirmar: "Excluir" }))) return;
     setExcluindo(id);
     await fetch(`/api/cupons/${id}`, { credentials: "include",  method: "DELETE" });
     setExcluindo(null);
     carregar();
+    sucesso("Cupom excluído!");
   }
 
   return (

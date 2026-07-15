@@ -6,11 +6,13 @@ import {
 } from "@tabler/icons-react";
 import type { Categoria } from "@/lib/admin-categorias";
 import { useSucesso } from "@/components/ui/Sucesso";
+import { useConfirm } from "@/components/ui/Confirm";
 
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] transition w-full";
 
 export default function CategoriasInline({ categorias: initial }: { categorias: Categoria[] }) {
   const sucesso = useSucesso();
+  const confirmar = useConfirm();
   const [open, setOpen] = useState(false);
   const [categorias, setCategorias] = useState(initial);
   const [novoNome, setNovoNome] = useState("");
@@ -47,7 +49,7 @@ export default function CategoriasInline({ categorias: initial }: { categorias: 
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Remover esta categoria? Produtos vinculados perderão a categoria.")) return;
+    if (!(await confirmar({ titulo: "Remover categoria", mensagem: "Remover esta categoria? Os produtos vinculados perderão a categoria.", confirmar: "Remover" }))) return;
     setDeletingId(id);
     await fetch(`/api/admin/categorias/${id}`, { method: "DELETE", credentials: "include" });
     setCategorias((prev) => prev.filter((c) => c.id !== id));

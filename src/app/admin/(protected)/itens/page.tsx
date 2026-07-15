@@ -12,6 +12,8 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Modal from "@/components/ui/Modal";
+import { useConfirm } from "@/components/ui/Confirm";
+import { useSucesso } from "@/components/ui/Sucesso";
 import { reorderItensAction } from "./actions";
 
 type Form = {
@@ -93,6 +95,8 @@ function SortableItemRow({ item, expanded, deletingId, onToggleExpand, onEdit, o
 }
 
 export default function ServicosPage() {
+  const confirmar = useConfirm();
+  const sucesso = useSucesso();
   const [itens, setItens] = useState<Item[]>([]);
   const [categorias, setCategorias] = useState<CategoriaServico[]>([]);
   const [loading, setLoading] = useState(true);
@@ -211,6 +215,10 @@ export default function ServicosPage() {
 
   async function handleSave() {
     if (!form.titulo.trim()) { setError("Título obrigatório"); return; }
+    // DURAÇÃO OBRIGATÓRIA: serviço sem duração era a causa de agendamentos
+    // sobrepostos (combo virava 5min pelo fallback do passo). Exige > 0.
+    const dur = parseInt(form.duracaoMin.trim(), 10);
+    if (!dur || dur <= 0) { setError("Informe a duração do serviço (em minutos). É obrigatória para a agenda funcionar."); return; }
     setSaving(true);
     setError("");
     const body = {
@@ -226,19 +234,25 @@ export default function ServicosPage() {
       imagem: form.imagem || undefined,
     };
     try {
-      if (modal.editing) {
-        await fetch(`/api/admin/itens/${modal.editing.id}`, {
-          method: "PATCH", credentials: "include",
-          headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-        });
-      } else {
-        await fetch("/api/admin/itens", {
-          method: "POST", credentials: "include",
-          headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-        });
+      const editando = !!modal.editing;
+      const res = editando
+        ? await fetch(`/api/admin/itens/${modal.editing!.id}`, {
+            method: "PATCH", credentials: "include",
+            headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+          })
+        : await fetch("/api/admin/itens", {
+            method: "POST", credentials: "include",
+            headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+          });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        setError(err?.error ?? "Erro ao salvar.");
+        setSaving(false);
+        return;
       }
       await load();
       setModal({ open: false, editing: null });
+      sucesso(editando ? "Serviço atualizado!" : "Serviço criado!");
     } catch {
       setError("Erro ao salvar.");
     } finally {
@@ -247,11 +261,12 @@ export default function ServicosPage() {
   }
 
   async function handleDelete(id: string, titulo: string) {
-    if (!confirm(`Remover "${titulo}"?`)) return;
+    if (!(await confirmar({ titulo: "Remover serviço", mensagem: `Remover "${titulo}"? Esta ação é irreversível.`, confirmar: "Remover" }))) return;
     setDeletingId(id);
     await fetch(`/api/admin/itens/${id}`, { method: "DELETE", credentials: "include" });
     await load();
     setDeletingId(null);
+    sucesso("Serviço removido!");
   }
 
   async function handleCriarCat() {
@@ -265,6 +280,7 @@ export default function ServicosPage() {
     if (!res.ok) { setCatErro("Erro ao criar"); return; }
     setNovaCat("");
     await load();
+    sucesso("Categoria criada!");
   }
 
   async function handleSalvarCatEdit() {
@@ -278,11 +294,12 @@ export default function ServicosPage() {
   }
 
   async function handleDeleteCat(id: string) {
-    if (!confirm("Remover esta categoria?")) return;
+    if (!(await confirmar({ titulo: "Remover categoria", mensagem: "Remover esta categoria? Os serviços vinculados perderão a categoria.", confirmar: "Remover" }))) return;
     setCatDeletingId(id);
     await fetch(`/api/admin/categorias-servicos/${id}`, { method: "DELETE", credentials: "include" });
     setCatDeletingId(null);
     await load();
+    sucesso("Categoria removida!");
   }
 
   const catNomeById = (id?: string) => categorias.find((c) => c.id === id)?.nome;
@@ -478,7 +495,7 @@ export default function ServicosPage() {
                   <input value={form.preco} onChange={(e) => setForm((f) => ({ ...f, preco: e.target.value }))} className={inp} placeholder="ex: 55,00" style={{ fontSize: 16 }} spellCheck={false} />
                 </label>
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs text-gray-400 font-medium">Duração (min)</span>
+                  <span className="text-xs text-gray-400 font-medium">Duração (min) *</span>
                   <input
                     value={form.duracaoMin}
                     onChange={(e) => setForm((f) => ({ ...f, duracaoMin: e.target.value.replace(/\D/g, "") }))}
@@ -488,7 +505,7 @@ export default function ServicosPage() {
                     style={{ fontSize: 16 }}
                     spellCheck={false}
                   />
-                  <span className="text-[10px] text-gray-600">Usado para reservar o intervalo na agenda.</span>
+                  <span className="text-[10px] text-gray-600">Obrigatória — reserva o intervalo certo na agenda e evita horários sobrepostos.</span>
                 </label>
               </div>
 
