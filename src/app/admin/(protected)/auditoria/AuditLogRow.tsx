@@ -16,7 +16,7 @@ interface AuditLog {
   entityId: string;
   summary?: string;
   snapshotAntes?: Record<string, unknown>;
-  createdAt: { _seconds: number } | number | null;
+  createdAt: number | null; // milissegundos (normalizado no server)
 }
 
 const ACTION_BADGE: Record<string, { label: string; className: string }> = {
@@ -31,10 +31,10 @@ const ACTION_BADGE: Record<string, { label: string; className: string }> = {
 
 const REVERTABLE = new Set(["item.update", "item.delete", "produto.update", "produto.delete"]);
 
-function formatDate(ts: { _seconds: number } | number | null) {
+function formatDate(ts: number | null) {
   if (!ts) return "—";
-  const ms = typeof ts === "number" ? ts : ts._seconds * 1000;
-  return new Date(ms).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  // já vem em milissegundos do server (normalizado) — não multiplicar de novo
+  return new Date(ts).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
 function Badge({ action }: { action: string }) {

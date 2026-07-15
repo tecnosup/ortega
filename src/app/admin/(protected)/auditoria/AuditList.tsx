@@ -26,7 +26,7 @@ export default function AuditList({ initialLogs }: { initialLogs: AuditLog[] }) 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadingPeriod, setLoadingPeriod] = useState(false);
-  const [serverHasMore, setServerHasMore] = useState(initialLogs.length === 100);
+  const [serverHasMore, setServerHasMore] = useState(initialLogs.length === 25);
 
   const filtered = logs.filter((log) => {
     const entityOk = entityFilter === "Todos" || log.entity === entityFilter;
@@ -44,7 +44,7 @@ export default function AuditList({ initialLogs }: { initialLogs: AuditLog[] }) 
 
     if (value === "recentes") {
       setLogs(initialLogs);
-      setServerHasMore(initialLogs.length === 100);
+      setServerHasMore(initialLogs.length === 25);
       return;
     }
 
