@@ -379,27 +379,29 @@ export default function ProdutosList({
         }
       />
 
+      {/* resumo (KPIs) — entre a linha de ações e o card de movimentações */}
+      {produtos.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          {[
+            { n: produtos.length, l: "Produtos", cls: "text-[#F5E6C8]" },
+            { n: totalPublicados, l: "Publicados", cls: "text-[#F5E6C8]" },
+            { n: estoqueBaixo, l: "Estoque baixo", cls: estoqueBaixo > 0 ? "text-amber-400" : "text-[#F5E6C8]" },
+            { n: unidades, l: "Unid. em estoque", cls: "text-[#F5E6C8]" },
+          ].map((s) => (
+            <div key={s.l} className="bg-[#111] border border-[#2d2d2d] rounded-lg px-3.5 py-2.5">
+              <p className={`text-xl font-bold tabular-nums ${s.cls}`}>{s.n}</p>
+              <p className="text-[10px] uppercase tracking-widest text-gray-600 mt-0.5">{s.l}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {children}
 
       {produtos.length === 0 ? (
         <p className="text-gray-500 text-sm">Nenhum produto cadastrado.</p>
       ) : (
       <>
-      {/* resumo */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        {[
-          { n: produtos.length, l: "Produtos", cls: "text-[#F5E6C8]" },
-          { n: totalPublicados, l: "Publicados", cls: "text-[#F5E6C8]" },
-          { n: estoqueBaixo, l: "Estoque baixo", cls: estoqueBaixo > 0 ? "text-amber-400" : "text-[#F5E6C8]" },
-          { n: unidades, l: "Unid. em estoque", cls: "text-[#F5E6C8]" },
-        ].map((s) => (
-          <div key={s.l} className="bg-[#111] border border-[#2d2d2d] rounded-lg px-3.5 py-2.5">
-            <p className={`text-xl font-bold tabular-nums ${s.cls}`}>{s.n}</p>
-            <p className="text-[10px] uppercase tracking-widest text-gray-600 mt-0.5">{s.l}</p>
-          </div>
-        ))}
-      </div>
-
       {saving && <p className="text-xs text-gray-500 text-right -mb-2">Salvando ordem...</p>}
 
       <div className="flex flex-col gap-4">
