@@ -50,6 +50,49 @@ const STATUS_LABEL: Record<AgendamentoStatus, string> = {
 
 // ─── Calendário mensal rico ───────────────────────────────────────────────────
 
+// Deslize direcional na troca de mês/semana: entra do lado pra onde se navega.
+// Só o enter é animado (o grid antigo é substituído no remount), o que evita
+// sobreposição/absolute e mantém a altura estável quando o mês tem 5 ou 6 linhas.
+const DESLIZE = 28;
+const slideGrid = (direcao: number) => ({
+  initial: { x: direcao * DESLIZE, opacity: 0 },
+  animate: { x: 0, opacity: 1 },
+  transition: { duration: 0.18, ease: [0.4, 0, 0.2, 1] as const },
+});
+
+// Legenda dos marcadores das células. Os pontos têm a mesma semântica nas duas
+// variantes; só o "hoje" muda, porque a célula de hoje é âmbar na moldura normal
+// e off-white no overlay. Entra por último (fade+slide) pra não aparecer pronta
+// enquanto o calendário ainda desliza pra dentro (bottom-sheet no mobile).
+function LegendaCalendario({ semMoldura }: { semMoldura: boolean }) {
+  const itens = [
+    { swatch: <span className="w-1.5 h-1.5 rounded-full bg-[#b8944a] shrink-0" />, texto: "agendamentos" },
+    { swatch: <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />, texto: "caixa fechado" },
+    {
+      swatch: semMoldura
+        ? <span className="w-2.5 h-2.5 rounded border border-[#F5E6C8]/40 shrink-0" />
+        : <span className="w-3 h-3 rounded border-2 border-[#b8944a]/60 shrink-0" />,
+      texto: "hoje",
+    },
+  ];
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.22, duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+      className={semMoldura
+        ? "flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 mt-3.5 pt-3 border-t border-[#1a1a1a]"
+        : "flex flex-wrap gap-4 mt-4 pt-4 border-t border-[#1a1a1a]"}
+    >
+      {itens.map((it) => (
+        <div key={it.texto} className="flex items-center gap-1.5 text-[10px] text-gray-500">
+          {it.swatch} {it.texto}
+        </div>
+      ))}
+    </motion.div>
+  );
+}
+
 function CalendarioMensal({
   dataSelecionada,
   agendamentos,
@@ -78,9 +121,12 @@ function CalendarioMensal({
   const inicioSemana = (d: Date) => { const x = new Date(d); x.setDate(x.getDate() - x.getDay()); x.setHours(12, 0, 0, 0); return x; };
   const [refSemana, setRefSemana] = useState(() => inicioSemana(new Date(dataSelecionada + "T12:00:00")));
   const [expandido, setExpandido] = useState(false); // false = semana, true = mês
+  // -1 = navegou pra trás, +1 = pra frente, 0 = mudança externa (sem deslize)
+  const [direcao, setDirecao] = useState(0);
 
   useEffect(() => {
     const d = new Date(dataSelecionada + "T12:00:00");
+    setDirecao(0);
     setViewDate({ year: d.getFullYear(), month: d.getMonth() });
     setRefSemana(inicioSemana(d));
   }, [dataSelecionada]);
@@ -109,6 +155,7 @@ function CalendarioMensal({
   while (cells.length % 7 !== 0) cells.push(null);
 
   function navMes(delta: number) {
+    setDirecao(delta);
     setViewDate((v) => {
       let m = v.month + delta;
       let y = v.year;
@@ -118,6 +165,7 @@ function CalendarioMensal({
     });
   }
   function navSemana(delta: number) {
+    setDirecao(delta);
     setRefSemana((prev) => { const x = new Date(prev); x.setDate(x.getDate() + delta * 7); return x; });
   }
   // '‹ ›' navega semana (recolhido) ou mês (expandido)
@@ -219,19 +267,34 @@ function CalendarioMensal({
         ))}
       </div>
 
-      {/* células — recolhido (retratil) mostra só a SEMANA; senão o mês inteiro */}
+      {/* células — recolhido (retratil) mostra só a SEMANA; senão o mês inteiro.
+          A sanfona (altura) vive no wrapper de key fixa "mes-wrap", que só monta
+          ao expandir. A key do período fica no grid interno, então navegar entre
+          meses remonta só ele — desliza de lado sem reproduzir a sanfona. */}
       {retratil && !expandido ? (
-        <motion.div key={`sem-${toDateKey(refSemana)}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="grid grid-cols-7 gap-1">
+        <motion.div key={`sem-${toDateKey(refSemana)}`} {...slideGrid(direcao)} className="grid grid-cols-7 gap-1">
           {diasSemanaVisiveis.map((dObj) => renderCelula(dObj))}
         </motion.div>
       ) : (
-        <motion.div key={`mes-${year}-${month}`} initial={retratil ? { opacity: 0, height: 0 } : false} animate={{ opacity: 1, height: "auto" }} transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }} style={{ overflow: "hidden" }} className="grid grid-cols-7 gap-1">
-          {cells.map((dia, i) => {
-            if (!dia) return <div key={i} className={semMoldura ? "" : "h-10"} />;
-            return renderCelula(new Date(year, month, dia, 12));
-          })}
+        <motion.div
+          key="mes-wrap"
+          initial={retratil ? { opacity: 0, height: 0 } : false}
+          animate={{ opacity: 1, height: "auto" }}
+          transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+          style={{ overflow: "hidden" }}
+        >
+          <motion.div key={`mes-${year}-${month}`} {...slideGrid(direcao)} className="grid grid-cols-7 gap-1">
+            {cells.map((dia, i) => {
+              if (!dia) return <div key={i} className={semMoldura ? "" : "h-10"} />;
+              return renderCelula(new Date(year, month, dia, 12));
+            })}
+          </motion.div>
         </motion.div>
       )}
+
+      {/* legenda — agora nas duas variantes: no overlay o tooltip de hover é
+          inalcançável no mobile, então sem ela os pontos ficavam sem explicação. */}
+      <LegendaCalendario semMoldura={semMoldura} />
 
       {/* botão largo pra expandir/recolher o mês (padrão do Caixa, mais óbvio de achar) */}
       {retratil && (
@@ -244,21 +307,6 @@ function CalendarioMensal({
         </button>
       )}
 
-      {/* legenda — entra por último (fade+slide) pra não "aparecer pronta" enquanto
-          o calendário ainda desliza pra dentro (bottom-sheet no mobile).
-          No overlay estilo Caixa (semMoldura) a legenda é omitida. */}
-      {!semMoldura && (
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.22, duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-        className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-[#1a1a1a]"
-      >
-        <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-1.5 h-1.5 rounded-full bg-[#b8944a]" /> agendamentos</div>
-        <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-1.5 h-1.5 rounded-full bg-green-500" /> caixa fechado</div>
-        <div className="flex items-center gap-1.5 text-[10px] text-gray-500"><span className="w-3 h-3 rounded border-2 border-[#b8944a]/60" /> hoje</div>
-      </motion.div>
-      )}
     </div>
   );
 }
@@ -1090,6 +1138,28 @@ function SucessoModal({ open, mensagem, onClose }: { open: boolean; mensagem: st
   );
 }
 
+// Corpo expansível das barras de alerta. Sem isso o conteúdo é render
+// condicional puro — aparece e some seco, enquanto a seta do cabeçalho gira
+// suave. Anima height 0↔auto; o container do alerta já tem overflow-hidden.
+function CorpoAlerta({ aberto, children }: { aberto: boolean; children: React.ReactNode }) {
+  return (
+    <AnimatePresence initial={false}>
+      {aberto && (
+        <motion.div
+          key="corpo"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+          style={{ overflow: "hidden" }}
+        >
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export default function AgendamentosAdminPage() {
   const hoje = new Date();
   const hojeKey = toDateKey(hoje);
@@ -1623,7 +1693,7 @@ export default function AgendamentosAdminPage() {
                   <span className="flex-1 text-left">{atrasados.length} atendimento{atrasados.length > 1 ? "s" : ""} com horário passado sem conclusão</span>
                   <IconChevronDown size={13} className={`shrink-0 transition-transform ${alertasExpandidos.has("atrasados") ? "rotate-180" : ""}`} />
                 </button>
-                {alertasExpandidos.has("atrasados") && (
+                <CorpoAlerta aberto={alertasExpandidos.has("atrasados")}>
                   <div className="border-t border-red-900/40 divide-y divide-red-900/30">
                     {atrasados.map((a) => (
                       <button key={a.id} onClick={() => irParaAgendamento(a)}
@@ -1635,7 +1705,7 @@ export default function AgendamentosAdminPage() {
                       </button>
                     ))}
                   </div>
-                )}
+                </CorpoAlerta>
               </div>
             )}
 
@@ -1674,7 +1744,7 @@ export default function AgendamentosAdminPage() {
                   <span className="flex-1 text-left">{aguardandoLongos.length} pendente{aguardandoLongos.length > 1 ? "s" : ""} há mais de 2h sem resposta</span>
                   <IconChevronDown size={13} className={`shrink-0 transition-transform ${alertasExpandidos.has("aguardando") ? "rotate-180" : ""}`} />
                 </button>
-                {alertasExpandidos.has("aguardando") && (
+                <CorpoAlerta aberto={alertasExpandidos.has("aguardando")}>
                   <div className="border-t border-yellow-900/40 divide-y divide-yellow-900/30">
                     {aguardandoLongos.map((a) => (
                       <button key={a.id} onClick={() => irParaAgendamento(a)}
@@ -1691,7 +1761,7 @@ export default function AgendamentosAdminPage() {
                       </button>
                     ))}
                   </div>
-                )}
+                </CorpoAlerta>
               </div>
             )}
 
