@@ -74,7 +74,7 @@ export default function CategoriasClient({ categorias: initial }: { categorias: 
       <Modal open={!!deleteModal} onClose={() => setDeleteModal(null)} className="bg-[#111] border border-[#2d2d2d] rounded-xl w-full max-w-sm mx-4 p-6 flex flex-col gap-4">
         <h2 className="text-[#F5E6C8] font-semibold">Remover categoria?</h2>
         <p className="text-sm text-gray-400">
-          A categoria <span className="text-[#F5E6C8] font-medium">"{deleteModal?.nome}"</span> será removida.
+          A categoria <span className="text-[#F5E6C8] font-medium">&quot;{deleteModal?.nome}&quot;</span> será removida.
           Os produtos vinculados a ela <span className="text-[#F5E6C8]">não serão deletados</span>, apenas perderão a categoria.
         </p>
         {error && <p className="text-xs text-red-400">{error}</p>}

@@ -5,6 +5,7 @@ import {
   IconCircleCheck, IconCircleX, IconLoader2,
 } from "@tabler/icons-react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { PLANOS_PUBLICOS } from "@/lib/stripe-tipos";
 import { Suspense } from "react";
 
@@ -91,9 +92,9 @@ function ConfirmacaoConteudo() {
           >
             Entrar na área do cliente
           </a>
-          <a href="/" className="text-sm text-gray-500 hover:text-[#b8944a] transition text-center">
+          <Link href="/" className="text-sm text-gray-500 hover:text-[#b8944a] transition text-center">
             Voltar para o site
-          </a>
+          </Link>
         </div>
       </div>
     </div>

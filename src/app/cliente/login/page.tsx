@@ -6,6 +6,7 @@ import {
 } from "@tabler/icons-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 
 function LoginConteudo() {
   const router = useRouter();
@@ -139,9 +140,9 @@ function LoginConteudo() {
           </div>
         </div>
 
-        <a href="/" className="text-[11px] text-gray-700 tracking-wide text-center hover:text-[#b8944a] transition">
+        <Link href="/" className="text-[11px] text-gray-700 tracking-wide text-center hover:text-[#b8944a] transition">
           ← Voltar para o site
-        </a>
+        </Link>
       </div>
     </div>
   );
