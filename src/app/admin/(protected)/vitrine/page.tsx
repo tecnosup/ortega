@@ -11,6 +11,7 @@ import type { Item } from "@/lib/admin-items";
 import type { Produto } from "@/lib/admin-produtos";
 import { useSucesso } from "@/components/ui/Sucesso";
 import { useToast } from "@/components/ui/Toast";
+import InputImagem from "@/components/ui/InputImagem";
 
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] w-full";
 const card = "bg-[#111] border border-[#2d2d2d] rounded-lg";
@@ -118,8 +119,7 @@ function ImageUpload({ label, name, current, folder, onUrlChange }: { label: str
           </div>
         )}
       </div>
-      <input type="file" accept="image/*" onChange={handleUpload}
-        className="text-sm text-gray-500 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-[#1a1a1a] file:text-gray-400 hover:file:bg-[#252525]" />
+      <InputImagem onChange={handleUpload} uploading={uploading} temImagem={!!url} />
       <input type="text" value={url} onChange={(e) => { setUrl(e.target.value); setImgQuebrada(false); }} placeholder="ou cole uma URL" className={inp + " mt-1"} />
       {error && <span className="text-xs text-red-400">{error}</span>}
     </div>
@@ -420,7 +420,7 @@ export default function VitrinePage() {
         </div>
 
         {!destaqueAtivo && (
-          <p className="text-xs text-gray-600 -mt-1">Desativado — o topo do site mostra o selo padrão "Desde 2026".</p>
+          <p className="text-xs text-gray-600 -mt-1">Desativado — o topo do site mostra o selo padrão &quot;Desde 2026&quot;.</p>
         )}
 
         {/* conteúdo retrátil: expande ao ligar o toggle, recolhe ao desligar */}
@@ -517,7 +517,7 @@ export default function VitrinePage() {
 
         {/* Seção Sobre */}
         <div className={`${card} p-5 flex flex-col gap-4`}>
-          <p className="text-[10px] font-medium tracking-widest uppercase text-[#b8944a]">Seção "Sobre nós"</p>
+          <p className="text-[10px] font-medium tracking-widest uppercase text-[#b8944a]">Seção &quot;Sobre nós&quot;</p>
           <SobrePreview texto={prev.sobreTexto} imagem={prev.sobreImagem} />
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-400 uppercase tracking-wide">Texto sobre nós</label>

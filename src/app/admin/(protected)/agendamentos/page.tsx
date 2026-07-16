@@ -18,6 +18,7 @@ import type { CategoriaServico } from "@/lib/admin-categorias-servicos";
 import { toDateKey } from "@/lib/date-utils";
 import { gerarSlotsData, mesclarGrade, slotsOcupadosPorAgendamento, ocupacaoDeAgendamentos, calcularSlotsLivres, GRADE_DEFAULT, PASSO_DEFAULT, PASSO_MIN, PASSO_MAX, CARENCIA_DEFAULT, CARENCIA_MAX, DIAS_SEMANA, type GradeConfig, type DiaGrade } from "@/lib/grade";
 import AnimatedModal from "@/components/ui/Modal";
+import Revelar from "@/components/ui/Revelar";
 
 function parseDuracaoMin(duracao: string): number {
   const h = duracao.match(/(\d+)\s*h/i);
@@ -1138,28 +1139,6 @@ function SucessoModal({ open, mensagem, onClose }: { open: boolean; mensagem: st
   );
 }
 
-// Corpo expansível das barras de alerta. Sem isso o conteúdo é render
-// condicional puro — aparece e some seco, enquanto a seta do cabeçalho gira
-// suave. Anima height 0↔auto; o container do alerta já tem overflow-hidden.
-function CorpoAlerta({ aberto, children }: { aberto: boolean; children: React.ReactNode }) {
-  return (
-    <AnimatePresence initial={false}>
-      {aberto && (
-        <motion.div
-          key="corpo"
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: "auto", opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-          style={{ overflow: "hidden" }}
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
 export default function AgendamentosAdminPage() {
   const hoje = new Date();
   const hojeKey = toDateKey(hoje);
@@ -1693,7 +1672,7 @@ export default function AgendamentosAdminPage() {
                   <span className="flex-1 text-left">{atrasados.length} atendimento{atrasados.length > 1 ? "s" : ""} com horário passado sem conclusão</span>
                   <IconChevronDown size={13} className={`shrink-0 transition-transform ${alertasExpandidos.has("atrasados") ? "rotate-180" : ""}`} />
                 </button>
-                <CorpoAlerta aberto={alertasExpandidos.has("atrasados")}>
+                <Revelar show={alertasExpandidos.has("atrasados")}>
                   <div className="border-t border-red-900/40 divide-y divide-red-900/30">
                     {atrasados.map((a) => (
                       <button key={a.id} onClick={() => irParaAgendamento(a)}
@@ -1705,7 +1684,7 @@ export default function AgendamentosAdminPage() {
                       </button>
                     ))}
                   </div>
-                </CorpoAlerta>
+                </Revelar>
               </div>
             )}
 
@@ -1744,7 +1723,7 @@ export default function AgendamentosAdminPage() {
                   <span className="flex-1 text-left">{aguardandoLongos.length} pendente{aguardandoLongos.length > 1 ? "s" : ""} há mais de 2h sem resposta</span>
                   <IconChevronDown size={13} className={`shrink-0 transition-transform ${alertasExpandidos.has("aguardando") ? "rotate-180" : ""}`} />
                 </button>
-                <CorpoAlerta aberto={alertasExpandidos.has("aguardando")}>
+                <Revelar show={alertasExpandidos.has("aguardando")}>
                   <div className="border-t border-yellow-900/40 divide-y divide-yellow-900/30">
                     {aguardandoLongos.map((a) => (
                       <button key={a.id} onClick={() => irParaAgendamento(a)}
@@ -1761,7 +1740,7 @@ export default function AgendamentosAdminPage() {
                       </button>
                     ))}
                   </div>
-                </CorpoAlerta>
+                </Revelar>
               </div>
             )}
 

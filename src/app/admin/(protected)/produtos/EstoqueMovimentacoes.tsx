@@ -7,6 +7,7 @@ import {
 import type { MovimentacaoEstoque, TipoMovimentacao } from "@/lib/estoque-movimentacoes-tipos";
 import { TIPO_LABEL } from "@/lib/estoque-movimentacoes-tipos";
 import Modal from "@/components/ui/Modal";
+import Select from "@/components/ui/Select";
 import { useModalMount } from "@/components/ui/useModalMount";
 import { useSucesso } from "@/components/ui/Sucesso";
 import type { Produto } from "@/lib/admin-produtos";
@@ -97,9 +98,16 @@ function NovaMovimentacaoModal({
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Produto</label>
-            <select value={produtoId} onChange={(e) => setProdutoId(e.target.value)} className={inp}>
-              {produtos.map((p) => <option key={p.id} value={p.id}>{p.titulo}</option>)}
-            </select>
+            {/* searchable: nomes de produto são longos e a lista cresce — buscar é
+                mais rápido que rolar. */}
+            <Select
+              value={produtoId}
+              onChange={setProdutoId}
+              options={produtos.map((p) => ({ value: p.id, label: p.titulo }))}
+              placeholder="Selecionar produto"
+              searchable
+              searchPlaceholder="Buscar produto..."
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -206,33 +214,39 @@ export default function EstoqueMovimentacoes({ produtos }: { produtos: Produto[]
 
       <div className="border border-[#2d2d2d] rounded-lg overflow-hidden">
         {/* Cabeçalho */}
-        <div className="flex items-center justify-between px-5 py-4 bg-[#111] border-b border-[#2d2d2d]">
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] font-bold tracking-widest uppercase text-[#F5E6C8]">
+        {/* Título e contador empilhados: lado a lado eles somam mais que a largura
+            do celular e brigavam com o botão. min-w-0 no bloco + shrink-0 no botão
+            garantem que quem cede espaço é o texto, nunca a ação. */}
+        <div className="flex items-center justify-between gap-3 px-5 py-4 bg-[#111] border-b border-[#2d2d2d]">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold tracking-widest uppercase text-[#F5E6C8] leading-tight">
               Movimentações de Estoque
-            </span>
-            <span className="text-[10px] text-gray-600 tracking-widest uppercase">
+            </p>
+            <p className="text-[10px] text-gray-600 tracking-widest uppercase mt-1">
               {movs.length} registro{movs.length !== 1 ? "s" : ""}
-            </span>
+            </p>
           </div>
           <button
             onClick={() => setModalAberto(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase text-[#0A0A0A] bg-[#b8944a] rounded hover:bg-[#c9a84c] transition"
+            className="shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase text-[#0A0A0A] bg-[#b8944a] rounded hover:bg-[#c9a84c] transition"
           >
             <IconPlus size={11} /> Registrar
           </button>
         </div>
 
-        {/* Filtros — sempre visíveis */}
-        <div className="flex gap-0 bg-[#0d0d0d] border-b border-[#2d2d2d] overflow-x-auto">
+        {/* Filtros em pílula — mesmo padrão do filtro de status em /admin/itens.
+            Eram abas, mas as 5 somam ~490px contra ~335px de tela no celular: em
+            uma linha vazavam, e aba não sobrevive a quebra de linha (sobra borda
+            lateral solta e célula vazia, parece defeito). Pílula é feita pra fluir. */}
+        <div className="flex flex-wrap gap-1.5 px-5 py-3 bg-[#0d0d0d] border-b border-[#2d2d2d]">
           {TIPOS.map((t) => (
             <button
               key={t.key}
               onClick={() => { setFiltro(t.key); setExpandido(false); }}
-              className={`px-4 py-2.5 text-[10px] font-bold tracking-widest uppercase shrink-0 border-r border-[#1a1a1a] transition ${
+              className={`px-3 py-1 text-xs rounded-full border whitespace-nowrap transition ${
                 filtro === t.key
-                  ? "bg-[#111] text-[#F5E6C8] border-b-2 border-b-[#b8944a]"
-                  : "text-gray-600 hover:text-gray-400 hover:bg-[#111]/50"
+                  ? "border-[#b8944a] text-[#b8944a] bg-[#b8944a]/10"
+                  : "border-[#2d2d2d] text-gray-500 hover:border-[#444] hover:text-gray-300"
               }`}
             >
               {t.label}

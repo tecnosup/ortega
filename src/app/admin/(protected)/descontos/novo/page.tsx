@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useActionState, useState, useEffect } from "react";
+import Select from "@/components/ui/Select";
 import { createDescontoAction } from "../actions";
 
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] placeholder-gray-600 focus:outline-none focus:border-[#b8944a] transition";
@@ -21,6 +22,7 @@ export default function NovoDescontoPage() {
   const [itens, setItens] = useState<Entidade[]>([]);
   const [produtos, setProdutos] = useState<Entidade[]>([]);
   const [entityId, setEntityId] = useState("");
+  const [ativo, setAtivo] = useState("true");
 
   useEffect(() => {
     fetch("/api/admin/entidades", { credentials: "include" })
@@ -43,20 +45,31 @@ export default function NovoDescontoPage() {
       <form action={formAction} className="flex flex-col gap-5">
         <input type="hidden" name="entityTitulo" value={entityTitulo} />
 
+        {/* O Select do sistema é um <button>, não um campo de formulário — o valor
+            vai pro formData por input escondido, como já era feito no entityTitulo.
+            O `required` do HTML se perde, mas a action valida com zod
+            (entityId: z.string().min(1)) e o erro aparece no rodapé do form. */}
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Tipo</label>
-          <select name="tipo" value={tipo} onChange={(e) => { setTipo(e.target.value as "item" | "produto"); setEntityId(""); }} spellCheck={false} className={inp}>
-            <option value="item">Serviço</option>
-            <option value="produto">Produto</option>
-          </select>
+          <input type="hidden" name="tipo" value={tipo} />
+          <Select
+            value={tipo}
+            onChange={(v) => { setTipo(v as "item" | "produto"); setEntityId(""); }}
+            options={[{ value: "item", label: "Serviço" }, { value: "produto", label: "Produto" }]}
+          />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">{tipo === "item" ? "Serviço" : "Produto"}</label>
-          <select name="entityId" value={entityId} onChange={(e) => setEntityId(e.target.value)} required spellCheck={false} className={inp}>
-            <option value="">Selecione...</option>
-            {lista.map((e) => <option key={e.id} value={e.id}>{e.titulo}</option>)}
-          </select>
+          <input type="hidden" name="entityId" value={entityId} />
+          <Select
+            value={entityId}
+            onChange={setEntityId}
+            options={lista.map((e) => ({ value: e.id, label: e.titulo }))}
+            placeholder="Selecione..."
+            searchable
+            searchPlaceholder={tipo === "item" ? "Buscar serviço..." : "Buscar produto..."}
+          />
         </div>
 
         <div className="flex flex-col gap-1">
@@ -79,10 +92,12 @@ export default function NovoDescontoPage() {
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-400">Status</label>
-          <select name="ativo" defaultValue="true" spellCheck={false} className={inp}>
-            <option value="true">Ativo</option>
-            <option value="false">Inativo</option>
-          </select>
+          <input type="hidden" name="ativo" value={ativo} />
+          <Select
+            value={ativo}
+            onChange={setAtivo}
+            options={[{ value: "true", label: "Ativo" }, { value: "false", label: "Inativo" }]}
+          />
         </div>
 
         {state && !state.ok && <p className="text-sm text-red-400">{state.error}</p>}

@@ -9,6 +9,7 @@ import {
 import type { Cupom, TipoCupom } from "@/lib/cupons-tipos";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useSucesso } from "@/components/ui/Sucesso";
+import Select from "@/components/ui/Select";
 
 function brl(v: number) {
   return `R$ ${v.toFixed(2).replace(".", ",")}`;
@@ -52,10 +53,11 @@ function FormCupom({ inicial, onSalvar, onCancelar, salvando }: {
       <div className="grid sm:grid-cols-3 gap-4">
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-500 uppercase tracking-wide">Tipo *</label>
-          <select value={tipo} onChange={(e) => setTipo(e.target.value as TipoCupom)} className={inp}>
-            <option value="percentual">Percentual (%)</option>
-            <option value="fixo">Fixo (R$)</option>
-          </select>
+          <Select
+            value={tipo}
+            onChange={(v) => setTipo(v as TipoCupom)}
+            options={[{ value: "percentual", label: "Percentual (%)" }, { value: "fixo", label: "Fixo (R$)" }]}
+          />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-500 uppercase tracking-wide">Valor * {tipo === "percentual" ? "(%)" : "(R$)"}</label>

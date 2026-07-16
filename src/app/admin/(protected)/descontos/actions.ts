@@ -7,14 +7,17 @@ import { logAudit } from "@/lib/audit";
 import { adminAuth } from "@/lib/firebase-admin";
 import { cookies } from "next/headers";
 
+// As mensagens são exibidas direto pro admin no rodapé do formulário — sem elas,
+// o zod devolve o texto padrão em inglês ("Too small: expected string to have >=1
+// characters"), que não diz o que fazer.
 const schema = z.object({
-  tipo: z.enum(["item", "produto"]),
-  entityId: z.string().min(1),
-  entityTitulo: z.string().min(1),
-  percentual: z.coerce.number().min(1).max(100),
+  tipo: z.enum(["item", "produto"], { message: "Escolha entre serviço e produto" }),
+  entityId: z.string().min(1, "Selecione o serviço ou produto do desconto"),
+  entityTitulo: z.string().min(1, "Selecione o serviço ou produto do desconto"),
+  percentual: z.coerce.number({ message: "Informe o desconto" }).min(1, "O desconto deve ser de no mínimo 1%").max(100, "O desconto deve ser de no máximo 100%"),
   // datetime-local vem como "2026-05-04T10:00" — converte para ms
-  inicioAt: z.string().transform((v) => new Date(v).getTime()),
-  fimAt: z.string().transform((v) => new Date(v).getTime()),
+  inicioAt: z.string().min(1, "Informe a data de início").transform((v) => new Date(v).getTime()),
+  fimAt: z.string().min(1, "Informe a data de fim").transform((v) => new Date(v).getTime()),
   ativo: z.string().transform((v) => v === "true"),
 });
 
@@ -34,7 +37,7 @@ type ActionResult = { ok: false; error: string } | null;
 export async function createDescontoAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
   const raw = Object.fromEntries(formData);
   const parsed = schema.safeParse(raw);
-  if (!parsed.success) return { ok: false, error: "Dados inválidos: " + parsed.error.issues[0]?.message };
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos" };
   try {
     const actor = await getActor();
     const id = await createDesconto(parsed.data);
@@ -49,7 +52,7 @@ export async function updateDescontoAction(_: ActionResult, formData: FormData):
   const id = formData.get("id") as string;
   const raw = Object.fromEntries(formData);
   const parsed = schema.safeParse(raw);
-  if (!parsed.success) return { ok: false, error: "Dados inválidos: " + parsed.error.issues[0]?.message };
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Dados inválidos" };
   try {
     const actor = await getActor();
     const before = await getDescontoById(id);

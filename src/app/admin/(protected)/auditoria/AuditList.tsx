@@ -4,6 +4,7 @@ import { useState } from "react";
 import AuditLogRow from "./AuditLogRow";
 import { loadMoreAuditLogs, loadAuditLogsByPeriod } from "./actions";
 import type { AuditLog, PeriodFilter } from "./actions";
+import Select from "@/components/ui/Select";
 
 const ENTITY_OPTIONS = ["Todos", "produto", "item", "settings"];
 const TYPE_OPTIONS = ["Todos", "create", "update", "delete"];
@@ -94,25 +95,23 @@ export default function AuditList({ initialLogs }: { initialLogs: AuditLog[] }) 
       {/* Filtros de entidade e tipo */}
       <div className="flex gap-3 flex-wrap items-center">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Entidade</span>
-          <select
+          <span className="text-xs text-gray-500 shrink-0">Entidade</span>
+          <Select
+            className="w-40"
             value={entityFilter}
-            onChange={(e) => { setEntityFilter(e.target.value); setVisibleCount(PAGE_SIZE); }}
-            className="bg-[#111] border border-[#2d2d2d] text-[#F5E6C8] text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#b8944a] transition"
-          >
-            {ENTITY_OPTIONS.map((o) => <option key={o}>{o}</option>)}
-          </select>
+            onChange={(v) => { setEntityFilter(v); setVisibleCount(PAGE_SIZE); }}
+            options={ENTITY_OPTIONS.map((o) => ({ value: o, label: o }))}
+          />
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Tipo</span>
-          <select
+          <span className="text-xs text-gray-500 shrink-0">Tipo</span>
+          <Select
+            className="w-40"
             value={typeFilter}
-            onChange={(e) => { setTypeFilter(e.target.value); setVisibleCount(PAGE_SIZE); }}
-            className="bg-[#111] border border-[#2d2d2d] text-[#F5E6C8] text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#b8944a] transition"
-          >
-            {TYPE_OPTIONS.map((o) => <option key={o}>{o}</option>)}
-          </select>
+            onChange={(v) => { setTypeFilter(v); setVisibleCount(PAGE_SIZE); }}
+            options={TYPE_OPTIONS.map((o) => ({ value: o, label: o }))}
+          />
         </div>
 
         <span className="text-xs text-gray-600 ml-auto">

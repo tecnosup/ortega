@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { deleteProdutoAction, toggleStatusAction, reorderProdutosAction } from "./actions";
 import type { Produto } from "@/lib/admin-produtos";
 import type { Categoria } from "@/lib/admin-categorias";
+import CategoriasInline from "./CategoriasInline";
 
 // ── nível de estoque → cor/rótulo (mesma semântica das movimentações) ──────────
 function nivelEstoque(p: Produto): { key: "ok" | "warn" | "crit"; label: string; cls: string } {
@@ -132,11 +133,14 @@ function SortableRow({
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   const nivel = nivelEstoque(produto);
 
+  // items-start no mobile: as ações ficam no fim da coluna de info, então com
+  // items-center a posição do stepper dependia da altura do título e ele colava
+  // no Editar/lixeira em nomes curtos. No desktop a linha é única, segue center.
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 px-3 py-3 hover:bg-[#151515] transition border-b border-[#1a1a1a] last:border-0"
+      className="flex items-start sm:items-center gap-3 px-3 py-3 hover:bg-[#151515] transition border-b border-[#1a1a1a] last:border-0"
     >
       {/* reordenar: grip (arrasta) + setas (um passo) */}
       <div className="flex flex-col items-center gap-0.5 shrink-0 text-gray-700">
@@ -212,8 +216,22 @@ function SortableRow({
   );
 }
 
-export default function ProdutosList({ produtos: initial, categorias }: { produtos: Produto[]; categorias: Categoria[] }) {
+export default function ProdutosList({
+  produtos: initial,
+  categorias: categoriasIniciais,
+  children,
+}: {
+  produtos: Produto[];
+  categorias: Categoria[];
+  // Encaixe logo abaixo da linha de ações (Categorias / Novo produto). A linha de
+  // ações mora aqui dentro, então é o único jeito de a página pôr algo entre ela
+  // e o resumo — hoje, o card de movimentações.
+  children?: React.ReactNode;
+}) {
   const [produtos, setProdutos] = useState(initial);
+  // Em estado (e não direto da prop) porque o painel de categorias cria/renomeia/
+  // reordena, e o select do ProdutoModal precisa enxergar isso sem recarregar.
+  const [categorias, setCategorias] = useState(categoriasIniciais);
   const [saving, setSaving] = useState(false);
   const confirmar = useConfirm();
   const toast = useToast();
@@ -278,13 +296,15 @@ export default function ProdutosList({ produtos: initial, categorias }: { produt
 
   // após salvar no modal: atualiza a lista in-place (edita) ou adiciona (novo)
   function onSaved(p: Produto) {
-    setProdutos((prev) => {
-      const existe = prev.some((x) => x.id === p.id);
-      const editou = existe;
-      const nova = editou ? prev.map((x) => (x.id === p.id ? { ...x, ...p } : x)) : [...prev, p];
-      sucesso(editou ? "Produto atualizado!" : "Produto criado!");
-      return nova;
-    });
+    // sucesso() fica FORA do updater: React executa o updater durante o render e
+    // tratá-lo como puro, então disparar setState de outro componente (o
+    // SucessoProvider) lá dentro quebra ("Cannot update a component while
+    // rendering a different component").
+    const editou = produtos.some((x) => x.id === p.id);
+    setProdutos((prev) =>
+      editou ? prev.map((x) => (x.id === p.id ? { ...x, ...p } : x)) : [...prev, p]
+    );
+    sucesso(editou ? "Produto atualizado!" : "Produto criado!");
     setModalAlvo(null);
   }
 
@@ -309,7 +329,7 @@ export default function ProdutosList({ produtos: initial, categorias }: { produt
     }
   }
 
-  // agrupa por categoria mantendo a ordem global
+  // agrupa por categoria; dentro do grupo, mantém a ordem global dos produtos
   const grupos: { categoriaId: string | null; nome: string; itens: Produto[] }[] = [];
   const visto = new Set<string | null>();
   for (const p of produtos) {
@@ -320,6 +340,17 @@ export default function ProdutosList({ produtos: initial, categorias }: { produt
     }
     grupos.find((g) => g.categoriaId === cid)!.itens.push(p);
   }
+
+  // A ordem dos grupos segue a ordem das CATEGORIAS — a mesma das abas na
+  // landing. Sem isso, a posição de um grupo dependia de qual produto aparecia
+  // primeiro, e reordenar categorias não refletia aqui. "Sem categoria" fica por
+  // último; categoria desconhecida (produto órfão) vai junto, no fim.
+  const posCategoria = new Map(categorias.map((c, i) => [c.id, i]));
+  grupos.sort((a, b) => {
+    if (a.categoriaId === null) return 1;
+    if (b.categoriaId === null) return -1;
+    return (posCategoria.get(a.categoriaId) ?? Infinity) - (posCategoria.get(b.categoriaId) ?? Infinity);
+  });
 
   return (
     <>
@@ -334,15 +365,21 @@ export default function ProdutosList({ produtos: initial, categorias }: { produt
         />
       )}
 
-      {/* cabeçalho: novo produto */}
-      <div className="flex justify-end -mb-2">
-        <button
-          onClick={() => setModalAlvo({ produto: null })}
-          className="flex items-center gap-2 px-4 py-2 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded hover:bg-[#c9a84c] transition"
-        >
-          <IconPlus size={16} /> Novo produto
-        </button>
-      </div>
+      {/* cabeçalho: categorias + novo produto na mesma linha */}
+      <CategoriasInline
+        categorias={categorias}
+        onCategorias={setCategorias}
+        acao={
+          <button
+            onClick={() => setModalAlvo({ produto: null })}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded whitespace-nowrap hover:bg-[#c9a84c] transition"
+          >
+            <IconPlus size={16} /> Novo produto
+          </button>
+        }
+      />
+
+      {children}
 
       {produtos.length === 0 ? (
         <p className="text-gray-500 text-sm">Nenhum produto cadastrado.</p>

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { IconLoader2, IconX } from "@tabler/icons-react";
+import { IconLoader2 } from "@tabler/icons-react";
 import Modal from "@/components/ui/Modal";
+import InputImagem from "@/components/ui/InputImagem";
+import Select from "@/components/ui/Select";
 import type { Produto } from "@/lib/admin-produtos";
 import type { Categoria } from "@/lib/admin-categorias";
 
@@ -99,9 +101,9 @@ export default function ProdutoModal({
 
   return (
     <Modal open={open} onClose={onClose} className="bg-[#141414] border border-[#2d2d2d] rounded-xl shadow-2xl w-full max-w-md mx-4 flex flex-col max-h-[88vh]">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e1e] shrink-0">
+      {/* o ✕ vem do Modal (absolute, top-right) — não desenhar outro aqui */}
+      <div className="flex items-center px-5 py-4 border-b border-[#1e1e1e] shrink-0">
         <h3 className="font-bold text-[#F5E6C8] text-sm tracking-wide">{editando ? "Editar produto" : "Novo produto"}</h3>
-        <button onClick={onClose} className="text-gray-500 hover:text-[#F5E6C8] transition"><IconX size={18} /></button>
       </div>
 
       <div className="px-5 py-4 flex flex-col gap-4 overflow-y-auto">
@@ -125,8 +127,7 @@ export default function ProdutoModal({
               <button type="button" onClick={() => setImagem("")} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#111] border border-[#2d2d2d] rounded-full text-gray-400 hover:text-red-400 flex items-center justify-center text-xs transition">✕</button>
             </div>
           )}
-          <input type="file" accept="image/*" onChange={handleUpload} className="text-sm text-gray-500 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-[#1a1a1a] file:text-gray-400 hover:file:bg-[#252525]" />
-          {uploading && <span className="text-xs text-gray-500 flex items-center gap-1"><IconLoader2 size={12} className="animate-spin" /> Enviando...</span>}
+          <InputImagem onChange={handleUpload} uploading={uploading} temImagem={!!imagem} />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -136,10 +137,11 @@ export default function ProdutoModal({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className={label}>Categoria</label>
-            <select value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)} className={inp} style={{ fontSize: 16 }}>
-              <option value="">Sem categoria</option>
-              {categorias.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
+            <Select
+              value={categoriaId}
+              onChange={setCategoriaId}
+              options={[{ value: "", label: "Sem categoria" }, ...categorias.map((c) => ({ value: c.id, label: c.nome }))]}
+            />
           </div>
         </div>
 
@@ -159,10 +161,11 @@ export default function ProdutoModal({
 
         <div className="flex flex-col gap-1.5">
           <label className={label}>Status</label>
-          <select value={status} onChange={(e) => setStatus(e.target.value as "draft" | "published")} className={inp} style={{ fontSize: 16 }}>
-            <option value="draft">Rascunho</option>
-            <option value="published">Publicado</option>
-          </select>
+          <Select
+            value={status}
+            onChange={(v) => setStatus(v as "draft" | "published")}
+            options={[{ value: "draft", label: "Rascunho" }, { value: "published", label: "Publicado" }]}
+          />
         </div>
       </div>
 

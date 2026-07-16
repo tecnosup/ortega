@@ -2,8 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  IconCheck, IconChevronDown, IconChevronUp, IconEdit, IconGripVertical, IconLoader2, IconPlus, IconScissors, IconTag, IconTrash, IconX,
+  IconCheck, IconChevronDown, IconChevronUp, IconEdit, IconGripVertical, IconLoader2, IconPlus, IconScissors, IconTag, IconTrash,
 } from "@tabler/icons-react";
+import InputImagem from "@/components/ui/InputImagem";
+import CategoriasPainel from "@/components/admin/CategoriasPainel";
+import Revelar from "@/components/ui/Revelar";
+import Select from "@/components/ui/Select";
 import type { Item } from "@/lib/admin-items";
 import { resolverDuracaoMin } from "@/lib/agendamentos-types";
 import type { CategoriaServico } from "@/lib/admin-categorias-servicos";
@@ -14,7 +18,7 @@ import { CSS } from "@dnd-kit/utilities";
 import Modal from "@/components/ui/Modal";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useSucesso } from "@/components/ui/Sucesso";
-import { reorderItensAction } from "./actions";
+import { reorderItensAction, reorderCategoriasServicosAction } from "./actions";
 
 type Form = {
   titulo: string;
@@ -109,13 +113,8 @@ export default function ServicosPage() {
   const [uploadError, setUploadError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filtroStatus, setFiltroStatus] = useState<"todos" | "published" | "draft">("todos");
+  // criar/renomear/remover/ordenar categoria vive no CategoriasPainel
   const [catOpen, setCatOpen] = useState(false);
-  const [novaCat, setNovaCat] = useState("");
-  const [catSaving, setCatSaving] = useState(false);
-  const [catErro, setCatErro] = useState("");
-  const [catEditId, setCatEditId] = useState<string | null>(null);
-  const [catEditNome, setCatEditNome] = useState("");
-  const [catDeletingId, setCatDeletingId] = useState<string | null>(null);
   const [reorderSaving, setReorderSaving] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -269,39 +268,6 @@ export default function ServicosPage() {
     sucesso("Serviço removido!");
   }
 
-  async function handleCriarCat() {
-    if (!novaCat.trim()) { setCatErro("Nome obrigatório"); return; }
-    setCatSaving(true); setCatErro("");
-    const res = await fetch("/api/admin/categorias-servicos", {
-      method: "POST", credentials: "include",
-      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: novaCat.trim() }),
-    });
-    setCatSaving(false);
-    if (!res.ok) { setCatErro("Erro ao criar"); return; }
-    setNovaCat("");
-    await load();
-    sucesso("Categoria criada!");
-  }
-
-  async function handleSalvarCatEdit() {
-    if (!catEditNome.trim() || !catEditId) return;
-    await fetch(`/api/admin/categorias-servicos/${catEditId}`, {
-      method: "PATCH", credentials: "include",
-      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: catEditNome.trim() }),
-    });
-    setCatEditId(null);
-    await load();
-  }
-
-  async function handleDeleteCat(id: string) {
-    if (!(await confirmar({ titulo: "Remover categoria", mensagem: "Remover esta categoria? Os serviços vinculados perderão a categoria.", confirmar: "Remover" }))) return;
-    setCatDeletingId(id);
-    await fetch(`/api/admin/categorias-servicos/${id}`, { method: "DELETE", credentials: "include" });
-    setCatDeletingId(null);
-    await load();
-    sucesso("Categoria removida!");
-  }
-
   const catNomeById = (id?: string) => categorias.find((c) => c.id === id)?.nome;
 
   const itensFiltrados = itens
@@ -342,64 +308,16 @@ export default function ServicosPage() {
           ))}
         </div>
 
-        {catOpen && (
-          <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 flex flex-col gap-3">
-            <p className="text-xs text-gray-400 font-medium">Categorias de serviços</p>
-            <div className="flex gap-2">
-              <input
-                value={novaCat}
-                onChange={(e) => setNovaCat(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleCriarCat()}
-                placeholder="Ex: Cortes, Tratamentos…"
-                className={inp}
-                style={{ fontSize: 16 }} spellCheck={false}
-              />
-              <button
-                onClick={handleCriarCat}
-                disabled={catSaving}
-                className="px-4 py-2 bg-[#b8944a] text-[#0A0A0A] text-sm font-bold rounded hover:bg-[#c9a84c] transition disabled:opacity-50 shrink-0"
-              >
-                {catSaving ? <IconLoader2 size={14} className="animate-spin" /> : "Adicionar"}
-              </button>
-            </div>
-            {catErro && <p className="text-red-400 text-xs">{catErro}</p>}
-            {categorias.length === 0 ? (
-              <p className="text-gray-600 text-xs">Nenhuma categoria criada.</p>
-            ) : (
-              <div className="flex flex-col gap-1">
-                {categorias.map((cat) => (
-                  <div key={cat.id} className="flex items-center gap-2 px-3 py-2 bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg">
-                    {catEditId === cat.id ? (
-                      <>
-                        <input
-                          value={catEditNome}
-                          onChange={(e) => setCatEditNome(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && handleSalvarCatEdit()}
-                          className="flex-1 bg-transparent text-sm text-[#F5E6C8] focus:outline-none"
-                          autoFocus spellCheck={false}
-                        />
-                        <button onClick={handleSalvarCatEdit} className="text-green-400 hover:text-green-300 transition"><IconCheck size={14} /></button>
-                        <button onClick={() => setCatEditId(null)} className="text-gray-500 hover:text-white transition"><IconX size={14} /></button>
-                      </>
-                    ) : (
-                      <>
-                        <span className="flex-1 text-sm text-[#F5E6C8]">{cat.nome}</span>
-                        <button onClick={() => { setCatEditId(cat.id); setCatEditNome(cat.nome); }} className="text-gray-500 hover:text-[#b8944a] transition"><IconEdit size={13} /></button>
-                        <button
-                          onClick={() => handleDeleteCat(cat.id)}
-                          disabled={catDeletingId === cat.id}
-                          className="text-gray-500 hover:text-red-400 transition disabled:opacity-50"
-                        >
-                          {catDeletingId === cat.id ? <IconLoader2 size={13} className="animate-spin" /> : <IconTrash size={13} />}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        <Revelar show={catOpen}>
+          <CategoriasPainel
+            titulo="Categorias de serviços"
+            placeholder="Ex: Cortes, Tratamentos…"
+            endpoint="/api/admin/categorias-servicos"
+            categorias={categorias}
+            onChange={(cats) => setCategorias(cats as CategoriaServico[])}
+            onReorder={reorderCategoriasServicosAction}
+          />
+        </Revelar>
       </div>
 
       {loading ? (
@@ -407,7 +325,7 @@ export default function ServicosPage() {
       ) : itensFiltrados.length === 0 ? (
         <p className="text-gray-500 text-sm">Nenhum serviço encontrado.</p>
       ) : (() => {
-          // Agrupar por categoria mantendo ordem global
+          // Agrupa por categoria; dentro do grupo, mantém a ordem global
           const grupos: { categoriaId: string | null; nome: string; itens: Item[] }[] = [];
           const visto = new Set<string | null>();
           for (const item of itensFiltrados) {
@@ -418,6 +336,14 @@ export default function ServicosPage() {
             }
             grupos.find((g) => g.categoriaId === cid)!.itens.push(item);
           }
+          // Ordem dos grupos = ordem das CATEGORIAS (a mesma das abas na landing).
+          // "Sem categoria" por último.
+          const posCategoria = new Map(categorias.map((c, i) => [c.id, i]));
+          grupos.sort((a, b) => {
+            if (a.categoriaId === null) return 1;
+            if (b.categoriaId === null) return -1;
+            return (posCategoria.get(a.categoriaId) ?? Infinity) - (posCategoria.get(b.categoriaId) ?? Infinity);
+          });
           return (
             <>
               {reorderSaving && <p className="text-xs text-gray-500 text-right -mb-1">Salvando ordem...</p>}
@@ -474,8 +400,7 @@ export default function ServicosPage() {
                     <button type="button" onClick={() => setForm((f) => ({ ...f, imagem: "" }))} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#111] border border-[#2d2d2d] rounded-full text-gray-400 hover:text-red-400 flex items-center justify-center text-xs transition">✕</button>
                   </div>
                 )}
-                <input ref={fileRef} type="file" accept="image/*" onChange={handleUpload} className="text-sm text-gray-500 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-[#1a1a1a] file:text-gray-400 hover:file:bg-[#252525]" />
-                {uploading && <span className="text-xs text-gray-500">Enviando...</span>}
+                <InputImagem inputRef={fileRef} onChange={handleUpload} uploading={uploading} temImagem={!!form.imagem} />
                 {uploadError && <span className="text-xs text-red-400">{uploadError}</span>}
               </div>
 
@@ -509,21 +434,25 @@ export default function ServicosPage() {
                 </label>
               </div>
 
-              <label className="flex flex-col gap-1.5">
+              {/* div, não label: o Select do sistema é um <button>, e label só faz
+                  sentido envolvendo controle de formulário nativo. */}
+              <div className="flex flex-col gap-1.5">
                 <span className="text-xs text-gray-400 font-medium">Categoria</span>
-                <select value={form.categoriaId} onChange={(e) => setForm((f) => ({ ...f, categoriaId: e.target.value }))} className={inp} style={{ fontSize: 16 }} spellCheck={false}>
-                  <option value="">Sem categoria</option>
-                  {categorias.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
-              </label>
+                <Select
+                  value={form.categoriaId}
+                  onChange={(v) => setForm((f) => ({ ...f, categoriaId: v }))}
+                  options={[{ value: "", label: "Sem categoria" }, ...categorias.map((c) => ({ value: c.id, label: c.nome }))]}
+                />
+              </div>
 
-              <label className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1.5">
                 <span className="text-xs text-gray-400 font-medium">Status</span>
-                <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as "draft" | "published" }))} className={inp} style={{ fontSize: 16 }} spellCheck={false}>
-                  <option value="published">Publicado</option>
-                  <option value="draft">Rascunho</option>
-                </select>
-              </label>
+                <Select
+                  value={form.status}
+                  onChange={(v) => setForm((f) => ({ ...f, status: v as "draft" | "published" }))}
+                  options={[{ value: "published", label: "Publicado" }, { value: "draft", label: "Rascunho" }]}
+                />
+              </div>
 
               {error && <p className="text-red-400 text-xs">{error}</p>}
             </div>
