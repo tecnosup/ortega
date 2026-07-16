@@ -5,12 +5,14 @@ import {
   IconCheck, IconEdit, IconLoader2, IconPlus, IconTag, IconTrash, IconX,
 } from "@tabler/icons-react";
 import type { Categoria } from "@/lib/admin-categorias";
-import { useToast } from "@/components/ui/Toast";
+import { useSucesso } from "@/components/ui/Sucesso";
+import { useConfirm } from "@/components/ui/Confirm";
 
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded-lg px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] transition w-full";
 
 export default function CategoriasInline({ categorias: initial }: { categorias: Categoria[] }) {
-  const toast = useToast();
+  const sucesso = useSucesso();
+  const confirmar = useConfirm();
   const [open, setOpen] = useState(false);
   const [categorias, setCategorias] = useState(initial);
   const [novoNome, setNovoNome] = useState("");
@@ -32,7 +34,7 @@ export default function CategoriasInline({ categorias: initial }: { categorias: 
     const data = await res.json();
     setCategorias((prev) => [...prev, { id: data.id, nome: novoNome.trim(), order: prev.length, createdAt: Date.now() }]);
     setNovoNome("");
-    toast.sucesso("Categoria criada!");
+    sucesso("Categoria criada!");
   }
 
   async function handleSalvarEdit() {
@@ -43,16 +45,16 @@ export default function CategoriasInline({ categorias: initial }: { categorias: 
     });
     setCategorias((prev) => prev.map((c) => c.id === editId ? { ...c, nome: editNome.trim() } : c));
     setEditId(null);
-    toast.sucesso("Categoria atualizada!");
+    sucesso("Categoria atualizada!");
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Remover esta categoria? Produtos vinculados perderão a categoria.")) return;
+    if (!(await confirmar({ titulo: "Remover categoria", mensagem: "Remover esta categoria? Os produtos vinculados perderão a categoria.", confirmar: "Remover" }))) return;
     setDeletingId(id);
     await fetch(`/api/admin/categorias/${id}`, { method: "DELETE", credentials: "include" });
     setCategorias((prev) => prev.filter((c) => c.id !== id));
     setDeletingId(null);
-    toast.info("Categoria removida");
+    sucesso("Categoria removida!");
   }
 
   return (

@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createProduto, updateProduto, deleteProduto, getProdutoById } from "@/lib/admin-produtos";
-import { criarMovimentacao } from "@/lib/estoque-movimentacoes";
+import { criarMovimentacao, excluirMovimentacoesDoProduto } from "@/lib/estoque-movimentacoes";
 import { logAudit } from "@/lib/audit";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { cookies } from "next/headers";
@@ -94,10 +94,14 @@ export async function updateProdutoAction(
 
 export async function deleteProdutoAction(formData: FormData): Promise<{ ok: boolean; error?: string }> {
   const id = formData.get("id") as string;
+  // se "1", apaga também o histórico de movimentações de estoque do produto
+  // (senão elas ficam órfãs no painel de estoque, mostrando produto inexistente)
+  const apagarHistorico = formData.get("apagarHistorico") === "1";
   let before: Awaited<ReturnType<typeof getProdutoById>> = null;
   try {
     before = await getProdutoById(id);
     await deleteProduto(id);
+    if (apagarHistorico) await excluirMovimentacoesDoProduto(id).catch(() => {});
   } catch {
     return { ok: false, error: "Erro ao remover produto" };
   }
@@ -108,7 +112,7 @@ export async function deleteProdutoAction(formData: FormData): Promise<{ ok: boo
       action: "produto.delete",
       entity: "produto",
       entityId: id,
-      summary: `Produto "${(before as { titulo?: string })?.titulo ?? id}" deletado`,
+      summary: `Produto "${(before as { titulo?: string })?.titulo ?? id}" deletado${apagarHistorico ? " (com histórico de estoque)" : ""}`,
       snapshot: before ?? undefined,
       snapshotAntes: before ?? undefined,
     });
