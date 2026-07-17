@@ -18,6 +18,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const titulo = String(body.titulo ?? "").trim().slice(0, 100);
   if (!titulo) return NextResponse.json({ error: "Título obrigatório" }, { status: 400 });
+  // DURAÇÃO OBRIGATÓRIA — serviço sem duração vira 5min (fallback) e causa
+  // agendamentos sobrepostos. Rejeita na origem (rede de segurança do front).
+  const durNova = sanitizarDuracaoMin(body.duracaoMin);
+  if (!durNova) return NextResponse.json({ error: "Duração obrigatória (em minutos)." }, { status: 400 });
   const id = await createItem({
     titulo,
     descricao: String(body.descricao ?? "").trim(),

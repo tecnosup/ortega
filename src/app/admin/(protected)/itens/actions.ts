@@ -1,70 +1,10 @@
 "use server";
 
-import { redirect } from "next/navigation";
-import { z } from "zod";
-import { createItem, updateItem, deleteItem, getItemById } from "@/lib/admin-items";
-import { logAudit } from "@/lib/audit";
-import { adminAuth, adminDb } from "@/lib/firebase-admin";
-import { cookies } from "next/headers";
+import { adminDb } from "@/lib/firebase-admin";
 
-const schema = z.object({
-  titulo: z.string().min(1),
-  descricao: z.string().min(1),
-  imagem: z.string().default(""),
-  preco: z.string().default(""),
-  duracao: z.string().default(""),
-  categoriaId: z.string().default(""),
-  status: z.enum(["draft", "published"]),
-  order: z.coerce.number().default(0),
-});
-
-async function getActor() {
-  const cookieStore = await cookies();
-  const session = cookieStore.get("base_admin_session")?.value ?? "";
-  try {
-    const decoded = await adminAuth.verifySessionCookie(session, true);
-    return { actorUid: decoded.uid, actorEmail: decoded.email ?? null };
-  } catch {
-    return { actorUid: "unknown", actorEmail: null };
-  }
-}
-
-type ActionResult = { ok: false; error: string } | null;
-
-export async function createItemAction(
-  _: ActionResult,
-  formData: FormData
-): Promise<ActionResult> {
-  const parsed = schema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false, error: "Dados inválidos" };
-  try {
-    const actor = await getActor();
-    const id = await createItem(parsed.data);
-    await logAudit({ ...actor, action: "item.create", entity: "item", entityId: id, summary: `Serviço "${parsed.data.titulo}" criado`, snapshot: parsed.data });
-  } catch {
-    return { ok: false, error: "Erro ao salvar. Tente novamente." };
-  }
-  redirect("/admin/itens");
-}
-
-export async function updateItemAction(
-  _: ActionResult,
-  formData: FormData
-): Promise<ActionResult> {
-  const id = formData.get("id") as string;
-  const parsed = schema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false, error: "Dados inválidos" };
-  try {
-    const actor = await getActor();
-    const before = await getItemById(id);
-    await updateItem(id, parsed.data);
-    await logAudit({ ...actor, action: "item.update", entity: "item", entityId: id, summary: `Serviço "${parsed.data.titulo}" atualizado`, snapshot: parsed.data, snapshotAntes: before ?? undefined });
-  } catch {
-    return { ok: false, error: "Erro ao atualizar. Tente novamente." };
-  }
-  redirect("/admin/itens");
-}
-
+// Criar/editar/remover serviço passou a ser feito pelo drawer da lista, via
+// rotas /api/admin/itens. Sobrou aqui só a reordenação, que a lista chama
+// direto como server action.
 export async function reorderItensAction(ids: string[]): Promise<{ ok: boolean; error?: string }> {
   try {
     const db = adminDb;
@@ -79,15 +19,18 @@ export async function reorderItensAction(ids: string[]): Promise<{ ok: boolean; 
   }
 }
 
-export async function deleteItemAction(formData: FormData) {
-  const id = formData.get("id") as string;
+// Ordem das abas de categoria na seção de Serviços da landing. Espelha
+// reorderCategoriasAction (produtos), só muda a coleção.
+export async function reorderCategoriasServicosAction(ids: string[]): Promise<{ ok: boolean; error?: string }> {
   try {
-    const actor = await getActor();
-    const before = await getItemById(id);
-    await deleteItem(id);
-    await logAudit({ ...actor, action: "item.delete", entity: "item", entityId: id, summary: `Serviço "${(before as { titulo?: string })?.titulo ?? id}" deletado`, snapshot: before ?? undefined, snapshotAntes: before ?? undefined });
+    const db = adminDb;
+    const batch = db.batch();
+    ids.forEach((id, index) => {
+      batch.update(db.collection("categoriasServicos").doc(id), { order: index });
+    });
+    await batch.commit();
+    return { ok: true };
   } catch {
-    // silencia erro de delete — redireciona de qualquer forma
+    return { ok: false, error: "Erro ao reordenar categorias" };
   }
-  redirect("/admin/itens");
 }

@@ -7,8 +7,9 @@ import {
 import type { MovimentacaoEstoque, TipoMovimentacao } from "@/lib/estoque-movimentacoes-tipos";
 import { TIPO_LABEL } from "@/lib/estoque-movimentacoes-tipos";
 import Modal from "@/components/ui/Modal";
+import Select from "@/components/ui/Select";
 import { useModalMount } from "@/components/ui/useModalMount";
-import { useToast } from "@/components/ui/Toast";
+import { useSucesso } from "@/components/ui/Sucesso";
 import type { Produto } from "@/lib/admin-produtos";
 
 const TIPOS: { key: TipoMovimentacao | "todos"; label: string }[] = [
@@ -97,9 +98,16 @@ function NovaMovimentacaoModal({
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-semibold tracking-widest uppercase text-gray-500">Produto</label>
-            <select value={produtoId} onChange={(e) => setProdutoId(e.target.value)} className={inp}>
-              {produtos.map((p) => <option key={p.id} value={p.id}>{p.titulo}</option>)}
-            </select>
+            {/* searchable: nomes de produto são longos e a lista cresce — buscar é
+                mais rápido que rolar. */}
+            <Select
+              value={produtoId}
+              onChange={setProdutoId}
+              options={produtos.map((p) => ({ value: p.id, label: p.titulo }))}
+              placeholder="Selecionar produto"
+              searchable
+              searchPlaceholder="Buscar produto..."
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -165,15 +173,16 @@ function NovaMovimentacaoModal({
   );
 }
 
-const PAGE_SIZE = 5;
+// Quantas movimentações ficam SEMPRE visíveis. Passando disso, o excedente fica
+// recolhido num card "ver mais N" que expande (e "recolher" volta ao limite).
+const LIMITE_VISIVEL = 3;
 
 export default function EstoqueMovimentacoes({ produtos }: { produtos: Produto[] }) {
-  const toast = useToast();
+  const sucesso = useSucesso();
   const [movs, setMovs] = useState<MovimentacaoEstoque[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [expandido, setExpandido] = useState(true);
   const [filtro, setFiltro] = useState<TipoMovimentacao | "todos">("todos");
-  const [visiveis, setVisiveis] = useState(PAGE_SIZE);
+  const [expandido, setExpandido] = useState(false); // excedente recolhido por padrão
   const [modalAberto, setModalAberto] = useState(false);
   const movMount = useModalMount(modalAberto ? true : null);
 
@@ -187,8 +196,9 @@ export default function EstoqueMovimentacoes({ produtos }: { produtos: Produto[]
   useEffect(() => { carregar(); }, [carregar]);
 
   const filtrados = filtro === "todos" ? movs : movs.filter((m) => m.tipo === filtro);
-  const exibidos = filtrados.slice(0, visiveis);
-  const restantes = filtrados.length - visiveis;
+  // sempre mostra as LIMITE_VISIVEL mais recentes; o resto só quando expandido
+  const exibidos = expandido ? filtrados : filtrados.slice(0, LIMITE_VISIVEL);
+  const excedente = filtrados.length - LIMITE_VISIVEL;
 
   return (
     <>
@@ -197,118 +207,115 @@ export default function EstoqueMovimentacoes({ produtos }: { produtos: Produto[]
           key={movMount.key}
           open={movMount.open}
           produtos={produtos}
-          onSalvar={() => { setModalAberto(false); toast.sucesso("Movimentação registrada!"); carregar(); }}
+          onSalvar={() => { setModalAberto(false); sucesso("Movimentação registrada!"); carregar(); }}
           onFechar={() => setModalAberto(false)}
         />
       )}
 
       <div className="border border-[#2d2d2d] rounded-lg overflow-hidden">
         {/* Cabeçalho */}
-        <div className="flex items-center justify-between px-5 py-4 bg-[#111] border-b border-[#2d2d2d]">
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] font-bold tracking-widest uppercase text-[#F5E6C8]">
+        {/* Título e contador empilhados: lado a lado eles somam mais que a largura
+            do celular e brigavam com o botão. min-w-0 no bloco + shrink-0 no botão
+            garantem que quem cede espaço é o texto, nunca a ação. */}
+        <div className="flex items-center justify-between gap-3 px-5 py-4 bg-[#111] border-b border-[#2d2d2d]">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold tracking-widest uppercase text-[#F5E6C8] leading-tight">
               Movimentações de Estoque
-            </span>
-            <span className="text-[10px] text-gray-600 tracking-widest uppercase">
+            </p>
+            <p className="text-[10px] text-gray-600 tracking-widest uppercase mt-1">
               {movs.length} registro{movs.length !== 1 ? "s" : ""}
-            </span>
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setModalAberto(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase text-[#0A0A0A] bg-[#b8944a] rounded hover:bg-[#c9a84c] transition"
-            >
-              <IconPlus size={11} /> Registrar
-            </button>
-            <button
-              onClick={() => setExpandido((v) => !v)}
-              className="p-1.5 text-gray-500 hover:text-gray-300 transition"
-            >
-              {expandido ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
-            </button>
-          </div>
+          <button
+            onClick={() => setModalAberto(true)}
+            className="shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase text-[#0A0A0A] bg-[#b8944a] rounded hover:bg-[#c9a84c] transition"
+          >
+            <IconPlus size={11} /> Registrar
+          </button>
         </div>
 
-        {expandido && (
-          <>
-            {/* Filtros */}
-            <div className="flex gap-0 bg-[#0d0d0d] border-b border-[#2d2d2d] overflow-x-auto">
-              {TIPOS.map((t) => (
-                <button
-                  key={t.key}
-                  onClick={() => { setFiltro(t.key); setVisiveis(PAGE_SIZE); }}
-                  className={`px-4 py-2.5 text-[10px] font-bold tracking-widest uppercase shrink-0 border-r border-[#1a1a1a] transition ${
-                    filtro === t.key
-                      ? "bg-[#111] text-[#F5E6C8] border-b-2 border-b-[#b8944a]"
-                      : "text-gray-600 hover:text-gray-400 hover:bg-[#111]/50"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
+        {/* Filtros em pílula — mesmo padrão do filtro de status em /admin/itens.
+            Eram abas, mas as 5 somam ~490px contra ~335px de tela no celular: em
+            uma linha vazavam, e aba não sobrevive a quebra de linha (sobra borda
+            lateral solta e célula vazia, parece defeito). Pílula é feita pra fluir. */}
+        <div className="flex flex-wrap gap-1.5 px-5 py-3 bg-[#0d0d0d] border-b border-[#2d2d2d]">
+          {TIPOS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => { setFiltro(t.key); setExpandido(false); }}
+              className={`px-3 py-1 text-xs rounded-full border whitespace-nowrap transition ${
+                filtro === t.key
+                  ? "border-[#b8944a] text-[#b8944a] bg-[#b8944a]/10"
+                  : "border-[#2d2d2d] text-gray-500 hover:border-[#444] hover:text-gray-300"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-            {/* Lista */}
-            <div className="bg-[#0A0A0A]">
-              {carregando ? (
-                <p className="text-xs text-gray-600 text-center py-10">Carregando...</p>
-              ) : filtrados.length === 0 ? (
-                <p className="text-xs text-gray-600 text-center py-10">Nenhuma movimentação registrada.</p>
-              ) : (
-                <>
-                  {exibidos.map((m) => {
-                    const badge = TIPO_BADGE[m.tipo];
-                    return (
-                    <div key={m.id} className="flex items-center gap-4 px-5 py-3.5 border-b border-[#1a1a1a] last:border-0 hover:bg-[#111] transition">
-                      {/* Produto + badge de tipo */}
-                      <div className="relative shrink-0">
-                        <div className="w-10 h-10 rounded-lg border border-[#2d2d2d] overflow-hidden bg-[#111] flex items-center justify-center">
-                          {m.produtoImagem ? (
-                            <img src={m.produtoImagem} alt={m.produtoNome} className="w-full h-full object-cover" />
-                          ) : (
-                            <IconShoppingBag size={15} className="text-gray-600" />
-                          )}
-                        </div>
-                        <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-white border ${badge.bg} ${badge.border}`}>
-                          {badge.icon}
-                        </span>
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[#F5E6C8] truncate">{m.produtoNome}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className={`text-[10px] font-semibold uppercase tracking-wider ${TIPO_COR[m.tipo]}`}>
-                            {TIPO_LABEL[m.tipo]}
-                          </span>
-                          {m.obs && <span className="text-[10px] text-gray-600 truncate">· {m.obs}</span>}
-                        </div>
-                      </div>
-
-                      {/* Quantidade + data */}
-                      <div className="text-right shrink-0">
-                        <p className={`text-sm font-bold tabular-nums ${TIPO_COR[m.tipo]}`}>
-                          {m.quantidade > 0 ? "+" : ""}{m.quantidade}
-                        </p>
-                        <p className="text-[10px] text-gray-600 mt-0.5">{formatData(m.criadoEm)}</p>
-                      </div>
+        {/* Lista — sempre mostra as mais recentes (até LIMITE_VISIVEL); o resto expande */}
+        <div className="bg-[#0A0A0A]">
+          {carregando ? (
+            <p className="text-xs text-gray-600 text-center py-10">Carregando...</p>
+          ) : filtrados.length === 0 ? (
+            <p className="text-xs text-gray-600 text-center py-10">Nenhuma movimentação registrada.</p>
+          ) : (
+            <>
+              {exibidos.map((m) => {
+                const badge = TIPO_BADGE[m.tipo];
+                return (
+                <div key={m.id} className="flex items-center gap-4 px-5 py-3.5 border-b border-[#1a1a1a] last:border-0 hover:bg-[#111] transition">
+                  {/* Produto + badge de tipo */}
+                  <div className="relative shrink-0">
+                    <div className="w-10 h-10 rounded-lg border border-[#2d2d2d] overflow-hidden bg-[#111] flex items-center justify-center">
+                      {m.produtoImagem ? (
+                        <img src={m.produtoImagem} alt={m.produtoNome} className="w-full h-full object-cover" />
+                      ) : (
+                        <IconShoppingBag size={15} className="text-gray-600" />
+                      )}
                     </div>
-                    );
-                  })}
+                    <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-white border ${badge.bg} ${badge.border}`}>
+                      {badge.icon}
+                    </span>
+                  </div>
 
-                  {restantes > 0 && (
-                    <button
-                      onClick={() => setVisiveis((v) => v + PAGE_SIZE)}
-                      className="w-full py-3 text-[10px] font-bold tracking-widest uppercase text-gray-600 hover:text-[#b8944a] hover:bg-[#111] transition border-t border-[#1a1a1a]"
-                    >
-                      ↓ Ver mais ({restantes} restantes)
-                    </button>
-                  )}
-                </>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[#F5E6C8] truncate">{m.produtoNome}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className={`text-[10px] font-semibold uppercase tracking-wider ${TIPO_COR[m.tipo]}`}>
+                        {TIPO_LABEL[m.tipo]}
+                      </span>
+                      {m.obs && <span className="text-[10px] text-gray-600 truncate">· {m.obs}</span>}
+                    </div>
+                  </div>
+
+                  {/* Quantidade + data */}
+                  <div className="text-right shrink-0">
+                    <p className={`text-sm font-bold tabular-nums ${TIPO_COR[m.tipo]}`}>
+                      {m.quantidade > 0 ? "+" : ""}{m.quantidade}
+                    </p>
+                    <p className="text-[10px] text-gray-600 mt-0.5">{formatData(m.criadoEm)}</p>
+                  </div>
+                </div>
+                );
+              })}
+
+              {/* card colapsável do excedente */}
+              {excedente > 0 && (
+                <button
+                  onClick={() => setExpandido((v) => !v)}
+                  className="w-full flex items-center justify-center gap-1.5 py-3 text-[10px] font-bold tracking-widest uppercase text-gray-500 hover:text-[#b8944a] hover:bg-[#111] transition border-t border-[#1a1a1a]"
+                >
+                  {expandido
+                    ? <><IconChevronUp size={13} /> Recolher</>
+                    : <><IconChevronDown size={13} /> Ver mais {excedente} movimentaç{excedente !== 1 ? "ões" : "ão"}</>}
+                </button>
               )}
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </>
   );

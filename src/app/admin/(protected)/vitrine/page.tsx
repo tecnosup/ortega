@@ -11,9 +11,71 @@ import type { Item } from "@/lib/admin-items";
 import type { Produto } from "@/lib/admin-produtos";
 import { useSucesso } from "@/components/ui/Sucesso";
 import { useToast } from "@/components/ui/Toast";
+import InputImagem from "@/components/ui/InputImagem";
 
 const inp = "bg-[#0A0A0A] border border-[#2d2d2d] rounded px-3 py-2 text-sm text-[#F5E6C8] focus:outline-none focus:border-[#b8944a] w-full";
 const card = "bg-[#111] border border-[#2d2d2d] rounded-lg";
+
+// Limite máximo de caracteres por campo da vitrine. Hierarquia pelo tamanho que
+// o texto ocupa na landing: quanto MAIOR a fonte / mais estreito o espaço, MENOR
+// o limite — senão o texto quebra a responsividade.
+//  - heroTitulo: renderiza gigante (text-5xl→text-8xl no Hero) → o mais curto
+//  - heroSubtitulo: max-w-sm, 1 frase
+//  - sobreTexto: parágrafo, aguenta bem mais
+//  - enderecoTexto: 1 linha no rodapé
+//  - contato (whatsapp/email/instagram/embed): limite pelo formato, não pelo layout
+const LIMITES: Record<string, number> = {
+  heroTitulo: 40,
+  heroSubtitulo: 120,
+  sobreTexto: 400,
+  enderecoTexto: 120,
+  whatsappNumber: 15,
+  emailContato: 100,
+  instagramUrl: 100,
+  enderecoEmbed: 600,
+};
+
+// Campo de texto (input ou textarea) com maxLength + contador "atual/limite".
+// Controla o próprio contador internamente mas continua sendo um campo de form
+// nativo (name + defaultValue) — então o submit por FormData segue funcionando.
+// onChange externo (usado nos previews ao vivo do hero/sobre) é repassado.
+function CampoContador({
+  name, defaultValue = "", limite, textarea, rows, onChange, ...rest
+}: {
+  name: string;
+  defaultValue?: string;
+  limite: number;
+  textarea?: boolean;
+  rows?: number;
+  onChange?: (v: string) => void;
+} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "name" | "defaultValue">
+  & Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange" | "name" | "defaultValue">) {
+  const [len, setLen] = useState(defaultValue.length);
+  const perto = len >= limite * 0.9; // aviso visual quando chega perto do limite
+  const handle = (v: string) => { setLen(v.length); onChange?.(v); };
+  return (
+    <div className="flex flex-col gap-1">
+      {textarea ? (
+        <textarea
+          name={name} defaultValue={defaultValue} maxLength={limite} rows={rows}
+          onChange={(e) => handle(e.target.value)}
+          className={`${inp} resize-none`}
+          {...(rest as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
+        />
+      ) : (
+        <input
+          name={name} defaultValue={defaultValue} maxLength={limite}
+          onChange={(e) => handle(e.target.value)}
+          className={inp}
+          {...(rest as React.InputHTMLAttributes<HTMLInputElement>)}
+        />
+      )}
+      <span className={`text-[11px] self-end tabular-nums ${perto ? "text-[#b8944a]" : "text-gray-600"}`}>
+        {len}/{limite}
+      </span>
+    </div>
+  );
+}
 
 function ImageUpload({ label, name, current, folder, onUrlChange }: { label: string; name: string; current: string; folder: string; onUrlChange?: (url: string) => void }) {
   const [url, setUrlState] = useState(current);
@@ -57,8 +119,7 @@ function ImageUpload({ label, name, current, folder, onUrlChange }: { label: str
           </div>
         )}
       </div>
-      <input type="file" accept="image/*" onChange={handleUpload}
-        className="text-sm text-gray-500 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-[#1a1a1a] file:text-gray-400 hover:file:bg-[#252525]" />
+      <InputImagem onChange={handleUpload} uploading={uploading} temImagem={!!url} />
       <input type="text" value={url} onChange={(e) => { setUrl(e.target.value); setImgQuebrada(false); }} placeholder="ou cole uma URL" className={inp + " mt-1"} />
       {error && <span className="text-xs text-red-400">{error}</span>}
     </div>
@@ -359,7 +420,7 @@ export default function VitrinePage() {
         </div>
 
         {!destaqueAtivo && (
-          <p className="text-xs text-gray-600 -mt-1">Desativado — o topo do site mostra o selo padrão "Desde 2026".</p>
+          <p className="text-xs text-gray-600 -mt-1">Desativado — o topo do site mostra o selo padrão &quot;Desde 2026&quot;.</p>
         )}
 
         {/* conteúdo retrátil: expande ao ligar o toggle, recolhe ao desligar */}
@@ -444,11 +505,11 @@ export default function VitrinePage() {
 
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-400 uppercase tracking-wide">Título do hero</label>
-            <input name="heroTitulo" defaultValue={settings.heroTitulo} onChange={(e) => setPrevCampo("titulo")(e.target.value)} spellCheck={false} className={inp} required />
+            <CampoContador name="heroTitulo" defaultValue={settings.heroTitulo} limite={LIMITES.heroTitulo} onChange={setPrevCampo("titulo")} spellCheck={false} required />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-400 uppercase tracking-wide">Subtítulo do hero</label>
-            <input name="heroSubtitulo" defaultValue={settings.heroSubtitulo} onChange={(e) => setPrevCampo("subtitulo")(e.target.value)} spellCheck={false} className={inp} required />
+            <CampoContador name="heroSubtitulo" defaultValue={settings.heroSubtitulo} limite={LIMITES.heroSubtitulo} onChange={setPrevCampo("subtitulo")} spellCheck={false} required />
           </div>
           <ImageUpload label="Imagem de fundo do hero" name="heroImagemFundo" current={settings.heroImagemFundo} folder="ortega/hero" onUrlChange={setPrevCampo("fundo")} />
           <ImageUpload label="Foto retrato do hero" name="heroImagemRetrato" current={settings.heroImagemRetrato} folder="ortega/hero" onUrlChange={setPrevCampo("retrato")} />
@@ -456,11 +517,11 @@ export default function VitrinePage() {
 
         {/* Seção Sobre */}
         <div className={`${card} p-5 flex flex-col gap-4`}>
-          <p className="text-[10px] font-medium tracking-widest uppercase text-[#b8944a]">Seção "Sobre nós"</p>
+          <p className="text-[10px] font-medium tracking-widest uppercase text-[#b8944a]">Seção &quot;Sobre nós&quot;</p>
           <SobrePreview texto={prev.sobreTexto} imagem={prev.sobreImagem} />
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-400 uppercase tracking-wide">Texto sobre nós</label>
-            <textarea name="sobreTexto" rows={4} defaultValue={settings.sobreTexto} onChange={(e) => setPrevCampo("sobreTexto")(e.target.value)} className={`${inp} resize-none`} required />
+            <CampoContador textarea rows={4} name="sobreTexto" defaultValue={settings.sobreTexto} limite={LIMITES.sobreTexto} onChange={setPrevCampo("sobreTexto")} required />
           </div>
           <ImageUpload label="Foto da seção Sobre Nós" name="sobreImagem" current={settings.sobreImagem} folder="ortega/sobre" onUrlChange={setPrevCampo("sobreImagem")} />
         </div>
@@ -470,24 +531,24 @@ export default function VitrinePage() {
           <p className="text-[10px] font-medium tracking-widest uppercase text-[#b8944a]">Contato</p>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-400 uppercase tracking-wide">WhatsApp (com DDI, ex: 5511999999999)</label>
-            <input name="whatsappNumber" defaultValue={settings.whatsappNumber} spellCheck={false} className={inp} />
+            <CampoContador name="whatsappNumber" defaultValue={settings.whatsappNumber} limite={LIMITES.whatsappNumber} inputMode="numeric" spellCheck={false} />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-400 uppercase tracking-wide">E-mail de contato</label>
-            <input name="emailContato" type="email" defaultValue={settings.emailContato} spellCheck={false} className={inp} />
+            <CampoContador name="emailContato" type="email" defaultValue={settings.emailContato} limite={LIMITES.emailContato} spellCheck={false} />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-400 uppercase tracking-wide">Instagram (URL completa, ex: https://instagram.com/ortegabarber)</label>
-            <input name="instagramUrl" defaultValue={settings.instagramUrl} placeholder="https://instagram.com/seuperfil" spellCheck={false} className={inp} />
+            <CampoContador name="instagramUrl" defaultValue={settings.instagramUrl} limite={LIMITES.instagramUrl} placeholder="https://instagram.com/seuperfil" spellCheck={false} />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-400 uppercase tracking-wide">Endereço</label>
-            <input name="enderecoTexto" defaultValue={settings.enderecoTexto} placeholder="Rua, número — Bairro, Cidade" spellCheck={false} className={inp} />
+            <CampoContador name="enderecoTexto" defaultValue={settings.enderecoTexto} limite={LIMITES.enderecoTexto} placeholder="Rua, número — Bairro, Cidade" spellCheck={false} />
             <span className="text-[11px] text-gray-500">Aparece no rodapé e o mapa da página é gerado automaticamente a partir dele.</span>
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-400 uppercase tracking-wide">Mapa — link de embed (opcional)</label>
-            <input name="enderecoEmbed" defaultValue={settings.enderecoEmbed} placeholder="Deixe vazio para usar o endereço acima" spellCheck={false} className={inp} />
+            <CampoContador name="enderecoEmbed" defaultValue={settings.enderecoEmbed} limite={LIMITES.enderecoEmbed} placeholder="Deixe vazio para usar o endereço acima" spellCheck={false} />
             <span className="text-[11px] text-gray-500">Só preencha se quiser fixar um embed específico do Google Maps. Em branco, o mapa segue o endereço.</span>
           </div>
         </div>

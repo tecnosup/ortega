@@ -1,25 +1,10 @@
 "use server";
 
-import { redirect } from "next/navigation";
-import { z } from "zod";
-import { createProduto, updateProduto, deleteProduto, getProdutoById } from "@/lib/admin-produtos";
-import { criarMovimentacao } from "@/lib/estoque-movimentacoes";
+import { updateProduto, deleteProduto, getProdutoById } from "@/lib/admin-produtos";
+import { excluirMovimentacoesDoProduto } from "@/lib/estoque-movimentacoes";
 import { logAudit } from "@/lib/audit";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { cookies } from "next/headers";
-import { FieldValue } from "firebase-admin/firestore";
-
-const schema = z.object({
-  titulo: z.string().min(1),
-  descricao: z.string().default(""),
-  imagem: z.string().default(""),
-  preco: z.string().default(""),
-  status: z.enum(["draft", "published"]),
-  order: z.coerce.number().default(0),
-  categoriaId: z.string().optional(),
-  estoque: z.coerce.number().min(0).default(0),
-  estoqueMinimo: z.coerce.number().min(0).default(5),
-});
 
 async function getActor() {
   const cookieStore = await cookies();
@@ -32,72 +17,19 @@ async function getActor() {
   }
 }
 
-type ActionResult = { ok: false; error: string } | null;
-
-export async function createProdutoAction(
-  _: ActionResult,
-  formData: FormData
-): Promise<ActionResult> {
-  const parsed = schema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false, error: "Dados inválidos" };
-  try {
-    const actor = await getActor();
-    const id = await createProduto(parsed.data);
-    if (parsed.data.estoque > 0) {
-      await criarMovimentacao({
-        produtoId: id,
-        produtoNome: parsed.data.titulo,
-        tipo: "reposicao",
-        quantidade: parsed.data.estoque,
-        obs: "Estoque inicial",
-      });
-    }
-    await logAudit({
-      ...actor,
-      action: "produto.create",
-      entity: "produto",
-      entityId: id,
-      summary: `Produto "${parsed.data.titulo}" criado`,
-      snapshot: parsed.data,
-    });
-  } catch (e) {
-    return { ok: false, error: `Erro ao salvar: ${e instanceof Error ? e.message : String(e)}` };
-  }
-  redirect("/admin/produtos");
-}
-
-export async function updateProdutoAction(
-  _: ActionResult,
-  formData: FormData
-): Promise<ActionResult> {
-  const id = formData.get("id") as string;
-  const parsed = schema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false, error: "Dados inválidos" };
-  try {
-    const actor = await getActor();
-    const before = await getProdutoById(id);
-    await updateProduto(id, parsed.data);
-    await logAudit({
-      ...actor,
-      action: "produto.update",
-      entity: "produto",
-      entityId: id,
-      summary: `Produto "${parsed.data.titulo}" atualizado`,
-      snapshot: parsed.data,
-      snapshotAntes: before ?? undefined,
-    });
-  } catch {
-    return { ok: false, error: "Erro ao atualizar. Tente novamente." };
-  }
-  redirect("/admin/produtos");
-}
-
+// Criar/editar produto passou a ser feito pelo ProdutoModal, via rotas
+// /api/admin/produtos. As actions de criação/edição foram removidas junto com
+// as páginas /produtos/novo e /produtos/[id]/editar, que ninguém linkava.
 export async function deleteProdutoAction(formData: FormData): Promise<{ ok: boolean; error?: string }> {
   const id = formData.get("id") as string;
+  // se "1", apaga também o histórico de movimentações de estoque do produto
+  // (senão elas ficam órfãs no painel de estoque, mostrando produto inexistente)
+  const apagarHistorico = formData.get("apagarHistorico") === "1";
   let before: Awaited<ReturnType<typeof getProdutoById>> = null;
   try {
     before = await getProdutoById(id);
     await deleteProduto(id);
+    if (apagarHistorico) await excluirMovimentacoesDoProduto(id).catch(() => {});
   } catch {
     return { ok: false, error: "Erro ao remover produto" };
   }
@@ -108,7 +40,7 @@ export async function deleteProdutoAction(formData: FormData): Promise<{ ok: boo
       action: "produto.delete",
       entity: "produto",
       entityId: id,
-      summary: `Produto "${(before as { titulo?: string })?.titulo ?? id}" deletado`,
+      summary: `Produto "${(before as { titulo?: string })?.titulo ?? id}" deletado${apagarHistorico ? " (com histórico de estoque)" : ""}`,
       snapshot: before ?? undefined,
       snapshotAntes: before ?? undefined,
     });
@@ -141,6 +73,22 @@ export async function reorderProdutosAction(ids: string[]): Promise<{ ok: boolea
     return { ok: true };
   } catch {
     return { ok: false, error: "Erro ao reordenar" };
+  }
+}
+
+// Ordem das abas de categoria na landing. getCategorias() já faz orderBy("order")
+// e a landing preserva a ordem do array, então gravar o índice aqui basta.
+export async function reorderCategoriasAction(ids: string[]): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const db = adminDb;
+    const batch = db.batch();
+    ids.forEach((id, index) => {
+      batch.update(db.collection("categoriasProdutos").doc(id), { order: index });
+    });
+    await batch.commit();
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Erro ao reordenar categorias" };
   }
 }
 

@@ -15,7 +15,18 @@ interface AuditLog {
   entityId: string;
   summary?: string;
   snapshotAntes?: Record<string, unknown>;
-  createdAt: { _seconds: number } | number | null;
+  createdAt: number | null; // milissegundos (normalizado na fonte)
+}
+
+// Timestamp do Firestore → milissegundos. Antes o server mandava segundos e o
+// front usava como ms → tudo virava "21/01/1970". Convertendo aqui, corrige.
+function tsParaMs(ts: unknown): number | null {
+  if (!ts) return null;
+  if (typeof ts === "number") return ts;
+  const o = ts as { _seconds?: number; seconds?: number; toMillis?: () => number };
+  if (typeof o.toMillis === "function") return o.toMillis();
+  const s = o._seconds ?? o.seconds;
+  return typeof s === "number" ? s * 1000 : null;
 }
 
 export default async function AuditoriaPage() {
@@ -25,7 +36,7 @@ export default async function AuditoriaPage() {
     const snap = await db
       .collection("auditLogs")
       .orderBy("createdAt", "desc")
-      .limit(100)
+      .limit(25) // "Recentes" mostra poucos; o resto vem no "Ver mais" (−75% de leitura ao abrir)
       .get();
     logs = snap.docs.map((d) => {
       const data = d.data();
@@ -37,7 +48,7 @@ export default async function AuditoriaPage() {
         entityId: data.entityId ?? "",
         summary: data.summary ?? undefined,
         snapshotAntes: data.snapshotAntes ?? undefined,
-        createdAt: data.createdAt?._seconds ?? data.createdAt?.seconds ?? null,
+        createdAt: tsParaMs(data.createdAt),
       } as AuditLog;
     });
   } catch {

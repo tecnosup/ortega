@@ -454,8 +454,8 @@ export default function AgendamentoPage() {
         return prev2;
       });
       setStep("confirmado");
-    } catch (err: any) {
-      setErros({ geral: err.message });
+    } catch (err) {
+      setErros({ geral: err instanceof Error ? err.message : String(err) });
     } finally {
       setSalvando(false);
     }

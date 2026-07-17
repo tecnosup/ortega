@@ -90,8 +90,8 @@ function StatusContent() {
       if (!res.ok) throw new Error(json.error ?? "Erro ao buscar agendamentos");
       setAgendamentos(json.agendamentos);
       setUltimaAtualizacao(new Date());
-    } catch (e: any) {
-      setErro(e.message);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }

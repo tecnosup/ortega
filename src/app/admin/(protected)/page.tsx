@@ -353,12 +353,13 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── CORPO PRINCIPAL: gráfico + agendamentos ─────────────────────────── */}
-      <div className="grid md:grid-cols-[1fr_380px] gap-5">
+      {/* min-w-0: ResponsiveContainer não encolhe sozinho e estoura a coluna do grid */}
+      <div className="grid md:grid-cols-[1fr_380px] gap-5 [&>*]:min-w-0">
 
         {/* gráfico de faturamento acumulado */}
         <div className={`${card} p-6 flex flex-col gap-4`}>
-          <div className="flex items-start justify-between">
-            <div>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
               <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500">Faturamento — últimos 30 dias</p>
               <p className="text-xs text-gray-600 mt-0.5">Receita acumulada</p>
               <p className="text-2xl font-bold text-[#F5E6C8] mt-1">{brl(faturamentoMes)}</p>
@@ -402,8 +403,8 @@ export default function AdminDashboard() {
         {/* agendamentos recentes */}
         <div className={`${card} flex flex-col`}>
           <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-[#1a1a1a]">
-            <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500">Agendamentos recentes</p>
-            <Link href="/admin/agendamentos" className="text-xs text-[#b8944a] hover:underline">Ver todos →</Link>
+            <p className="text-[10px] font-medium tracking-widest uppercase text-gray-500 truncate">Agendamentos recentes</p>
+            <Link href="/admin/agendamentos" className="text-xs text-[#b8944a] hover:underline whitespace-nowrap shrink-0">Ver todos →</Link>
           </div>
           <div className="flex-1 flex flex-col divide-y divide-[#1a1a1a] overflow-y-auto max-h-72">
             {agendamentos.slice(0, 12).map((ag) => {
@@ -442,7 +443,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── CALENDÁRIO + RANKING ─────────────────────────────────────────────── */}
-      <div className="grid md:grid-cols-2 gap-5">
+      <div className="grid md:grid-cols-2 gap-5 [&>*]:min-w-0">
         {/* calendário */}
         <div className={`${card} p-5`}>
           <div className="flex items-center justify-between mb-4">
@@ -484,11 +485,11 @@ export default function AdminDashboard() {
                 const pct = (dados.quantidade / rankServicos[0][1].quantidade) * 100;
                 return (
                   <div key={servico} className="flex items-center gap-3">
-                    <span className="text-xs text-gray-600 w-4">{idx + 1}</span>
-                    <div className="flex-1">
-                      <div className="flex justify-between text-xs mb-0.5">
-                        <span className="font-medium text-[#F5E6C8]">{servico}</span>
-                        <span className="text-gray-500">{dados.quantidade}x · {brl(dados.total)}</span>
+                    <span className="text-xs text-gray-600 w-4 shrink-0">{idx + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between gap-2 text-xs mb-0.5">
+                        <span className="font-medium text-[#F5E6C8] truncate">{servico}</span>
+                        <span className="text-gray-500 whitespace-nowrap shrink-0">{dados.quantidade}x · {brl(dados.total)}</span>
                       </div>
                       <div className="h-1.5 bg-[#1a1a1a] rounded-full overflow-hidden"><div className="h-full bg-[#b8944a] rounded-full" style={{ width: `${pct}%` }} /></div>
                     </div>
