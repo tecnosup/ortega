@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   IconAlertCircle, IconCalendar, IconCircleCheck, IconCircleX, IconLoader2, IconScissors, IconX,
 } from "@tabler/icons-react";
+import Link from "next/link";
 import { PLANOS_PUBLICOS } from "@/lib/stripe-tipos";
 import type { AssinaturaResumo } from "@/lib/stripe-tipos";
 
@@ -239,9 +240,9 @@ export default function MinhaAssinaturaPage() {
             </div>
           )}
 
-          <a href="/" className="text-center text-xs text-gray-600 hover:text-[#b8944a] transition">
+          <Link href="/" className="text-center text-xs text-gray-600 hover:text-[#b8944a] transition">
             ← Voltar para o site
-          </a>
+          </Link>
         </div>
       </div>
     </>

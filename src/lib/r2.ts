@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 
 const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
 const accessKeyId = process.env.R2_ACCESS_KEY_ID;
@@ -21,7 +21,6 @@ function assertConfigured(): void {
 
 // AWS Signature V4 para R2 (compatível com S3)
 function sign(key: Buffer, msg: string): Buffer {
-  const { createHmac } = require("node:crypto");
   return createHmac("sha256", key).update(msg).digest();
 }
 
@@ -55,8 +54,7 @@ export async function uploadToR2(
   const region = "auto";
   const service = "s3";
 
-  const { createHash: ch } = require("node:crypto");
-  const payloadHash = ch("sha256").update(buffer).digest("hex");
+  const payloadHash = createHash("sha256").update(buffer).digest("hex");
 
   const canonicalHeaders =
     `content-type:${mime}\n` +
@@ -80,7 +78,7 @@ export async function uploadToR2(
     "AWS4-HMAC-SHA256",
     amzDate,
     credentialScope,
-    ch("sha256").update(canonicalRequest).digest("hex"),
+    createHash("sha256").update(canonicalRequest).digest("hex"),
   ].join("\n");
 
   const signingKey = getSignatureKey(secretAccessKey!, dateStamp, region, service);
@@ -125,8 +123,7 @@ export async function deleteFromR2(key: string): Promise<void> {
   const region = "auto";
   const service = "s3";
 
-  const { createHash: ch } = require("node:crypto");
-  const payloadHash = ch("sha256").update("").digest("hex");
+  const payloadHash = createHash("sha256").update("").digest("hex");
 
   const canonicalHeaders =
     `host:${accountId}.r2.cloudflarestorage.com\n` +
@@ -149,7 +146,7 @@ export async function deleteFromR2(key: string): Promise<void> {
     "AWS4-HMAC-SHA256",
     amzDate,
     credentialScope,
-    ch("sha256").update(canonicalRequest).digest("hex"),
+    createHash("sha256").update(canonicalRequest).digest("hex"),
   ].join("\n");
 
   const signingKey = getSignatureKey(secretAccessKey!, dateStamp, region, service);

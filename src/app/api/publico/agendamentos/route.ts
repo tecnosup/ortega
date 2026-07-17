@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import type { Agendamento } from "@/lib/agendamentos-types";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,8 @@ export async function GET(req: NextRequest) {
     .get();
 
   const agendamentos = snap.docs
-    .map((d) => ({ id: d.id, ...d.data() } as any))
+    // O doc não é validado em runtime; o tipo só declara o que esta rota lê.
+    .map((d) => ({ id: d.id, ...(d.data() as Omit<Agendamento, "id">) }))
     .filter((a) => normalizeTelefone(a.telefone ?? "") === normalized)
     .map((a) => ({
       id: a.id,

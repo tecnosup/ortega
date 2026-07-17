@@ -11,7 +11,7 @@ export interface AuditLog {
   entityId: string;
   summary?: string;
   snapshotAntes?: Record<string, unknown>;
-  createdAt: { _seconds: number } | number | null;
+  createdAt: number | null; // milissegundos (normalizado na fonte)
 }
 
 export type PeriodFilter = "30d" | "3m" | "6m" | "1y";
@@ -27,8 +27,21 @@ function serializeLog(d: any): AuditLog {
     entityId: data.entityId ?? "",
     summary: data.summary ?? undefined,
     snapshotAntes: data.snapshotAntes ?? undefined,
-    createdAt: data.createdAt?._seconds ?? data.createdAt?.seconds ?? null,
+    createdAt: tsParaMs(data.createdAt),
   };
+}
+
+// Normaliza o createdAt para MILISSEGUNDOS na fonte. O Firestore serverTimestamp
+// vira um Timestamp (.seconds/.nanoseconds ou ._seconds); antes o server mandava
+// SEGUNDOS e o front usava como ms → tudo caía em "21/01/1970". Convertendo aqui,
+// o front recebe sempre ms e a data fica correta.
+function tsParaMs(ts: unknown): number | null {
+  if (!ts) return null;
+  if (typeof ts === "number") return ts;
+  const o = ts as { _seconds?: number; seconds?: number; toMillis?: () => number };
+  if (typeof o.toMillis === "function") return o.toMillis();
+  const s = o._seconds ?? o.seconds;
+  return typeof s === "number" ? s * 1000 : null;
 }
 
 const PERIOD_MS: Record<PeriodFilter, number> = {

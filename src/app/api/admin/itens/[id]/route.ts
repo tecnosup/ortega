@@ -25,9 +25,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.preco !== undefined) patch.preco = String(body.preco).trim();
   if (body.duracao !== undefined) patch.duracao = String(body.duracao).trim();
   if (body.duracaoMin !== undefined) {
+    // DURAÇÃO OBRIGATÓRIA — não permite salvar serviço sem duração (causa de
+    // agendamentos sobrepostos). Valor inválido/vazio é rejeitado.
     const dm = sanitizarDuracaoMin(body.duracaoMin);
-    // string vazia = admin limpou o campo → zera; senão grava o valor saneado
-    patch.duracaoMin = dm ?? 0;
+    if (!dm) return NextResponse.json({ error: "Duração obrigatória (em minutos)." }, { status: 400 });
+    patch.duracaoMin = dm;
+    // mantém o texto legado em sincronia
+    patch.duracao = `${dm} min`;
   }
   if (body.categoriaId !== undefined) patch.categoriaId = body.categoriaId ? String(body.categoriaId).trim() : null;
   if (body.status !== undefined) patch.status = body.status === "draft" ? "draft" : "published";

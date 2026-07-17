@@ -11,6 +11,7 @@ import type { CategoriaFuncionario } from "@/lib/categorias-funcionarios";
 import Modal from "@/components/ui/Modal";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useSucesso } from "@/components/ui/Sucesso";
+import Select from "@/components/ui/Select";
 
 type Form = {
   nome: string;
@@ -648,13 +649,15 @@ export default function FuncionariosPage() {
                 </label>
               </div>
 
-              <label className="flex flex-col gap-1.5">
+              {/* div, não label: o Select do sistema é um <button>. */}
+              <div className="flex flex-col gap-1.5">
                 <span className="text-xs text-gray-400 font-medium">Tipo</span>
-                <select value={form.tipo} onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value }))} className={inp} style={{ fontSize: 16 }} spellCheck={false}>
-                  <option value="">Sem tipo</option>
-                  {categorias.map((c) => <option key={c.id} value={c.nome}>{c.nome}</option>)}
-                </select>
-              </label>
+                <Select
+                  value={form.tipo}
+                  onChange={(v) => setForm((f) => ({ ...f, tipo: v }))}
+                  options={[{ value: "", label: "Sem tipo" }, ...categorias.map((c) => ({ value: c.nome, label: c.nome }))]}
+                />
+              </div>
 
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs text-gray-400 font-medium">Comissão geral (%)</span>

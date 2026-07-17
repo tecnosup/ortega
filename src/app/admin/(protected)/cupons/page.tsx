@@ -7,6 +7,9 @@ import {
   IconCurrencyDollar, IconEdit, IconPercentage, IconPlus, IconTag, IconToggleLeft, IconToggleRight, IconTrash,
 } from "@tabler/icons-react";
 import type { Cupom, TipoCupom } from "@/lib/cupons-tipos";
+import { useConfirm } from "@/components/ui/Confirm";
+import { useSucesso } from "@/components/ui/Sucesso";
+import Select from "@/components/ui/Select";
 
 function brl(v: number) {
   return `R$ ${v.toFixed(2).replace(".", ",")}`;
@@ -50,10 +53,11 @@ function FormCupom({ inicial, onSalvar, onCancelar, salvando }: {
       <div className="grid sm:grid-cols-3 gap-4">
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-500 uppercase tracking-wide">Tipo *</label>
-          <select value={tipo} onChange={(e) => setTipo(e.target.value as TipoCupom)} className={inp}>
-            <option value="percentual">Percentual (%)</option>
-            <option value="fixo">Fixo (R$)</option>
-          </select>
+          <Select
+            value={tipo}
+            onChange={(v) => setTipo(v as TipoCupom)}
+            options={[{ value: "percentual", label: "Percentual (%)" }, { value: "fixo", label: "Fixo (R$)" }]}
+          />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-500 uppercase tracking-wide">Valor * {tipo === "percentual" ? "(%)" : "(R$)"}</label>
@@ -81,6 +85,8 @@ function FormCupom({ inicial, onSalvar, onCancelar, salvando }: {
 }
 
 export default function CuponsPage() {
+  const confirmar = useConfirm();
+  const sucesso = useSucesso();
   const [cupons, setCupons] = useState<Cupom[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [mostraForm, setMostraForm] = useState(false);
@@ -115,11 +121,12 @@ export default function CuponsPage() {
   }
 
   async function excluir(id: string) {
-    if (!confirm("Excluir este cupom?")) return;
+    if (!(await confirmar({ titulo: "Excluir cupom", mensagem: "Excluir este cupom? Esta ação é irreversível.", confirmar: "Excluir" }))) return;
     setExcluindo(id);
     await fetch(`/api/cupons/${id}`, { credentials: "include",  method: "DELETE" });
     setExcluindo(null);
     carregar();
+    sucesso("Cupom excluído!");
   }
 
   return (

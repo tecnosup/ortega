@@ -83,11 +83,11 @@ export default function Depoimentos() {
               transition={{ duration: 0.6, delay: idx * 0.12 }}
             >
               {/* aspas decorativas */}
-              <span className="absolute top-4 right-5 text-5xl leading-none text-[#C9A84C]/10 font-serif select-none">"</span>
+              <span className="absolute top-4 right-5 text-5xl leading-none text-[#C9A84C]/10 font-serif select-none">&quot;</span>
 
               <Estrelas n={d.estrelas} />
 
-              <p className="text-sm text-[#F5E6C8]/60 leading-relaxed italic flex-1">"{d.texto}"</p>
+              <p className="text-sm text-[#F5E6C8]/60 leading-relaxed italic flex-1">&quot;{d.texto}&quot;</p>
 
               <div className="flex items-center gap-3 pt-4 border-t border-[#C9A84C]/10">
                 {/* avatar circular com inicial */}
