@@ -10,12 +10,40 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+const siteName = process.env.NEXT_PUBLIC_SITE_NAME ?? "Ortega";
+const siteDescription =
+  "Barbearia premium com cortes clássicos e modernos. Agende seu horário.";
+
 export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_SITE_NAME ?? "Ortega",
-  description: "Barbearia premium com cortes clássicos e modernos. Agende seu horário.",
+  title: {
+    default: siteName,
+    template: `%s — ${siteName}`,
+  },
+  description: siteDescription,
+  applicationName: siteName,
+  manifest: "/site.webmanifest",
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName,
+    title: siteName,
+    description: siteDescription,
+    images: ["/logo-ortega.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteName,
+    description: siteDescription,
+    images: ["/logo-ortega.png"],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
+    title: siteName,
   },
 };
 

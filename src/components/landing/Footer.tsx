@@ -88,7 +88,7 @@ export default function Footer() {
 
         {/* barra inferior */}
         <div className="mt-10 pt-6 border-t border-[#C9A84C]/10 text-center md:text-left text-xs text-[#F5E6C8]/25 tracking-wide">
-          <span>© {year} Ortega Barber. Todos os direitos reservados.</span>
+          <span>© {year} Ortega. Todos os direitos reservados.</span>
         </div>
       </div>
     </footer>

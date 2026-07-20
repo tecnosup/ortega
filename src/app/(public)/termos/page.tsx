@@ -14,7 +14,7 @@ export default async function TermosPage() {
 
       <div className="max-w-2xl mx-auto px-6 sm:px-8">
         <span className="text-xs font-semibold tracking-[0.25em] uppercase text-[#C9A84C]">
-          Ortega Barber
+          Ortega
         </span>
         <h1
           className="text-3xl sm:text-4xl font-bold text-[#F5E6C8] mt-3 mb-2"
@@ -26,7 +26,7 @@ export default async function TermosPage() {
 
         <div className="flex flex-col gap-8 text-sm sm:text-base text-[#F5E6C8]/65 leading-relaxed">
           <p>
-            Ao utilizar o site e o sistema de agendamento da Ortega Barber, você concorda com os
+            Ao utilizar o site e o sistema de agendamento da Ortega, você concorda com os
             termos descritos abaixo. Recomendamos a leitura atenta antes de realizar um
             agendamento.
           </p>

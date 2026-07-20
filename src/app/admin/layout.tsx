@@ -3,9 +3,13 @@ export const dynamic = "force-dynamic";
 import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
-  title: "Ortega Admin",
+  title: { absolute: "Ortega Admin" },
   description: "Painel administrativo da Ortega",
-  manifest: "/manifest.webmanifest",
+  manifest: "/admin.webmanifest",
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

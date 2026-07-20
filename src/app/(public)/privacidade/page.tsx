@@ -15,7 +15,7 @@ export default async function PrivacidadePage() {
 
       <div className="max-w-2xl mx-auto px-6 sm:px-8">
         <span className="text-xs font-semibold tracking-[0.25em] uppercase text-[#C9A84C]">
-          Ortega Barber
+          Ortega
         </span>
         <h1
           className="text-3xl sm:text-4xl font-bold text-[#F5E6C8] mt-3 mb-2"
@@ -27,7 +27,7 @@ export default async function PrivacidadePage() {
 
         <div className="flex flex-col gap-8 text-sm sm:text-base text-[#F5E6C8]/65 leading-relaxed">
           <p>
-            Esta Política de Privacidade descreve como a Ortega Barber coleta, usa e protege as
+            Esta Política de Privacidade descreve como a Ortega coleta, usa e protege as
             informações pessoais dos clientes que utilizam nosso site, sistema de agendamento e
             canais de atendimento, em conformidade com a Lei Geral de Proteção de Dados
             (Lei nº 13.709/2018 — LGPD).

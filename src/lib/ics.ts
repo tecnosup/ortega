@@ -80,7 +80,7 @@ export function gerarICS(ev: EventoAgenda): string {
   const linhas = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Ortega Barber//Agendamento//PT-BR",
+    "PRODID:-//Ortega//Agendamento//PT-BR",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     ...VTIMEZONE_SAO_PAULO,

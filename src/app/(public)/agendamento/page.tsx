@@ -950,7 +950,7 @@ export default function AgendamentoPage() {
 
   // evento para "adicionar à agenda" (Google/Outlook/Apple) — montado uma vez.
   const eventoAgenda: EventoAgenda | null = selecao.data ? {
-    titulo: `${selecao.servico} — Ortega Barber`,
+    titulo: `${selecao.servico} — Ortega`,
     descricao: [
       selecao.barbeiroNome ? `Barbeiro: ${selecao.barbeiroNome}` : "",
       selecao.preco ? `Valor: R$ ${selecao.preco}` : "",

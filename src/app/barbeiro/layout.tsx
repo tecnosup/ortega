@@ -3,9 +3,13 @@ export const dynamic = "force-dynamic";
 import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
-  title: "Ortega — Portal do Barbeiro",
+  title: { absolute: "Ortega — Portal do Barbeiro" },
   description: "Portal exclusivo para barbeiros da Ortega",
-  manifest: "/manifest.webmanifest",
+  manifest: "/barbeiro.webmanifest",
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
