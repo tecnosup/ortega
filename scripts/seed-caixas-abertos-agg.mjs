@@ -90,7 +90,9 @@ async function main() {
     console.log("\n🔍 DRY-RUN — nada gravado. Rode com --write para persistir.");
     return;
   }
-  await db.collection("meta").doc("caixasAbertos").set({ dias, atualizadoEm: Date.now() }, { merge: true });
+  // set SEM merge: o seed é um retrato limpo do estado atual (substitui o mapa
+  // inteiro), então rodar de novo nunca deixa lixo de execuções anteriores.
+  await db.collection("meta").doc("caixasAbertos").set({ dias, atualizadoEm: Date.now() });
   console.log("\n✅ Agregador gravado em meta/caixasAbertos.");
 }
 

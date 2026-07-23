@@ -25,6 +25,11 @@ import { getAdminDb } from "./firebase-admin";
 const META_COL = "meta";
 const META_DOC = "caixasAbertos";
 
+// O painel só olha ~30 dias; guardamos 90 pra ter margem e podamos o resto.
+// Sem isso o mapa `dias` cresceria pra sempre e um dia estouraria o teto de
+// 1 MiB por documento do Firestore, congelando o agregador silenciosamente.
+const RETENCAO_DIAS = 90;
+
 interface DiaFlags {
   comanda?: boolean;    // tem ao menos 1 comanda finalizada no dia
   fechamento?: boolean; // tem fechamento de caixa no dia
@@ -32,6 +37,13 @@ interface DiaFlags {
 interface AggDoc {
   dias?: Record<string, DiaFlags>;
   atualizadoEm?: number;
+}
+
+/** Data-corte (YYYY-MM-DD) de RETENCAO_DIAS atrás — entradas mais velhas são podadas. */
+function dataCorteRetencao(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - RETENCAO_DIAS);
+  return d.toISOString().split("T")[0];
 }
 
 /**
@@ -58,21 +70,45 @@ export async function lerCaixasAbertos(
 }
 
 /**
- * Marca uma flag de um dia no agregador. Merge idempotente, 1 escrita.
+ * Aplica uma mudança no mapa de dias e reescreve o agregador já PODADO (remove
+ * entradas mais antigas que RETENCAO_DIAS). Lê o doc, aplica `mutacao`, reescreve.
+ *
+ * Custo: 1 leitura + 1 escrita por evento — e eventos (finalizar comanda, fechar
+ * caixa) são raros (dezenas/dia), então é irrelevante perto do que economizamos no
+ * polling. Reescrever o mapa inteiro (em vez de merge) é o que permite PODAR: um
+ * `set({merge:true})` só adiciona chaves, nunca remove.
+ *
  * Nunca lança pra fora — o agregador é derivado; se falhar, o próximo evento
- * conserta e o caminho de fallback (recálculo) cobre a leitura.
+ * conserta e o `seed` pode reconstruir tudo.
  */
-async function setFlag(data: string, flag: keyof DiaFlags, valor: boolean): Promise<void> {
-  if (!data) return;
+async function mutarAgregador(mutacao: (dias: Record<string, DiaFlags>) => void): Promise<void> {
   try {
     const db = getAdminDb();
-    await db.collection(META_COL).doc(META_DOC).set(
-      { dias: { [data]: { [flag]: valor } }, atualizadoEm: Date.now() },
-      { merge: true },
-    );
+    const ref = db.collection(META_COL).doc(META_DOC);
+    const snap = await ref.get();
+    const dias = ((snap.data() as AggDoc | undefined)?.dias) ?? {};
+
+    mutacao(dias);
+
+    // Poda entradas fora da janela de retenção pra o doc não crescer sem limite.
+    const corte = dataCorteRetencao();
+    const podado: Record<string, DiaFlags> = {};
+    for (const [data, flags] of Object.entries(dias)) {
+      if (data >= corte) podado[data] = flags;
+    }
+
+    await ref.set({ dias: podado, atualizadoEm: Date.now() });
   } catch {
     // agregador é best-effort; não bloqueia a operação de negócio
   }
+}
+
+/** Marca uma flag de um dia no agregador (idempotente). */
+async function setFlag(data: string, flag: keyof DiaFlags, valor: boolean): Promise<void> {
+  if (!data) return;
+  await mutarAgregador((dias) => {
+    dias[data] = { ...(dias[data] ?? {}), [flag]: valor };
+  });
 }
 
 /** Comanda finalizada num dia → passa a existir faturamento real naquela data. */
@@ -105,14 +141,9 @@ export async function reconciliarDia(data: string): Promise<void> {
       db.collection("comandas").where("data", "==", data).where("status", "==", "finalizada").limit(1).get(),
       db.collection("fechamentos").where("data", "==", data).limit(1).get(),
     ]);
-    const db2 = getAdminDb();
-    await db2.collection(META_COL).doc(META_DOC).set(
-      {
-        dias: { [data]: { comanda: !comandasSnap.empty, fechamento: !fechSnap.empty } },
-        atualizadoEm: Date.now(),
-      },
-      { merge: true },
-    );
+    await mutarAgregador((dias) => {
+      dias[data] = { comanda: !comandasSnap.empty, fechamento: !fechSnap.empty };
+    });
   } catch {
     // best-effort
   }
