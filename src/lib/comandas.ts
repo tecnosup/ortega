@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "./firebase-admin";
 import { criarMovimentacao } from "./estoque-movimentacoes";
 import { devolverCredito } from "./assinaturas";
+import { marcarComandaFinalizada, reconciliarDia } from "./caixas-abertos-agg";
 import type { Comanda } from "./comandas-types";
 import { calcularTotalItens } from "./comandas-types";
 
@@ -138,6 +139,9 @@ export async function finalizarComanda(
   // Sync reverso: agendamento vinculado passa a "concluido".
   await espelharStatusNoAgendamento(comanda, "concluido");
 
+  // Agregador de caixas abertos: este dia agora tem faturamento real.
+  await marcarComandaFinalizada(comanda.data);
+
   // Baixa de estoque — só produtos com produtoId. Usa FieldValue.increment (atômico),
   // respeitando a quantidade de cada item (default 1).
   const itensProduto = comanda.itens.filter((i) => i.tipo === "produto" && i.produtoId);
@@ -176,6 +180,8 @@ export async function cancelarComanda(id: string): Promise<Comanda | null> {
 
   // Sync reverso: agendamento vinculado passa a "cancelado".
   await espelharStatusNoAgendamento(comanda, "cancelado");
+  // Agregador: cancelar pode ter tirado a última comanda finalizada do dia — reconcilia.
+  await reconciliarDia(comanda.data);
   // Simetria com a rota do agendamento: se era coberto por assinatura, devolve o crédito.
   if (comanda.cobertoPorAssinatura && comanda.assinaturaId) {
     devolverCredito(comanda.assinaturaId).catch(() => {});
@@ -204,6 +210,9 @@ export async function reabrirComanda(id: string): Promise<Comanda | null> {
 
   // Sync reverso: reabrir tira do faturamento → agendamento volta a "confirmado".
   await espelharStatusNoAgendamento(comanda, "confirmado");
+
+  // Agregador: reabrir pode ter tirado a última comanda finalizada do dia — reconcilia.
+  await reconciliarDia(comanda.data);
 
   // Estorna o estoque baixado na finalização (devolve os produtos).
   const itensProduto = comanda.itens.filter((i) => i.tipo === "produto" && i.produtoId);
