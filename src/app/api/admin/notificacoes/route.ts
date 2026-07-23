@@ -5,6 +5,7 @@ import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin";
 import { sendPushToAll } from "@/lib/web-push";
 import { pushVencimentoProximo } from "@/lib/push-messages";
 import { hojeBR } from "@/lib/date-utils";
+import { lerCaixasAbertos } from "@/lib/caixas-abertos-agg";
 
 export const dynamic = "force-dynamic";
 
@@ -61,25 +62,11 @@ export async function GET(_req: NextRequest) {
 
     // ── Caixas retroativos abertos (últimos 30 dias) ──────────────────────────
     // Um dia está "aberto" quando tem COMANDA FINALIZADA (faturamento real) sem
-    // fechamento. Usa a mesma fonte da tela do Caixa (comandas) — antes usava
-    // agendamentos concluídos/avulsos, o que dava alerta fantasma em dias sem
-    // comanda finalizada.
-    const [fechSnap, comandasSnap] = await Promise.all([
-      db.collection("fechamentos").where("data", ">=", limite30dStr).where("data", "<", hoje).limit(100).get(),
-      db.collection("comandas").where("data", ">=", limite30dStr).where("data", "<", hoje).limit(1000).get(),
-    ]);
-
-    const fechDatas = new Set(fechSnap.docs.map(d => d.data().data as string));
-    const datasComAtividade = new Set<string>();
-    comandasSnap.docs.forEach(doc => {
-      const c = doc.data();
-      if (c.status === "finalizada") datasComAtividade.add(c.data as string);
-    });
-
-    const caixasAbertosLista = [...datasComAtividade]
-      .filter(d => !fechDatas.has(d))
-      .sort()
-      .reverse();
+    // fechamento. ANTES este bloco lia ~1000 comandas + 100 fechamentos (30d) a
+    // CADA polling (90s), o que estourava a cota do Firestore. AGORA lê 1 doc
+    // agregador (`meta/caixasAbertos`), mantido on-write pela finalização de
+    // comanda / criação de fechamento. Ver src/lib/caixas-abertos-agg.ts.
+    const caixasAbertosLista = await lerCaixasAbertos(hoje, limite30dStr);
     const caixasAbertos = caixasAbertosLista.length;
 
     // ── Vencimentos próximos ───────────────────────────────────────────────────
