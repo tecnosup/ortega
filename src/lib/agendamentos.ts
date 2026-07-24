@@ -1,5 +1,6 @@
 import "server-only";
 import { getAdminDb } from "./firebase-admin";
+import { marcarFechamentoCriado, marcarFechamentoExcluido } from "./caixas-abertos-agg";
 import type { Agendamento, FechamentoDia, AtendimentoAvulso } from "./agendamentos-types";
 import type { Comanda } from "./comandas-types";
 
@@ -89,6 +90,8 @@ export async function fecharCaixaDia(
     quantidadeAtendidos: concluidosSemComanda.length + avulsos.length + finalizadas.length,
     fechadoEm: Date.now(),
   });
+  // Agregador de caixas abertos: este dia deixou de estar "aberto".
+  await marcarFechamentoCriado(data);
   return ref.id;
 }
 
@@ -103,5 +106,9 @@ export async function listarFechamentos(): Promise<FechamentoDia[]> {
 
 export async function excluirFechamento(id: string): Promise<void> {
   const db = getAdminDb();
+  // Lê a data antes de excluir para reconciliar o agregador (o dia pode voltar a "aberto").
+  const doc = await db.collection("fechamentos").doc(id).get();
+  const data = (doc.data()?.data as string | undefined) ?? "";
   await db.collection("fechamentos").doc(id).delete();
+  if (data) await marcarFechamentoExcluido(data);
 }
