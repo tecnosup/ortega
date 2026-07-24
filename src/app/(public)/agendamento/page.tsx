@@ -308,8 +308,16 @@ export default function AgendamentoPage() {
   }, []);
 
   useEffect(() => {
-    if (!agendamentoId || statusAtual === "cancelado") return;
-    const interval = setInterval(() => pollStatus(agendamentoId), 5000);
+    // Só faz sentido observar enquanto o agendamento está "pendente" (aguardando
+    // o admin confirmar). Em qualquer status final (confirmado/cancelado/concluido/
+    // nao_compareceu) não há mais o que mudar — pollar seria gastar leituras à toa.
+    // Antes: intervalo de 5s e só parava em "cancelado", então um agendamento
+    // confirmado seguia pollando pra sempre com a aba aberta — contribuía pro pico
+    // de leituras que estourava a cota. Agora: 20s e para em qualquer status final.
+    if (!agendamentoId || statusAtual !== "pendente") return;
+    // pausa o polling quando a aba não está visível — não gasta leitura em aba de fundo
+    const tick = () => { if (!document.hidden) pollStatus(agendamentoId); };
+    const interval = setInterval(tick, 20_000);
     return () => clearInterval(interval);
   }, [agendamentoId, statusAtual, pollStatus]);
 

@@ -121,7 +121,10 @@ function StatusContent() {
     if (!buscou) return;
     const temPendente = agendamentos.some((a) => a.status === "pendente");
     if (temPendente) {
-      intervalRef.current = setInterval(() => buscar(telefoneRef.current, true), 15_000);
+      // pausa quando a aba não está visível — evita gastar leituras em aba de fundo
+      intervalRef.current = setInterval(() => {
+        if (!document.hidden) buscar(telefoneRef.current, true);
+      }, 15_000);
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current);
     }
