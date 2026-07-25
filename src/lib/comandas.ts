@@ -72,9 +72,25 @@ export async function listarComandasPorData(data: string): Promise<Comanda[]> {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Comanda));
 }
 
-export async function listarComandas(): Promise<Comanda[]> {
+/**
+ * Lista comandas por JANELA DE DATA (campo `data`, YYYY-MM-DD).
+ *
+ * COTA: `comandas` é a coleção que mais cresce (nasce 1 por agendamento), e a
+ * tela de Caixa lia TODAS a cada abertura. Filtrando no servidor, o custo passa
+ * a ser proporcional à janela exibida, não ao histórico inteiro.
+ * `de`/`ate` inclusivos. Sem argumentos mantém o comportamento antigo.
+ */
+export async function listarComandas(
+  opts: { de?: string; ate?: string; limite?: number } = {}
+): Promise<Comanda[]> {
   const db = getAdminDb();
-  const snap = await db.collection(COL).orderBy("criadoEm", "desc").get();
+  let q: FirebaseFirestore.Query = db.collection(COL);
+  if (opts.de) q = q.where("data", ">=", opts.de);
+  if (opts.ate) q = q.where("data", "<=", opts.ate);
+  // Range exige orderBy no mesmo campo do filtro.
+  q = opts.de || opts.ate ? q.orderBy("data", "desc") : q.orderBy("criadoEm", "desc");
+  if (opts.limite) q = q.limit(opts.limite);
+  const snap = await q.get();
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Comanda));
 }
 
