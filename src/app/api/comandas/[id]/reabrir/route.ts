@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/firebase-admin";
 import { reabrirComanda, getComanda } from "@/lib/comandas";
-import { listarFechamentos } from "@/lib/agendamentos";
+import { getFechamentoPorData } from "@/lib/agendamentos";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +17,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   // Só permite reabrir comanda enquanto o caixa do dia NÃO estiver fechado.
-  const fechamentos = await listarFechamentos();
-  if (fechamentos.some((f) => f.data === comanda.data)) {
+  // 1 query filtrada em vez de ler todos os fechamentos pra checar 1 dia.
+  const fechamentoDoDia = await getFechamentoPorData(comanda.data);
+  if (fechamentoDoDia) {
     return NextResponse.json(
       { error: "O caixa deste dia está fechado. Reabra o caixa antes de reabrir a comanda." },
       { status: 422 }

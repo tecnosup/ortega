@@ -29,16 +29,18 @@ export default function ComissoesPage() {
 
   const carregar = useCallback(async () => {
     setCarregando(true);
+    // Pede só o período exibido — o filtro por data já era feito aqui embaixo,
+    // mas antes a API mandava a coleção inteira pra ser descartada no cliente.
     const [resBarb, resAgs] = await Promise.all([
       fetch("/api/admin/barbeiros", { credentials: "include" }),
-      fetch("/api/agendamentos", { credentials: "include" }),
+      fetch(`/api/agendamentos?de=${inicio}&ate=${fim}`, { credentials: "include" }),
     ]);
     const bJson = await jsonOr<{ barbeiros?: Barbeiro[] }>(resBarb, {});
     const aJson = await jsonOr<Agendamento[]>(resAgs, []);
     setBarbeiros(bJson.barbeiros ?? []);
     setAgendamentos(Array.isArray(aJson) ? aJson : []);
     setCarregando(false);
-  }, []);
+  }, [inicio, fim]);
 
   useEffect(() => { carregar(); }, [carregar]);
 

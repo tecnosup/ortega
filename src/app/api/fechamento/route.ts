@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fecharCaixaDia, listarFechamentos, listarAgendamentos } from "@/lib/agendamentos";
+import { fecharCaixaDia, listarFechamentos, listarAgendamentosPorData, getFechamentoPorData } from "@/lib/agendamentos";
 import { listarAtendimentosAvulsosPorData } from "@/lib/atendimentos-avulsos";
 import { listarComandasPorData } from "@/lib/comandas";
 import { getSessionUser } from "@/lib/firebase-admin";
@@ -12,13 +12,15 @@ export async function POST(req: NextRequest) {
   const { data } = await req.json() as { data: string };
   if (!data) return NextResponse.json({ error: "Data obrigatória" }, { status: 400 });
 
-  const fechamentos = await listarFechamentos();
-  if (fechamentos.some((f) => f.data === data)) {
+  // 1 query filtrada em vez de varrer a coleção de fechamentos.
+  const jaFechado = await getFechamentoPorData(data);
+  if (jaFechado) {
     return NextResponse.json({ error: "Caixa já fechado para este dia" }, { status: 409 });
   }
 
-  const [todos, avulsos, comandas] = await Promise.all([
-    listarAgendamentos(),
+  const [doDia, avulsos, comandas] = await Promise.all([
+    // só o dia que está sendo fechado (antes lia TODOS os agendamentos)
+    listarAgendamentosPorData(data),
     listarAtendimentosAvulsosPorData(data),
     listarComandasPorData(data),
   ]);
@@ -33,7 +35,6 @@ export async function POST(req: NextRequest) {
   }
 
   const finalizadas = comandas.filter((c) => c.status === "finalizada");
-  const doDia = todos.filter((a) => a.data === data);
   const id = await fecharCaixaDia(data, doDia, avulsos, finalizadas);
   return NextResponse.json({ id });
 }
