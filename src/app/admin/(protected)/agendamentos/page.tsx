@@ -1268,28 +1268,33 @@ export default function AgendamentosAdminPage() {
     return `há ${m}min`;
   }
 
+  // parse resiliente: se a API falhar (ex.: 500 / cota Firestore), usa fallback
+  // em vez de quebrar a página inteira com "Unexpected end of JSON input".
+  const parse = useCallback(async <T,>(res: Response | null, fallback: T): Promise<T> => {
+    if (!res || !res.ok) return fallback;
+    try { return (await res.json()) as T; } catch { return fallback; }
+  }, []);
+
+  /**
+   * COTA: agendamentos e fechamentos NÃO dependem do dia selecionado, mas antes
+   * eram recarregados a cada troca de dia (dataSelecionada estava na dep list de
+   * um `carregar` único). Como esta é a tela mais usada e o Igor navega entre dias
+   * o tempo todo, `/agendamentos` virou a coleção com MAIS leituras do projeto
+   * (7.272 — ~60% do total — pra uma coleção de ~136 docs = dezenas de varreduras).
+   * Agora este efeito roda só na montagem; o que varia por dia está no efeito abaixo.
+   */
   const carregar = useCallback(async () => {
     setCarregando(true);
-    // parse resiliente: se a API falhar (ex.: 500 / cota Firestore), usa fallback
-    // em vez de quebrar a página inteira com "Unexpected end of JSON input".
-    const parse = async <T,>(res: Response, fallback: T): Promise<T> => {
-      if (!res.ok) return fallback;
-      try { return (await res.json()) as T; } catch { return fallback; }
-    };
-    const [resAgs, resFech, resBloq] = await Promise.all([
+    const [resAgs, resFech] = await Promise.all([
       fetch("/api/agendamentos", { credentials: "include" }).catch(() => null),
       fetch("/api/fechamento", { credentials: "include" }).catch(() => null),
-      fetch(`/api/slots?data=${dataSelecionada}`, { credentials: "include" }).catch(() => null),
     ]);
-    const agsData = resAgs ? await parse<unknown>(resAgs, []) : [];
-    const fechsData = resFech ? await parse<unknown>(resFech, []) : [];
-    const bloqData = resBloq ? await parse<{ bloqueados?: string[] }>(resBloq, { bloqueados: [] }) : { bloqueados: [] };
+    const agsData = await parse<unknown>(resAgs, []);
+    const fechsData = await parse<unknown>(resFech, []);
     const ags: Agendamento[] = Array.isArray(agsData) ? agsData : [];
     const fechs: FechamentoDia[] = Array.isArray(fechsData) ? fechsData : [];
     setAgendamentos(ags);
     setFechamentos(fechs);
-    setSlotsBloqueados(bloqData.bloqueados ?? []);
-    setCaixaFechado(fechs.some((f) => f.data === dataSelecionada));
     setCarregando(false);
 
     // marca novos agendamentos como visualizados em background
@@ -1299,9 +1304,25 @@ export default function AgendamentosAdminPage() {
         .then(() => setAgendamentos((prev) => prev.map((a) => ({ ...a, visualizadoAdmin: true }))))
         .catch(() => {});
     }
-  }, [dataSelecionada]);
+  }, [parse]);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  // Só o que muda com o dia: slots bloqueados (1 doc) + flag de caixa fechado,
+  // esta derivada dos fechamentos já em memória — sem ida extra ao servidor.
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      const resBloq = await fetch(`/api/slots?data=${dataSelecionada}`, { credentials: "include" }).catch(() => null);
+      const bloqData = await parse<{ bloqueados?: string[] }>(resBloq, { bloqueados: [] });
+      if (!cancelado) setSlotsBloqueados(bloqData.bloqueados ?? []);
+    })();
+    return () => { cancelado = true; };
+  }, [dataSelecionada, parse]);
+
+  useEffect(() => {
+    setCaixaFechado(fechamentos.some((f) => f.data === dataSelecionada));
+  }, [fechamentos, dataSelecionada]);
 
   useEffect(() => {
     // helper: só faz .json() se a resposta veio OK e com corpo — evita
