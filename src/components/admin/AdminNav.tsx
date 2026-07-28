@@ -1,20 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
   IconLayoutDashboard, IconScissors, IconStar, IconClipboardList,
-  IconLogout, IconCalendarCheck, IconTag, IconX, IconShoppingBag, IconChartLine, IconExternalLink,
+  IconLogout, IconCalendarCheck, IconTag, IconMenu2, IconX, IconShoppingBag, IconChartLine, IconExternalLink,
   IconUsers, IconReportMoney, IconCreditCard, IconCashRegister,
   IconBellRinging, IconBell, IconCalendar, IconWallet, IconChevronRight, IconSettings,
 } from "@tabler/icons-react";
 import { useAdminNotificacoes } from "@/hooks/useAdminNotificacoes";
 import { PushToggle } from "@/components/admin/PushToggle";
 import Drawer from "@/components/ui/Drawer";
-import MenuToggleIcon from "@/components/ui/MenuToggleIcon";
 
 const links = [
   { href: "/admin",               label: "Dashboard",    icon: IconLayoutDashboard, badge: null as "agendamentos" | "financeiro" | null },
@@ -186,9 +186,16 @@ export default function AdminNav() {
     <div className="flex flex-col h-full">
       <div className="px-5 pb-5 border-b border-[#2d2d2d] flex items-center justify-between" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)" }}>
         <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega</span>
-        <button onClick={() => setOpen(false)} aria-label="Fechar menu" className="md:hidden p-1.5 text-gray-500 hover:text-white transition rounded-lg hover:bg-[#2d2d2d]">
-          <MenuToggleIcon open={open} size={18} animateOnMount />
-        </button>
+        <motion.button
+          onClick={() => setOpen(false)}
+          aria-label="Fechar"
+          className="md:hidden w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-[#F5E6C8] hover:bg-[#2d2d2d]/60 transition-colors"
+          whileHover={{ rotate: 90 }}
+          whileTap={{ rotate: 180, scale: 0.85 }}
+          transition={{ type: "spring", stiffness: 400, damping: 20 }}
+        >
+          <IconX size={17} />
+        </motion.button>
       </div>
 
       <nav className="flex-1 p-3 flex flex-col gap-0.5 overflow-y-auto">
@@ -297,10 +304,10 @@ export default function AdminNav() {
           );
         })}
         <button
-          onClick={() => setOpen((v) => !v)}
-          className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition ${open ? "text-[#b8944a]" : "text-gray-200 hover:text-white"}`}
+          onClick={() => setOpen(true)}
+          className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-gray-200 hover:text-white transition"
         >
-          <MenuToggleIcon open={open} size={20} />
+          <IconMenu2 size={20} strokeWidth={1.8} />
           <span>Mais</span>
         </button>
       </nav>
