@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "./firebase-admin";
 import { criarMovimentacao } from "./estoque-movimentacoes";
 import { devolverCredito } from "./assinaturas";
+import { marcarComandaFinalizada, reconciliarDia } from "./caixas-abertos-agg";
 import type { Comanda } from "./comandas-types";
 import { calcularTotalItens } from "./comandas-types";
 
@@ -71,9 +72,25 @@ export async function listarComandasPorData(data: string): Promise<Comanda[]> {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Comanda));
 }
 
-export async function listarComandas(): Promise<Comanda[]> {
+/**
+ * Lista comandas por JANELA DE DATA (campo `data`, YYYY-MM-DD).
+ *
+ * COTA: `comandas` é a coleção que mais cresce (nasce 1 por agendamento), e a
+ * tela de Caixa lia TODAS a cada abertura. Filtrando no servidor, o custo passa
+ * a ser proporcional à janela exibida, não ao histórico inteiro.
+ * `de`/`ate` inclusivos. Sem argumentos mantém o comportamento antigo.
+ */
+export async function listarComandas(
+  opts: { de?: string; ate?: string; limite?: number } = {}
+): Promise<Comanda[]> {
   const db = getAdminDb();
-  const snap = await db.collection(COL).orderBy("criadoEm", "desc").get();
+  let q: FirebaseFirestore.Query = db.collection(COL);
+  if (opts.de) q = q.where("data", ">=", opts.de);
+  if (opts.ate) q = q.where("data", "<=", opts.ate);
+  // Range exige orderBy no mesmo campo do filtro.
+  q = opts.de || opts.ate ? q.orderBy("data", "desc") : q.orderBy("criadoEm", "desc");
+  if (opts.limite) q = q.limit(opts.limite);
+  const snap = await q.get();
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Comanda));
 }
 
@@ -138,6 +155,9 @@ export async function finalizarComanda(
   // Sync reverso: agendamento vinculado passa a "concluido".
   await espelharStatusNoAgendamento(comanda, "concluido");
 
+  // Agregador de caixas abertos: este dia agora tem faturamento real.
+  await marcarComandaFinalizada(comanda.data);
+
   // Baixa de estoque — só produtos com produtoId. Usa FieldValue.increment (atômico),
   // respeitando a quantidade de cada item (default 1).
   const itensProduto = comanda.itens.filter((i) => i.tipo === "produto" && i.produtoId);
@@ -176,6 +196,8 @@ export async function cancelarComanda(id: string): Promise<Comanda | null> {
 
   // Sync reverso: agendamento vinculado passa a "cancelado".
   await espelharStatusNoAgendamento(comanda, "cancelado");
+  // Agregador: cancelar pode ter tirado a última comanda finalizada do dia — reconcilia.
+  await reconciliarDia(comanda.data);
   // Simetria com a rota do agendamento: se era coberto por assinatura, devolve o crédito.
   if (comanda.cobertoPorAssinatura && comanda.assinaturaId) {
     devolverCredito(comanda.assinaturaId).catch(() => {});
@@ -204,6 +226,9 @@ export async function reabrirComanda(id: string): Promise<Comanda | null> {
 
   // Sync reverso: reabrir tira do faturamento → agendamento volta a "confirmado".
   await espelharStatusNoAgendamento(comanda, "confirmado");
+
+  // Agregador: reabrir pode ter tirado a última comanda finalizada do dia — reconcilia.
+  await reconciliarDia(comanda.data);
 
   // Estorna o estoque baixado na finalização (devolve os produtos).
   const itensProduto = comanda.itens.filter((i) => i.tipo === "produto" && i.produtoId);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
-import { criarAgendamento, listarAgendamentos } from "@/lib/agendamentos";
+import { criarAgendamento, listarAgendamentos, listarAgendamentosPorData } from "@/lib/agendamentos";
+import { diasAtras } from "@/lib/date-utils";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { sendPushToAll, sendPushToBarbeiro } from "@/lib/web-push";
 import { pushNovoAgendamento } from "@/lib/push-messages";
@@ -10,6 +11,11 @@ import { criarComanda } from "@/lib/comandas";
 import { parsePriceNum, sanitizarDuracaoMin } from "@/lib/agendamentos-types";
 
 export const dynamic = "force-dynamic";
+
+// Janela padrão do GET sem ?data=. Cobre o histórico que o painel exibe (gráfico
+// de 30d, comissões do mês) com folga. Agendamentos FUTUROS não têm corte
+// superior — a query é só `data >= corte`, senão sumiriam da agenda.
+const JANELA_PADRAO_DIAS = 90;
 
 export async function POST(req: NextRequest) {
   if (!rateLimit(`agendamento:${getClientIp(req)}`, 5, 60_000)) {
@@ -111,10 +117,21 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const data = req.nextUrl.searchParams.get("data");
-  const agendamentos = await listarAgendamentos();
+  const params = req.nextUrl.searchParams;
+  const data = params.get("data");
+
+  // ?data=YYYY-MM-DD → 1 query filtrada no servidor.
+  // ANTES lia a coleção inteira e filtrava em memória: pagava N leituras pra
+  // devolver um único dia.
   if (data) {
-    return NextResponse.json(agendamentos.filter((a) => a.data === data && a.status !== "cancelado"));
+    const doDia = await listarAgendamentosPorData(data);
+    return NextResponse.json(doDia.filter((a) => a.status !== "cancelado"));
   }
+
+  // Sem ?data= as telas admin pedem uma JANELA (?de=&ate=). O default cobre
+  // o que o painel realmente exibe: histórico recente + agendamentos futuros.
+  const de = params.get("de") ?? diasAtras(JANELA_PADRAO_DIAS);
+  const ate = params.get("ate") ?? undefined;
+  const agendamentos = await listarAgendamentos({ de, ...(ate ? { ate } : {}) });
   return NextResponse.json(agendamentos);
 }
