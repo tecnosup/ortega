@@ -34,6 +34,7 @@ export default function Navbar() {
           ? "bg-[#0A0A0A]/95 backdrop-blur-md border-b border-[#C9A84C]/20 shadow-[0_2px_30px_rgba(201,168,76,0.08)]"
           : "bg-transparent"
       }`}
+      style={{ paddingTop: "env(safe-area-inset-top)" }}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 md:h-20 flex items-center justify-between">
         {/* logo (desktop) / texto Ortega (mobile) */}

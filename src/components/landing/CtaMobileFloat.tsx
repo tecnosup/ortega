@@ -21,7 +21,8 @@ export default function CtaMobileFloat({ whatsappNumber }: { whatsappNumber?: st
     <AnimatePresence>
       {visible && (
         <motion.div
-          className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex gap-0 border-t border-[#C9A84C]/20"
+          className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex gap-0 border-t border-[#C9A84C]/20 bg-[#0A0A0A]"
+          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           initial={{ y: 80, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 80, opacity: 0 }}

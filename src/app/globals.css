@@ -18,6 +18,10 @@
 /* PWA safe area utilities */
 .pt-safe { padding-top: env(safe-area-inset-top); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+/* Padding-top que limpa a navbar fixa (5rem) E a barra de status no PWA
+   standalone (safe-area-inset-top). Sem o inset, o conteúdo do topo sobe
+   pra baixo do relógio/notch quando a navbar cresce com o safe-area. */
+.pt-nav-safe { padding-top: calc(5rem + env(safe-area-inset-top)); }
 
 /* Scroll fino que reserva a própria largura (não "espreme" o conteúdo ao aparecer) */
 .nice-scroll { scrollbar-gutter: stable; }

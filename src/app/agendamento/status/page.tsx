@@ -129,7 +129,7 @@ function StatusContent() {
   }, [buscou, agendamentos, buscar]);
 
   return (
-    <main className="min-h-screen-safe bg-[#0A0A0A] pt-8 pb-20 px-4">
+    <main className="min-h-screen-safe bg-[#0A0A0A] pt-[calc(2rem+env(safe-area-inset-top))] pb-20 px-4">
       <div className="max-w-lg mx-auto flex flex-col gap-6">
 
         {/* Header */}

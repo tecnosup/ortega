@@ -35,7 +35,7 @@ export default function ContatoPage() {
   }
 
   return (
-    <section className="min-h-screen pt-24 pb-16 bg-[#0A0A0A]">
+    <section className="min-h-screen pt-[calc(6rem+env(safe-area-inset-top))] pb-16 bg-[#0A0A0A]">
       <div className="max-w-xl mx-auto px-4 sm:px-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mb-2">Contato</h1>
         <p className="text-[#F5E6C8]/50 mb-8 text-sm sm:text-base">

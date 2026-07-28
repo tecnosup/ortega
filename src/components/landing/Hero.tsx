@@ -61,13 +61,13 @@ export default function Hero({ titulo, subtitulo, whatsappNumber, imagemFundo, i
         <div className="w-full md:w-[55%] flex flex-col gap-6 md:gap-8 md:py-32">
 
           <motion.div
-            className="flex items-center gap-3"
+            className="flex items-center gap-3 min-w-0"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
           >
-            <span className="inline-block w-8 h-px bg-[#C9A84C]" />
-            <span className="text-[#C9A84C] text-xs font-medium tracking-[0.35em] uppercase">Barbearia Premium</span>
+            <span className="inline-block w-8 h-px bg-[#C9A84C] shrink-0" />
+            <span className="text-[#C9A84C] text-xs font-medium tracking-[0.2em] sm:tracking-[0.35em] uppercase">Barbearia Premium</span>
           </motion.div>
 
           <motion.div
