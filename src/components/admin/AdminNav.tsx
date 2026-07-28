@@ -54,10 +54,6 @@ export default function AdminNav() {
   const totalAlertas = pendentes + caixasAbertos + vencimentos;
 
   useEffect(() => { setOpen(false); }, [pathname]);
-  useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
-  }, [open]);
 
   async function handleLogout() {
     await signOut(auth);
