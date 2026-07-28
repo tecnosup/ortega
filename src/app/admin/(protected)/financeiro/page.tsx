@@ -628,8 +628,29 @@ export default function FinanceiroPage() {
 
   const melhorDia = fechsPeriodo.length > 0 ? fechsPeriodo.reduce((a, b) => b.totalServicos > a.totalServicos ? b : a) : null;
 
+  // Ranking de serviços mais feitos. Conta DUAS fontes, pois o fechamento separa:
+  //  - agendamentos concluídos que NÃO viraram comanda (array `agendamentos`)
+  //  - comandas finalizadas (array `comandas`) — o fluxo do Caixa hoje
+  // Sem a segunda fonte, tudo que passa pela comanda ficava de fora do ranking.
   const contadorServicos: Record<string, { quantidade: number; total: number }> = {};
-  fechsPeriodo.forEach((f) => { f.agendamentos.forEach((a) => { if (!contadorServicos[a.servico]) contadorServicos[a.servico] = { quantidade: 0, total: 0 }; contadorServicos[a.servico].quantidade++; contadorServicos[a.servico].total += parseFloat(a.preco.replace(/[^\d.,]/g, "").replace(",", ".")) || 0; }); });
+  const somaServico = (nome: string, qtd: number, total: number) => {
+    if (!contadorServicos[nome]) contadorServicos[nome] = { quantidade: 0, total: 0 };
+    contadorServicos[nome].quantidade += qtd;
+    contadorServicos[nome].total += total;
+  };
+  fechsPeriodo.forEach((f) => {
+    f.agendamentos.forEach((a) => {
+      somaServico(a.servico, 1, parseFloat(a.preco.replace(/[^\d.,]/g, "").replace(",", ".")) || 0);
+    });
+    // Itens de serviço das comandas (usa o valor ajustado; ignora itens manuais e produtos).
+    (f.comandas ?? []).forEach((c) => {
+      c.itens.forEach((it) => {
+        if (it.tipo !== "servico" || it.manual) return;
+        const qtd = it.quantidade ?? 1;
+        somaServico(it.descricao, qtd, (it.valor || 0) * qtd);
+      });
+    });
+  });
   const rankServicos = Object.entries(contadorServicos).sort((a, b) => b[1].quantidade - a[1].quantidade).slice(0, 5);
 
   if (carregando) return <div className="flex items-center justify-center h-64 text-gray-500 text-sm">Carregando...</div>;

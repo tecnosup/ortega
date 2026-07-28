@@ -8,6 +8,7 @@ import type { Comanda } from "@/lib/comandas-types";
 import type { GastoDia } from "@/lib/gastos-dia-tipos";
 import CaixaCalendario from "@/components/admin/CaixaCalendario";
 import AdminFab from "@/components/admin/AdminFab";
+import { BotaoPrivacidade } from "@/components/admin/Privacidade";
 
 export default function CaixaPage() {
   const [fechamentos, setFechamentos] = useState<FechamentoDia[]>([]);
@@ -35,9 +36,12 @@ export default function CaixaPage() {
     <div className="max-w-5xl mx-auto flex flex-col gap-5">
       <AdminFab />
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-[#F5E6C8]">Caixa</h1>
-        <p className="text-xs text-gray-500 hidden sm:block">Comandas, fechamentos e gastos por dia</p>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-gray-500 hidden sm:block">Comandas, fechamentos e gastos por dia</p>
+          <BotaoPrivacidade />
+        </div>
       </div>
 
       <div id="caixa">
