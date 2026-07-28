@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
+import { useScrollLock } from "@/components/ui/useScrollLock";
 import {
-  IconCheck, IconChevronLeft, IconChevronRight, IconTag, IconCalendarPlus,
-  IconBrandGoogle, IconBrandWindows, IconBrandApple,
+  IconCheck, IconChevronLeft, IconChevronRight, IconChevronDown, IconTag, IconCalendarPlus,
+  IconBrandGoogle, IconBrandWindows, IconBrandApple, IconReceipt, IconX,
 } from "@tabler/icons-react";
 import { baixarICS, linkGoogleAgenda, linkOutlook, type EventoAgenda } from "@/lib/ics";
 import type { Item } from "@/lib/admin-items";
@@ -144,6 +147,7 @@ function SkeletonSlots() {
 // ─── componente principal ─────────────────────────────────────────────────────
 
 export default function AgendamentoPage() {
+  const router = useRouter();
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
@@ -183,6 +187,17 @@ export default function AgendamentoPage() {
     setStep("barbeiro");
   }
   const [mesAtual, setMesAtual] = useState(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  // Direção da troca de mês (1 = avançou, -1 = voltou) pra a animação deslizar pro
+  // lado certo. Helper centraliza a troca + a direção.
+  const [dirMes, setDirMes] = useState(0);
+  const irParaMes = useCallback((novo: Date) => {
+    setMesAtual((atual) => {
+      const antesMs = atual.getFullYear() * 12 + atual.getMonth();
+      const novoMs = novo.getFullYear() * 12 + novo.getMonth();
+      if (novoMs !== antesMs) setDirMes(novoMs > antesMs ? 1 : -1);
+      return novo;
+    });
+  }, []);
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [erros, setErros] = useState<{ nome?: string; telefone?: string; geral?: string }>({});
@@ -198,10 +213,12 @@ export default function AgendamentoPage() {
   const [passoMin, setPassoMin] = useState<number>(PASSO_DEFAULT);
   const [carenciaMin, setCarenciaMin] = useState<number>(CARENCIA_DEFAULT);
 
-  // ref da seção de horários — usado para rolar até ela ao escolher o dia
+  // ref do bloco de horários — alvo do scroll ao escolher o dia (com scroll-mt
+  // grande pra deixar o fim do calendário visível acima). O scroll é disparado
+  // SÓ depois que os slots carregam (via efeito abaixo), senão a medição do
+  // scrollIntoView usa a altura do skeleton e para no lugar errado.
   const horariosRef = useRef<HTMLDivElement>(null);
-  // ref do botão "Continuar" — rola até ele ao escolher o horário
-  const continuarRef = useRef<HTMLButtonElement>(null);
+  const rolarAoAbrirDia = useRef(false);
 
   // cupom
   const [codigoCupom, setCodigoCupom] = useState("");
@@ -234,6 +251,17 @@ export default function AgendamentoPage() {
   // Recarregar a página no meio (comum no mobile) não deve zerar o fluxo.
   // Guardamos só o necessário; o Date vira ISO e é reidratado no load. Não
   // persistimos no step "confirmado" (já foi enviado) nem restauramos nele.
+  // Portal só depois do mount (evita mismatch de SSR): a barra fixa de resumo é
+  // renderizada no body pra escapar do transform/will-change da section animada
+  // (.step-anim), que quebrava o position:fixed e "soltava" a barra do rodapé.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  // Painel "Ver minha comanda" no passo de dados (resumo do agendamento).
+  const [verComanda, setVerComanda] = useState(false);
+  // Trava o scroll do fundo enquanto o painel está expandido (mesmo do Modal do admin).
+  useScrollLock(verComanda);
+
   const [restaurado, setRestaurado] = useState(false);
   useEffect(() => {
     try {
@@ -241,7 +269,17 @@ export default function AgendamentoPage() {
       if (raw) {
         const p = JSON.parse(raw);
         if (p.step && p.step !== "confirmado") {
-          if (p.selecao) setSelecao({ ...p.selecao, data: p.selecao.data ? new Date(p.selecao.data) : null });
+          if (p.selecao) {
+            // Se restaurar já no passo do calendário, NÃO traz o dia pré-selecionado
+            // (quebraria o fluxo escolher-dia → rolar → horário). Nos passos seguintes
+            // a data é mantida, pois lá já foi de fato escolhida.
+            const noCalendario = p.step === "calendario";
+            setSelecao({
+              ...p.selecao,
+              data: !noCalendario && p.selecao.data ? new Date(p.selecao.data) : null,
+              horario: noCalendario ? "" : p.selecao.horario,
+            });
+          }
           if (Array.isArray(p.servicosSel)) setServicosSel(p.servicosSel);
           if (typeof p.nome === "string") setNome(p.nome);
           if (typeof p.telefone === "string") setTelefone(p.telefone);
@@ -299,6 +337,17 @@ export default function AgendamentoPage() {
       buscarSlots(key, selecao.barbeiroId);
     }
   }, [selecao.data, selecao.barbeiroId, buscarSlots]);
+
+  // Rola até os horários assim que os slots do dia escolhido terminam de carregar.
+  // Roda só quando a flag foi marcada em selecionarData (não em restauração/re-render).
+  useEffect(() => {
+    if (carregandoSlots || !rolarAoAbrirDia.current) return;
+    rolarAoAbrirDia.current = false;
+    // rAF garante que o layout com os slots reais já pintou antes de medir/rolar
+    requestAnimationFrame(() => {
+      horariosRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [carregandoSlots, selecao.data]);
 
   const pollStatus = useCallback(async (id: string) => {
     const res = await fetch(`/api/agendamentos/${id}`);
@@ -370,16 +419,18 @@ export default function AgendamentoPage() {
   }
 
   function selecionarData(dia: number, mes: number, ano: number) {
-    const d = new Date(ano, mes, dia);
+    const d = new Date(ano, mes, dia); // new Date normaliza mes -1/+1 (vira mês/ano certo)
     if (d < hoje || !grade[d.getDay()]?.ativo) return;
+    // Clicou num dia de outro mês (célula "vazante" do calendário)? Troca o mês exibido
+    // pra o mês do dia escolhido, assim o calendário acompanha a seleção (com animação).
+    if (d.getMonth() !== mesAtual.getMonth() || d.getFullYear() !== mesAtual.getFullYear()) {
+      irParaMes(new Date(d.getFullYear(), d.getMonth(), 1));
+    }
     setSelecao((s) => ({ ...s, data: d, horario: "" }));
-    // rola até os horários para o cliente perceber que precisa escolher o horário
-    // (o timeout garante que a seção já renderizou com a data selecionada)
-    // block: "start" deixa o título da data no topo da área visível (com scroll-mt
-    // dando o respiro da navbar), em vez de centralizar a lista e cortar o cabeçalho
-    setTimeout(() => {
-      horariosRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
+    // Marca que deve rolar até os horários. O scroll em si acontece no efeito abaixo,
+    // quando os slots terminam de carregar (assim a medição usa a altura real, não a
+    // do skeleton — que fazia o scroll parar no lugar errado).
+    rolarAoAbrirDia.current = true;
   }
 
   async function aplicarCupom() {
@@ -489,7 +540,8 @@ export default function AgendamentoPage() {
     return (
       <section key={step} className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A] step-anim">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-8">
+          <div className="relative text-center mb-8">
+            <VoltarTopo onClick={() => router.push("/")} />
             <StepIndicator atual={1} />
             <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 1 de 4</span>
             <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Escolha o serviço</h1>
@@ -536,14 +588,17 @@ export default function AgendamentoPage() {
                   )}
                 </div>
               )}
-              <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3 sm:gap-4 pb-28">
-                {servicosVisiveis.map((s) => {
+              {/* key = categoria: re-monta a lista ao trocar o filtro, disparando a
+                  animação de entrada (cascata) dos serviços da nova categoria. */}
+              <div key={catFiltro || "todos"} className="flex flex-col sm:grid sm:grid-cols-2 gap-3 sm:gap-4 pb-28">
+                {servicosVisiveis.map((s, idx) => {
                   const marcado = servicosSel.some((x) => x.id === s.id);
                   return (
                     <button
                       key={s.id}
                       onClick={() => toggleServico(s)}
-                      className={`text-left border p-4 sm:p-5 rounded-xl active:scale-[0.98] transition-all duration-200 group ${
+                      style={{ animationDelay: `${Math.min(idx, 8) * 40}ms` }}
+                      className={`servico-anim text-left border p-4 sm:p-5 rounded-xl active:scale-[0.98] transition-all duration-200 group ${
                         marcado
                           ? "border-[#b8944a] bg-[#b8944a]/10"
                           : "border-[#2d2d2d] bg-[#111] hover:border-[#b8944a] hover:bg-[#b8944a]/5"
@@ -571,9 +626,14 @@ export default function AgendamentoPage() {
                 })}
               </div>
 
-              {/* barra fixa de resumo + continuar */}
-              {servicosSel.length > 0 && (
-                <div className="fixed bottom-0 left-0 right-0 bg-[#111] border-t border-[#2d2d2d] px-4 py-3 z-20">
+              {/* Espaçador: reserva a altura da barra fixa (que vive no portal, fora
+                  desta section) pra o último serviço não ficar escondido atrás dela. */}
+              {servicosSel.length > 0 && <div aria-hidden className="h-24" />}
+
+              {/* barra fixa de resumo + continuar — via portal no body pra escapar do
+                  transform/will-change da section (.step-anim), que quebrava o fixed */}
+              {mounted && servicosSel.length > 0 && createPortal(
+                <div className="fixed bottom-0 left-0 right-0 bg-[#111] border-t border-[#b8944a]/30 shadow-[0_-8px_24px_rgba(0,0,0,0.5)] px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 barra-continuar">
                   <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
                     <div className="text-sm">
                       <p className="text-[#F5E6C8] font-medium">
@@ -585,12 +645,13 @@ export default function AgendamentoPage() {
                     </div>
                     <button
                       onClick={confirmarServicos}
-                      className="px-6 py-3 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-xl hover:bg-[#c9a84c] transition active:scale-[0.98]"
+                      className="shrink-0 px-7 py-3.5 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-xl hover:bg-[#c9a84c] transition active:scale-[0.98] shadow-lg shadow-[#b8944a]/30"
                     >
                       Continuar →
                     </button>
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
             </>
           )}
@@ -633,7 +694,9 @@ export default function AgendamentoPage() {
               <button
                 key={b.id}
                 onClick={() => {
-                  setSelecao((s) => ({ ...s, barbeiroId: b.id, barbeiroNome: b.apelido ?? b.nome }));
+                  // Ao avançar pro calendário, zera data/horário: o dia NÃO pode vir
+                  // pré-selecionado (quebraria o fluxo de escolher o dia → rolar → horário).
+                  setSelecao((s) => ({ ...s, barbeiroId: b.id, barbeiroNome: b.apelido ?? b.nome, data: null, horario: "" }));
                   setStep("calendario");
                 }}
                 className={`text-left border rounded-xl p-4 sm:p-5 transition-all duration-200 active:scale-[0.98] hover:border-[#b8944a] hover:bg-[#b8944a]/5 group ${
@@ -664,7 +727,7 @@ export default function AgendamentoPage() {
   // ── STEP: CALENDÁRIO ──────────────────────────────────────────────────────
   if (step === "calendario") {
     return (
-      <section key={step} className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A] step-anim">
+      <section key={step} className="pt-20 pb-10 bg-[#0A0A0A] step-anim">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="relative text-center mb-6">
             <VoltarTopo onClick={() => setStep("barbeiro")} />
@@ -673,29 +736,12 @@ export default function AgendamentoPage() {
             <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Data e horário</h1>
           </div>
 
-          {/* serviço + barbeiro selecionado — pill no topo (sticky no mobile p/
-              o cliente manter o contexto enquanto rola o calendário/horários) */}
-          <div className="flex items-center justify-between gap-3 bg-[#111] border border-[#2d2d2d] rounded-xl px-4 py-3 mb-4 sticky top-16 z-10 md:static">
-            <div className="flex flex-col gap-0.5 min-w-0">
-              <p className="text-xs text-gray-600 uppercase tracking-wider">Serviço</p>
-              <p className="font-semibold text-[#F5E6C8] text-sm truncate">{selecao.servico}
-                {selecao.preco && <span className="text-[#b8944a] ml-2">R$ {selecao.preco}</span>}
-              </p>
-              {selecao.barbeiroNome && (
-                <p className="text-xs text-gray-500 truncate">com {selecao.barbeiroNome}</p>
-              )}
-            </div>
-            <button onClick={() => setStep("barbeiro")} className="text-xs text-gray-600 hover:text-[#b8944a] transition px-2 py-1">
-              Trocar
-            </button>
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-4 md:gap-6">
             {/* calendário */}
             <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 sm:p-5">
               <div className="flex items-center justify-between mb-4">
                 <button
-                  onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1, 1))}
+                  onClick={() => irParaMes(new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1, 1))}
                   className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-[#b8944a] hover:bg-[#b8944a]/10 rounded-lg transition"
                 >
                   <IconChevronLeft size={20} />
@@ -704,7 +750,7 @@ export default function AgendamentoPage() {
                   {MESES[mesAtual.getMonth()]} <span className="text-gray-500 font-normal">{mesAtual.getFullYear()}</span>
                 </h2>
                 <button
-                  onClick={() => setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1, 1))}
+                  onClick={() => irParaMes(new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1, 1))}
                   className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-[#b8944a] hover:bg-[#b8944a]/10 rounded-lg transition"
                 >
                   <IconChevronRight size={20} />
@@ -717,15 +763,22 @@ export default function AgendamentoPage() {
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+              {/* key força re-render ao trocar de mês → dispara a animação de slide.
+                  A direção (dirMes) escolhe se desliza da esquerda ou da direita. */}
+              <div
+                key={`${mesAtual.getFullYear()}-${mesAtual.getMonth()}`}
+                className={`grid grid-cols-7 gap-0.5 sm:gap-1 ${dirMes >= 0 ? "mes-anim-next" : "mes-anim-prev"}`}
+              >
                 {diasCalendario.map((cell, i) => {
                   const cellDate = new Date(cell.ano, cell.mes, cell.dia);
                   cellDate.setHours(0, 0, 0, 0);
                   const passado = cellDate < hoje;
                   const fechado = !grade[cellDate.getDay()]?.ativo;
-                  const desabilitado = passado || fechado || !cell.atual;
+                  // Dias de outro mês (cell.atual === false) TAMBÉM são clicáveis: ao
+                  // clicar, o calendário troca de mês. Só passado/fechado desabilita.
+                  const desabilitado = passado || fechado;
                   const key = toDateKey(cell.ano, cell.mes, cell.dia);
-                  const disp = cell.atual && !desabilitado ? getDisponibilidade(key, cellDate.getDay()) : null;
+                  const disp = !desabilitado ? getDisponibilidade(key, cellDate.getDay()) : null;
                   const selecionado = selecao.data ? cellDate.getTime() === selecao.data.getTime() : false;
 
                   return (
@@ -734,9 +787,9 @@ export default function AgendamentoPage() {
                       disabled={desabilitado}
                       onClick={() => selecionarData(cell.dia, cell.mes, cell.ano)}
                       className={`relative flex flex-col items-center justify-center rounded-lg h-10 sm:h-11 text-sm transition-all duration-150 active:scale-95
-                        ${!cell.atual ? "text-gray-800" : ""}
-                        ${desabilitado && cell.atual ? "text-gray-700 cursor-not-allowed" : ""}
-                        ${!desabilitado && cell.atual ? "text-[#F5E6C8] hover:bg-[#b8944a]/10 cursor-pointer" : ""}
+                        ${desabilitado ? "text-gray-700 cursor-not-allowed" : "hover:bg-[#b8944a]/10 cursor-pointer"}
+                        ${!desabilitado && cell.atual ? "text-[#F5E6C8]" : ""}
+                        ${!desabilitado && !cell.atual ? "text-gray-500" : ""}
                         ${selecionado ? "bg-[#b8944a] text-[#0A0A0A] hover:bg-[#b8944a]" : ""}
                       `}
                     >
@@ -759,8 +812,10 @@ export default function AgendamentoPage() {
               </div>
             </div>
 
-            {/* horários */}
-            <div ref={horariosRef} className="flex flex-col gap-3 scroll-mt-24">
+            {/* horários — scroll-mt define quanto do calendário fica visível acima ao
+                rolar até aqui. Maior = rola menos = mais calendário à mostra (o ponto
+                ideal: últimas linhas do mês + legenda acima da grade de horários). */}
+            <div ref={horariosRef} className="flex flex-col gap-3 scroll-mt-[320px]">
               {selecao.data ? (
                 <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
                   <p className="text-xs text-gray-600 uppercase tracking-wider mb-3">
@@ -777,7 +832,7 @@ export default function AgendamentoPage() {
                           {prox && (
                             <button
                               onClick={() => {
-                                setMesAtual(new Date(prox.getFullYear(), prox.getMonth(), 1));
+                                // selecionarData já troca o mês (com animação) quando difere
                                 selecionarData(prox.getDate(), prox.getMonth(), prox.getFullYear());
                               }}
                               className="inline-flex items-center gap-1.5 text-xs font-medium text-[#b8944a] border border-[#b8944a]/40 rounded-lg px-3 py-2 hover:bg-[#b8944a]/10 transition active:scale-95"
@@ -790,19 +845,14 @@ export default function AgendamentoPage() {
                     })()
                   ) : (
                     // scroll interno: com passo pequeno (ex: 5 min) a lista fica enorme;
-                    // limita a altura e rola dentro da div em vez de esticar a página no mobile
-                    <div className="max-h-[280px] sm:max-h-[320px] overflow-y-auto nice-scroll -mr-1 pr-1">
+                    // limita a altura e rola dentro da div em vez de esticar a página no mobile.
+                    // Altura relativa à viewport aproveita melhor a tela (menos vão morto).
+                    <div className="max-h-[46vh] sm:max-h-[360px] overflow-y-auto nice-scroll -mr-1 pr-1">
                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-2 gap-2">
                         {slotsDisponiveis.map((slot) => (
                           <button
                             key={slot}
-                            onClick={() => {
-                              setSelecao((s) => ({ ...s, horario: slot }));
-                              // rola até o botão "Continuar" (que só aparece agora)
-                              setTimeout(() => {
-                                continuarRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-                              }, 100);
-                            }}
+                            onClick={() => setSelecao((s) => ({ ...s, horario: slot }))}
                             className={`py-2.5 text-sm rounded-lg transition-all border font-medium active:scale-95 ${
                               selecao.horario === slot
                                 ? "bg-[#b8944a] text-[#0A0A0A] border-[#b8944a]"
@@ -822,14 +872,31 @@ export default function AgendamentoPage() {
                 </div>
               )}
 
-              {selecao.data && selecao.horario && (
-                <button
-                  ref={continuarRef}
-                  onClick={() => setStep("dados")}
-                  className="w-full py-4 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-xl hover:bg-[#c9a84c] transition active:scale-[0.98] scroll-mt-24"
-                >
-                  Continuar →
-                </button>
+              {/* barra fixa de resumo + continuar — via portal no body (mesmo padrão do
+                  step de serviço) pra escapar do transform/will-change da .step-anim */}
+              {mounted && selecao.data && selecao.horario && createPortal(
+                <div className="fixed bottom-0 left-0 right-0 bg-[#111] border-t border-[#b8944a]/30 shadow-[0_-8px_24px_rgba(0,0,0,0.5)] px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 barra-continuar">
+                  <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex flex-col gap-0.5">
+                      <p className="text-sm font-semibold text-[#F5E6C8] truncate">
+                        {selecao.servico}
+                        {selecao.preco && <span className="text-[#b8944a] font-bold ml-1.5">R$ {selecao.preco}</span>}
+                      </p>
+                      <p className="text-xs text-gray-400 truncate capitalize">
+                        {selecao.data.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}
+                        <span className="text-[#b8944a] font-medium"> · {selecao.horario}</span>
+                        {selecao.barbeiroNome && <span className="text-gray-500 normal-case"> · {selecao.barbeiroNome}</span>}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setStep("dados")}
+                      className="shrink-0 px-7 py-3.5 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-xl hover:bg-[#c9a84c] transition active:scale-[0.98] shadow-lg shadow-[#b8944a]/30"
+                    >
+                      Continuar →
+                    </button>
+                  </div>
+                </div>,
+                document.body
               )}
             </div>
           </div>
@@ -840,59 +907,79 @@ export default function AgendamentoPage() {
 
   // ── STEP: DADOS PESSOAIS ──────────────────────────────────────────────────
   if (step === "dados") {
+    // Resumo do agendamento — vive só dentro do modal "Ver minha comanda" (abaixo).
+    const resumoComanda = (
+      <div className="flex flex-col gap-1.5 text-sm">
+        <div className="flex justify-between gap-3">
+          <span className="text-gray-500 shrink-0">Serviço</span>
+          <span className="font-medium text-[#F5E6C8] text-right">{selecao.servico}</span>
+        </div>
+        {selecao.barbeiroNome && (
+          <div className="flex justify-between gap-3">
+            <span className="text-gray-500 shrink-0">Barbeiro</span>
+            <span className="font-medium text-[#F5E6C8] text-right">{selecao.barbeiroNome}</span>
+          </div>
+        )}
+        <div className="flex justify-between gap-3">
+          <span className="text-gray-500 shrink-0">Data</span>
+          <span className="font-medium text-[#F5E6C8] capitalize text-right">{dataFormatada}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-gray-500 shrink-0">Horário</span>
+          <span className="font-medium text-[#F5E6C8] text-right">{selecao.horario}</span>
+        </div>
+        {selecao.preco && (
+          <div className="flex justify-between gap-3 border-t border-[#2d2d2d] pt-2 mt-1">
+            <span className="text-gray-500 shrink-0">Valor</span>
+            <span className={`font-semibold text-right ${cupomAplicado ? "line-through text-gray-600" : "text-[#b8944a]"}`}>
+              R$ {selecao.preco}
+            </span>
+          </div>
+        )}
+        {cupomAplicado && (
+          <>
+            <div className="flex justify-between text-green-400">
+              <span>Cupom <span className="font-mono font-bold">{cupomAplicado.codigo}</span></span>
+              <span>- R$ {cupomAplicado.desconto.toFixed(2).replace(".", ",")}</span>
+            </div>
+            <div className="flex justify-between border-t border-[#2d2d2d] pt-2 mt-1">
+              <span className="text-gray-400 font-medium">Total</span>
+              <span className="font-bold text-[#b8944a] text-base">R$ {precoFinal.toFixed(2).replace(".", ",")}</span>
+            </div>
+          </>
+        )}
+      </div>
+    );
+
     return (
-      <section key={step} className="min-h-screen-safe pt-20 pb-10 bg-[#0A0A0A] step-anim">
+      // sem min-h-screen: o conteúdo é curto (form + cupom) e o min-h criava um vão
+      // vazio grande até o rodapé. A barra fixa (portal) ancora o rodapé.
+      <section key={step} className="pt-20 pb-10 bg-[#0A0A0A] step-anim">
         <div className="max-w-xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-6">
+          <div className="relative text-center mb-6">
+            <VoltarTopo onClick={() => setStep("calendario")} />
             <StepIndicator atual={4} />
             <span className="text-[#b8944a] text-xs font-medium tracking-widest uppercase mt-3 block">Passo 4 de 4</span>
             <h1 className="text-2xl sm:text-3xl font-bold text-[#F5E6C8] mt-2">Seus dados</h1>
           </div>
 
-          {/* resumo compacto */}
-          <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 mb-5 flex flex-col gap-1.5 text-sm">
-            <div className="flex justify-between gap-3">
-              <span className="text-gray-500 shrink-0">Serviço</span>
-              <span className="font-medium text-[#F5E6C8] text-right">{selecao.servico}</span>
+
+          {/* formulário: nome + telefone primeiro (dados essenciais), cupom por último */}
+          <div className="flex flex-col gap-4 mb-5">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-400">Nome completo</label>
+              <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome" className={`${inp} ${erros.nome ? "border-red-500" : ""}`} />
+              {erros.nome && <span className="text-xs text-red-400">{erros.nome}</span>}
             </div>
-            {selecao.barbeiroNome && (
-              <div className="flex justify-between gap-3">
-                <span className="text-gray-500 shrink-0">Barbeiro</span>
-                <span className="font-medium text-[#F5E6C8] text-right">{selecao.barbeiroNome}</span>
-              </div>
-            )}
-            <div className="flex justify-between gap-3">
-              <span className="text-gray-500 shrink-0">Data</span>
-              <span className="font-medium text-[#F5E6C8] capitalize text-right">{dataFormatada}</span>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-400">Telefone / WhatsApp</label>
+              <input value={telefone} onChange={(e) => { setTelefone(formatarTelefone(e.target.value)); if (erros.telefone) setErros((x) => ({ ...x, telefone: undefined })); }} placeholder="(11) 99999-9999" inputMode="tel" maxLength={16} className={`${inp} ${erros.telefone ? "border-red-500" : ""}`} />
+              {erros.telefone && <span className="text-xs text-red-400">{erros.telefone}</span>}
             </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-gray-500 shrink-0">Horário</span>
-              <span className="font-medium text-[#F5E6C8] text-right">{selecao.horario}</span>
-            </div>
-            {selecao.preco && (
-              <div className="flex justify-between gap-3 border-t border-[#2d2d2d] pt-2 mt-1">
-                <span className="text-gray-500 shrink-0">Valor</span>
-                <span className={`font-semibold text-right ${cupomAplicado ? "line-through text-gray-600" : "text-[#b8944a]"}`}>
-                  R$ {selecao.preco}
-                </span>
-              </div>
-            )}
-            {cupomAplicado && (
-              <>
-                <div className="flex justify-between text-green-400">
-                  <span>Cupom <span className="font-mono font-bold">{cupomAplicado.codigo}</span></span>
-                  <span>- R$ {cupomAplicado.desconto.toFixed(2).replace(".", ",")}</span>
-                </div>
-                <div className="flex justify-between border-t border-[#2d2d2d] pt-2 mt-1">
-                  <span className="text-gray-400 font-medium">Total</span>
-                  <span className="font-bold text-[#b8944a] text-base">R$ {precoFinal.toFixed(2).replace(".", ",")}</span>
-                </div>
-              </>
-            )}
           </div>
 
-          {/* cupom */}
-          <div className="flex flex-col gap-2 mb-5">
+          {/* cupom (opcional) — por último */}
+          <div className="flex flex-col gap-2">
             <label className="text-xs text-gray-600 font-medium uppercase tracking-wide flex items-center gap-1.5">
               <IconTag size={12} /> Cupom de desconto
             </label>
@@ -918,28 +1005,63 @@ export default function AgendamentoPage() {
             {cupomAplicado && <p className="text-xs text-green-400 font-medium">✓ Desconto de {cupomAplicado.tipo === "percentual" ? `${cupomAplicado.valor}%` : `R$ ${cupomAplicado.valor}`} aplicado</p>}
           </div>
 
-          {/* formulário */}
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-gray-400">Nome completo</label>
-              <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome" className={`${inp} ${erros.nome ? "border-red-500" : ""}`} />
-              {erros.nome && <span className="text-xs text-red-400">{erros.nome}</span>}
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-gray-400">Telefone / WhatsApp</label>
-              <input value={telefone} onChange={(e) => { setTelefone(formatarTelefone(e.target.value)); if (erros.telefone) setErros((x) => ({ ...x, telefone: undefined })); }} placeholder="(11) 99999-9999" inputMode="tel" maxLength={16} className={`${inp} ${erros.telefone ? "border-red-500" : ""}`} />
-              {erros.telefone && <span className="text-xs text-red-400">{erros.telefone}</span>}
-            </div>
-            {erros.geral && <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg text-sm text-red-400 text-center">{erros.geral}</div>}
-            <div className="flex gap-3 mt-1">
-              <button onClick={() => setStep("calendario")} className="flex-1 py-3.5 border border-[#2d2d2d] text-sm text-gray-500 rounded-xl hover:border-[#b8944a] hover:text-[#b8944a] transition active:scale-[0.98]">
-                ← Voltar
-              </button>
-              <button onClick={confirmarAgendamento} disabled={salvando} className="flex-1 py-3.5 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-xl hover:bg-[#c9a84c] transition disabled:opacity-60 active:scale-[0.98] flex items-center justify-center gap-2">
-                {salvando ? (<><span className="btn-spinner" /> Enviando...</>) : "Confirmar"}
-              </button>
-            </div>
-          </div>
+          {erros.geral && <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg text-sm text-red-400 text-center mt-4">{erros.geral}</div>}
+
+          {/* Espaçador: reserva a altura da barra fixa (portal) pra o último campo não
+              ficar escondido atrás dela. */}
+          <div aria-hidden className="h-20" />
+
+          {/* barra fixa + painel do resumo que EXPANDE de dentro dela ("Ver minha
+              comanda" e a barra são um só bloco, ancorado no rodapé). */}
+          {mounted && createPortal(
+            <>
+              {/* backdrop — só quando expandido; clicar fecha */}
+              <div
+                onClick={() => setVerComanda(false)}
+                className={`fixed inset-0 z-40 bg-black/70 transition-opacity duration-300 ${verComanda ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+              />
+              <div className="fixed bottom-0 left-0 right-0 bg-[#111] border-t border-[#b8944a]/30 shadow-[0_-8px_24px_rgba(0,0,0,0.5)] px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 barra-continuar">
+                <div className="max-w-xl mx-auto flex flex-col gap-2.5">
+                  {/* Painel do resumo: cresce/encolhe da própria barra (grid-rows anima
+                      height:auto). Fica ACIMA dos botões, dentro do mesmo bloco. */}
+                  <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${verComanda ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+                    <div className="overflow-hidden">
+                      <div className="rounded-xl border border-[#2d2d2d] bg-[#0f0f0f] p-4 mb-0.5 max-h-[50vh] overflow-y-auto nice-scroll">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-bold text-[#F5E6C8] text-sm flex items-center gap-2">
+                            <IconReceipt size={15} className="text-[#b8944a]" /> Minha comanda
+                          </h3>
+                          <button onClick={() => setVerComanda(false)} aria-label="Fechar" className="text-gray-500 hover:text-[#F5E6C8] transition p-1 -mr-1">
+                            <IconX size={16} />
+                          </button>
+                        </div>
+                        {resumoComanda}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Toggle "Ver minha comanda" (o chevron gira quando expandido) */}
+                  <button
+                    onClick={() => setVerComanda((v) => !v)}
+                    className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-[#2d2d2d] bg-[#0f0f0f] hover:border-[#b8944a]/50 transition active:scale-[0.99]"
+                  >
+                    <span className="flex items-center gap-2 text-sm font-medium text-gray-300">
+                      <IconReceipt size={16} className="text-[#b8944a]" /> Ver minha comanda
+                    </span>
+                    <span className="flex items-center gap-1.5 text-sm font-bold text-[#b8944a]">
+                      R$ {precoFinal.toFixed(2).replace(".", ",")}
+                      <IconChevronDown size={16} className={`text-gray-500 transition-transform duration-300 ${verComanda ? "rotate-180" : ""}`} />
+                    </span>
+                  </button>
+
+                  <button onClick={confirmarAgendamento} disabled={salvando} className="w-full py-3.5 bg-[#b8944a] text-[#0A0A0A] font-bold text-sm rounded-xl hover:bg-[#c9a84c] transition disabled:opacity-60 active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-[#b8944a]/30">
+                    {salvando ? (<><span className="btn-spinner" /> Enviando...</>) : "Confirmar agendamento"}
+                  </button>
+                </div>
+              </div>
+            </>,
+            document.body
+          )}
         </div>
       </section>
     );

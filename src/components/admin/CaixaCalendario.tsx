@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   IconChevronLeft, IconChevronRight, IconChevronDown, IconLock, IconLockOpen,
   IconPlus, IconMinus, IconTrash, IconTrendingDown, IconUser, IconCheck, IconX, IconClock, IconCashRegister,
-  IconQrcode, IconCreditCard, IconCashBanknote, IconAlertTriangle, IconSearch, IconScissors, IconPackage,
+  IconQrcode, IconCreditCard, IconCashBanknote, IconAlertTriangle, IconSearch, IconScissors, IconPackage, IconPencil,
 } from "@tabler/icons-react";
 import type { Icon } from "@tabler/icons-react";
 import { useSearchParams } from "next/navigation";
@@ -19,6 +19,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useConfirm, type ConfirmOpts } from "@/components/ui/Confirm";
 import { useSucesso } from "@/components/ui/Sucesso";
 import Revelar from "@/components/ui/Revelar";
+import { usePrivacidade } from "@/components/admin/Privacidade";
 import { hojeBR } from "@/lib/date-utils";
 
 function brl(v: number) { return `R$ ${v.toFixed(2).replace(".", ",")}` }
@@ -264,6 +265,12 @@ function useItensEditor(inicial?: ItemComanda[]) {
 
   /** Quantidade atual de um item do catálogo (0 se não escolhido). */
   const qtdDe = (key: string) => itens.find((it) => it.catalogKey === key)?.quantidade ?? 0;
+  /** Linha atual de um item do catálogo (undefined se não escolhido). */
+  const itemDe = (key: string) => itens.find((it) => it.catalogKey === key);
+  /** Sobrescreve o valor unitário de uma linha (por uid). Usado para ajustar o preço cobrado. */
+  function setValor(uid: string, valor: string) {
+    setItens((p) => p.map((it) => it.uid === uid ? { ...it, valor } : it));
+  }
 
   /** Adiciona 1 unidade de um item do catálogo (cria a linha se ainda não existe). */
   function adicionarCatalog(c: CatalogItem) {
@@ -312,7 +319,7 @@ function useItensEditor(inicial?: ItemComanda[]) {
       }));
   }
 
-  return { servicos, produtos, carregando, itens, qtdDe, adicionarCatalog, decrementarCatalog, adicionarManual, updateManual, setQtd, removerItem, somaItens, paraItensComanda, itensNaoCadastrados };
+  return { servicos, produtos, carregando, itens, qtdDe, itemDe, setValor, adicionarCatalog, decrementarCatalog, adicionarManual, updateManual, setQtd, removerItem, somaItens, paraItensComanda, itensNaoCadastrados };
 }
 
 type ItensEditor = ReturnType<typeof useItensEditor>;
@@ -355,6 +362,15 @@ function ItensEditorView({ ed, titulo = "Itens *" }: { ed: ItensEditor; titulo?:
     if (draft.uid) ed.updateManual(draft.uid, { descricao: desc, valor: draft.valor });
     else ed.adicionarManual(desc, draft.valor, 1);
     setDraft(null);
+  }
+
+  // Ajuste de valor de um item do catálogo (abre um mini-passo, sem editar inline no card).
+  // Guarda o uid da linha + o valor em edição enquanto o mini-form está aberto.
+  const [editValor, setEditValor] = useState<{ uid: string; valor: string } | null>(null);
+  function confirmarEditValor() {
+    if (!editValor || !(Number(editValor.valor) > 0)) return;
+    ed.setValor(editValor.uid, editValor.valor);
+    setEditValor(null);
   }
 
   return (
@@ -414,21 +430,20 @@ function ItensEditorView({ ed, titulo = "Itens *" }: { ed: ItensEditor; titulo?:
                 exit={{ opacity: 0, height: 0, marginTop: 0 }}
                 transition={{ type: "spring", stiffness: 420, damping: 32 }}
                 className={`rounded-lg border overflow-hidden ${alerta ? "border-amber-800/40 bg-amber-950/20" : "border-[#2d2d2d] bg-[#0f0f0f]"}`}>
-                <div className="px-3 py-2.5 flex items-center gap-2">
-                  {alerta ? (
-                    <button type="button" onClick={() => setDraft({ uid: it.uid, descricao: it.descricao, valor: it.valor })} className="flex-1 min-w-0 text-left">
-                      <div className="flex items-center gap-1.5">
-                        <IconAlertTriangle size={12} className="text-amber-400/90 shrink-0" />
-                        <p className="text-sm font-medium text-[#F5E6C8] truncate">{it.descricao.trim() || "Item manual"}</p>
-                      </div>
-                      <p className="text-xs text-amber-400/80 mt-0.5">{brl(Number(it.valor) || 0)} · não cadastrado — toque p/ editar</p>
-                    </button>
-                  ) : (
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#F5E6C8] truncate">{it.descricao.trim() || "Item"}</p>
-                      <p className="text-xs text-[#b8944a] mt-0.5">{brl(Number(it.valor) || 0)}</p>
+                <div className="px-3 py-2 flex items-center gap-2.5">
+                  <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                    <div className="flex items-center gap-1.5">
+                      {alerta && <IconAlertTriangle size={12} className="text-amber-400/90 shrink-0" />}
+                      <p className="text-sm font-medium text-[#F5E6C8] truncate leading-tight">{it.descricao.trim() || (alerta ? "Item manual" : "Item")}</p>
                     </div>
-                  )}
+                    {alerta && <p className="text-[10px] text-amber-400/80 leading-tight">Não cadastrado — toque no valor p/ editar</p>}
+                  </div>
+                  {/* Valor como botão-caixa (mesmo padrão do card do catálogo): não pula ao reconciliar. */}
+                  <button type="button" onClick={() => setDraft({ uid: it.uid, descricao: it.descricao, valor: it.valor })}
+                    className={`shrink-0 h-7 flex items-center gap-1.5 px-2.5 rounded-lg border transition group leading-none ${alerta ? "border-amber-800/50 bg-amber-950/20 text-amber-300 hover:border-amber-700/70" : "border-[#b8944a]/40 bg-[#b8944a]/10 text-[#b8944a] hover:bg-[#b8944a]/20 hover:border-[#b8944a]/60"}`}>
+                    <span className="text-sm font-bold">{brl(Number(it.valor) || 0)}</span>
+                    <IconPencil size={13} className={`transition ${alerta ? "text-amber-400/70 group-hover:text-amber-300" : "text-[#b8944a]/70 group-hover:text-[#b8944a]"}`} />
+                  </button>
                   <QtdStepper qtd={it.quantidade} onMenos={() => ed.setQtd(it.uid, it.quantidade - 1)} onMais={() => ed.setQtd(it.uid, it.quantidade + 1)} />
                   <button type="button" onClick={() => ed.removerItem(it.uid)} className="text-gray-600 hover:text-red-400 transition p-1 shrink-0"><IconTrash size={14} /></button>
                 </div>
@@ -437,10 +452,13 @@ function ItensEditorView({ ed, titulo = "Itens *" }: { ed: ItensEditor; titulo?:
           })}
         </AnimatePresence>
 
+        <AnimatePresence mode="wait" initial={false}>
         {draft ? (
           // Criação/edição guiada: descrição + valor num passo só, aqui no topo.
-          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
-            className="rounded-lg border border-[#b8944a]/40 bg-[#0f0f0f] p-3 flex flex-col gap-2.5">
+          <motion.div key="draft"
+            initial={{ opacity: 0, y: -6, height: 0 }} animate={{ opacity: 1, y: 0, height: "auto" }}
+            exit={{ opacity: 0, y: -6, height: 0 }} transition={{ duration: 0.18 }}
+            className="rounded-lg border border-[#b8944a]/40 bg-[#0f0f0f] p-3 flex flex-col gap-2.5 overflow-hidden">
             <p className="text-[10px] font-bold tracking-widest uppercase text-[#b8944a]">{draft.uid ? "Editar item manual" : "Novo item manual"}</p>
             <input autoFocus={!draft.descricao.trim()} value={draft.descricao}
               onChange={(e) => setDraft({ ...draft, descricao: e.target.value })}
@@ -462,15 +480,18 @@ function ItensEditorView({ ed, titulo = "Itens *" }: { ed: ItensEditor; titulo?:
             </div>
           </motion.div>
         ) : (
-          <button type="button" onClick={() => abrirManual()}
+          <motion.button key="add" type="button" onClick={() => abrirManual()}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}
             className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-[#2d2d2d] text-[10px] font-semibold tracking-widest uppercase text-[#b8944a]/70 hover:text-[#b8944a] hover:border-[#b8944a]/50 transition">
             <IconPlus size={12} /> Item manual
-          </button>
+          </motion.button>
         )}
+        </AnimatePresence>
       </div>
 
-      {/* Lista do catálogo (rola dentro de uma altura limitada) */}
-      <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto pr-0.5">
+      {/* Lista do catálogo (rola dentro de uma altura limitada, generosa pra caber o
+          passo de ajuste de valor sem espremer os itens abaixo) */}
+      <div className="flex flex-col gap-1.5 max-h-[min(70vh,32rem)] overflow-y-auto pr-0.5">
         {catalogo.length === 0 ? (
           ed.carregando ? (
             <p className="flex items-center justify-center gap-2 text-sm text-gray-500 text-center py-6">
@@ -492,18 +513,71 @@ function ItensEditorView({ ed, titulo = "Itens *" }: { ed: ItensEditor; titulo?:
         ) : catalogo.map((c) => {
           const key = catKey(c.tipo, c.id);
           const q = ed.qtdDe(key);
+          const linha = ed.itemDe(key);
+          // Preço cobrado difere do preço de catálogo? (ex.: desconto/ajuste manual)
+          const precoAjustado = !!linha && (Number(linha.valor) || 0) !== c.preco;
+          const editandoEste = !!linha && editValor?.uid === linha.uid;
           return (
-            <div key={c.id} className={`rounded-lg px-3 py-2.5 flex items-center gap-2 border transition ${q > 0 ? "bg-[#b8944a]/10 border-[#b8944a]/30" : "bg-[#0f0f0f] border-[#2d2d2d]"}`}>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[#F5E6C8] truncate">{c.titulo}</p>
-                <p className="text-xs text-[#b8944a]">{brl(c.preco)}</p>
+            <div key={c.id} className={`rounded-lg border overflow-hidden transition ${q > 0 ? "bg-[#b8944a]/10 border-[#b8944a]/30" : "bg-[#0f0f0f] border-[#2d2d2d]"}`}>
+              <div className="px-3 py-2 flex items-center gap-2.5">
+                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                  <p className="text-sm font-medium text-[#F5E6C8] truncate leading-tight">{c.titulo}</p>
+                  {q > 0 && linha ? (
+                    precoAjustado
+                      ? <p className="text-[10px] text-gray-500 leading-tight">Tabela: {brl(c.preco)}</p>
+                      : null
+                  ) : (
+                    <p className="text-xs text-[#b8944a] leading-tight">{brl(c.preco)}</p>
+                  )}
+                </div>
+                {q > 0 && linha ? (
+                  // Item escolhido: o valor vira um botão-caixa (com lápis) que abre o passo de
+                  // ajuste. Área de toque grande, valor legível — sem input inline apertado.
+                  <button type="button" onClick={() => setEditValor({ uid: linha.uid, valor: linha.valor })}
+                    className="shrink-0 h-7 flex items-center gap-1.5 px-2.5 rounded-lg border border-[#b8944a]/40 bg-[#b8944a]/10 text-[#b8944a] hover:bg-[#b8944a]/20 hover:border-[#b8944a]/60 transition group leading-none">
+                    <span className="text-sm font-bold">{brl(Number(linha.valor) || 0)}</span>
+                    <IconPencil size={13} className="text-[#b8944a]/70 group-hover:text-[#b8944a] transition" />
+                  </button>
+                ) : null}
+                {q > 0 ? (
+                  <QtdStepper qtd={q} onMenos={() => ed.decrementarCatalog(key)} onMais={() => ed.adicionarCatalog(c)} />
+                ) : (
+                  <button type="button" onClick={() => ed.adicionarCatalog(c)}
+                    className="w-8 h-8 rounded-lg bg-[#b8944a]/15 text-[#b8944a] hover:bg-[#b8944a]/25 flex items-center justify-center shrink-0 transition"><IconPlus size={16} /></button>
+                )}
               </div>
-              {q > 0 ? (
-                <QtdStepper qtd={q} onMenos={() => ed.decrementarCatalog(key)} onMais={() => ed.adicionarCatalog(c)} />
-              ) : (
-                <button type="button" onClick={() => ed.adicionarCatalog(c)}
-                  className="w-8 h-8 rounded-lg bg-[#b8944a]/15 text-[#b8944a] hover:bg-[#b8944a]/25 flex items-center justify-center shrink-0 transition"><IconPlus size={16} /></button>
-              )}
+
+              {/* Passo de ajuste de valor (abre/fecha animado, igual ao item manual) */}
+              <AnimatePresence initial={false}>
+                {editandoEste && editValor && (
+                  <motion.div key="editval"
+                    // Rola o mini-form inteiro pra vista — a lista tem altura fixa (max-h-64)
+                    // e, perto do fim, o passo abriria cortado.
+                    ref={(el) => { if (el) setTimeout(() => el.scrollIntoView({ block: "end", behavior: "smooth" }), 200); }}
+                    initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.18 }}
+                    className="border-t border-[#b8944a]/25 bg-[#0A0A0A]/40 overflow-hidden">
+                    {/* Layout compacto numa linha (R$ input ✓ ✕) pra caber na lista rolável. */}
+                    <div className="px-3 py-2.5 flex flex-col gap-1.5">
+                      <p className="text-[10px] font-bold tracking-widest uppercase text-[#b8944a]">Ajustar valor cobrado</p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-bold text-[#b8944a] shrink-0">R$</span>
+                        <input
+                          autoFocus type="number" min="0" step="0.01"
+                          value={editValor.valor}
+                          onChange={(e) => setEditValor({ uid: editValor.uid, valor: e.target.value })}
+                          onKeyDown={(e) => { if (e.key === "Enter") confirmarEditValor(); if (e.key === "Escape") setEditValor(null); }}
+                          placeholder="0,00" className={`${inp} flex-1 min-w-0`} />
+                        <button type="button" onClick={confirmarEditValor} disabled={!(Number(editValor.valor) > 0)}
+                          className="shrink-0 h-9 px-3 rounded-lg bg-[#b8944a] text-[#0A0A0A] font-bold hover:bg-[#c9a84c] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"><IconCheck size={16} strokeWidth={3} /></button>
+                        <button type="button" onClick={() => setEditValor(null)}
+                          className="shrink-0 h-9 px-3 rounded-lg border border-[#2d2d2d] text-gray-400 hover:border-[#b8944a] hover:text-[#b8944a] transition flex items-center justify-center"><IconX size={16} /></button>
+                      </div>
+                      <p className="text-[10px] text-gray-500">Tabela: {brl(c.preco)} · vale só nesta comanda.</p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           );
         })}
@@ -542,6 +616,16 @@ function FormComanda({ open = true, data, inicial, onSalvo, onCancelar }: {
   const confirmar = useConfirm();
   const bodyRef = useRef<HTMLDivElement>(null);
   const totalItens = ed.itens.reduce((s, it) => s + it.quantidade, 0);
+  // Total editável: começa null (= usa a soma dos itens); ao editar uma comanda com
+  // total já ajustado (diferente da soma), começa preenchido com esse valor.
+  const [totalManual, setTotalManual] = useState<string | null>(() => {
+    if (inicial && typeof inicial.total === "number") {
+      const soma = (inicial.itens ?? []).reduce((s, it) => s + (Number(it.valor) || 0) * (it.quantidade ?? 1), 0);
+      if (inicial.total !== soma) return String(inicial.total);
+    }
+    return null;
+  });
+  const totalFinal = totalManual !== null ? (Number(totalManual) || 0) : ed.somaItens;
   // Erro aparece no topo do corpo — rola pra lá pro usuário ver (mesmo se estava no fim).
   function mostrarErro(msg: string) { setErro(msg); bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" }); }
 
@@ -556,7 +640,7 @@ function FormComanda({ open = true, data, inicial, onSalvo, onCancelar }: {
     if (!itensFmt.length) { mostrarErro("Adicione ao menos um item com descrição e valor válido"); return; }
     if (!(await avisarSeNaoCadastrados(confirmar, ed.itensNaoCadastrados()))) return;
     setErro(""); setSalvando(true);
-    const payload = { data, clienteNome: clienteNome.trim(), clienteTelefone: clienteTelefone.trim() || undefined, itens: itensFmt };
+    const payload = { data, clienteNome: clienteNome.trim(), clienteTelefone: clienteTelefone.trim() || undefined, itens: itensFmt, total: totalFinal };
     if (inicial) {
       await fetch(`/api/comandas/${inicial.id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     } else {
@@ -612,9 +696,23 @@ function FormComanda({ open = true, data, inicial, onSalvo, onCancelar }: {
       </div>
 
       <div className="px-5 pt-3 pb-4 border-t border-[#1e1e1e] shrink-0 flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-400">{totalItens} {totalItens === 1 ? "item" : "itens"}</span>
-          <span className="text-lg font-bold text-[#F5E6C8]">{brl(ed.somaItens)}</span>
+        {/* Total a cobrar (editável): começa na soma dos itens, mas pode ser sobrescrito. */}
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <span className="text-sm text-gray-400">{totalItens} {totalItens === 1 ? "item" : "itens"}</span>
+            {totalManual !== null && (Number(totalManual) || 0) !== ed.somaItens && (
+              <p className="text-[10px] text-gray-500 mt-0.5">Soma dos itens: {brl(ed.somaItens)}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-bold text-[#b8944a]">R$</span>
+            <input
+              type="number" min="0" step="0.01"
+              value={totalManual ?? ed.somaItens.toFixed(2)}
+              onChange={(e) => setTotalManual(e.target.value)}
+              className="w-24 bg-[#0A0A0A] border border-[#2d2d2d] rounded px-2 py-1.5 text-lg text-[#F5E6C8] font-bold text-right focus:outline-none focus:border-[#b8944a]"
+            />
+          </div>
         </div>
         <div className="flex gap-2">
           <button onClick={salvar} disabled={salvando || sucesso} className="flex-1 py-2.5 bg-[#b8944a] text-[#0A0A0A] text-xs font-bold tracking-widest uppercase rounded-lg hover:bg-[#c9a84c] transition disabled:opacity-50">
@@ -771,6 +869,11 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
   const toast = useToast();
   const confirmar = useConfirm();
   const sucesso = useSucesso();
+  // Modo privacidade: mascara só os totais do resumo do dia (faturamento, gastos,
+  // líquido e os selos do calendário). Valores dentro das comandas continuam
+  // visíveis pra não atrapalhar quem está lançando/editando.
+  const { oculto } = usePrivacidade();
+  const brlResumo = (v: number) => (oculto ? "R$ ••••" : brl(v));
 
   const [mostraFormGasto, setMostraFormGasto] = useState(false);
   const [novaComanda, setNovaComanda] = useState(false);
@@ -970,7 +1073,7 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
       <button key={dataCel} onClick={() => setDiaSel(dataCel)}
         className={`relative flex flex-col items-center justify-center py-2 rounded border transition-all ${borderCls} ${sel ? "bg-[#1a1a1a]" : "hover:bg-[#0f0f0f]"} ${(futuro && !sel) || foraDoMes ? "opacity-30" : ""}`}>
         <span className={`text-xs font-medium ${eHoje ? "text-white" : fech ? "text-[#F5E6C8]" : "text-gray-500"}`}>{date.getDate()}</span>
-        {fech && <span className={`text-[9px] font-medium leading-none mt-0.5 hidden sm:block ${liquido >= 0 ? "text-green-400" : "text-red-400"}`}>{liquido >= 0 ? "+" : "−"}{brl(Math.abs(liquido)).replace("R$ ", "R$")}</span>}
+        {fech && <span className={`text-[9px] font-medium leading-none mt-0.5 hidden sm:block ${liquido >= 0 ? "text-green-400" : "text-red-400"}`}>{liquido >= 0 ? "+" : "−"}{brlResumo(Math.abs(liquido)).replace("R$ ", "R$")}</span>}
         {temAbertas && <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-amber-500" />}
         {eHoje && !fech && !temAbertas && <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#b8944a]" />}
       </button>
@@ -1138,15 +1241,15 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
           <div className="grid grid-cols-3 gap-3 mb-4">
             <div>
               <p className="text-[10px] font-medium tracking-widest uppercase text-gray-600 mb-0.5">FATURAMENTO</p>
-              <p className="text-lg font-bold text-[#F5E6C8]">{brl(totalFaturamento)}</p>
+              <p className="text-lg font-bold text-[#F5E6C8]">{brlResumo(totalFaturamento)}</p>
             </div>
             <div>
               <p className="text-[10px] font-medium tracking-widest uppercase text-gray-600 mb-0.5">GASTOS</p>
-              <p className="text-lg font-bold text-red-400">{brl(totalGastosDiaSel)}</p>
+              <p className="text-lg font-bold text-red-400">{brlResumo(totalGastosDiaSel)}</p>
             </div>
             <div>
               <p className="text-[10px] font-medium tracking-widest uppercase text-gray-600 mb-0.5">LÍQUIDO</p>
-              <p className={`text-lg font-bold ${lucroLiquido >= 0 ? "text-green-400" : "text-red-400"}`}>{brl(lucroLiquido)}</p>
+              <p className={`text-lg font-bold ${lucroLiquido >= 0 ? "text-green-400" : "text-red-400"}`}>{brlResumo(lucroLiquido)}</p>
             </div>
           </div>
 
@@ -1157,7 +1260,7 @@ export default function CaixaCalendario({ fechamentos, gastosDia, comandas, onAt
                 className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-[#0f0f0f] transition">
                 <span className="text-[10px] font-bold tracking-widest uppercase text-gray-600">Comandas finalizadas · {finalizadas.length}</span>
                 <span className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs font-semibold text-[#b8944a]">{brl(totalFaturamento)}</span>
+                  <span className="text-xs font-semibold text-[#b8944a]">{brlResumo(totalFaturamento)}</span>
                   <IconChevronDown size={13} className={`text-gray-600 transition-transform ${finalizadasAberto ? "rotate-180" : ""}`} />
                 </span>
               </button>

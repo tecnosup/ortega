@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
@@ -9,7 +10,7 @@ import {
   IconLayoutDashboard, IconScissors, IconStar, IconClipboardList,
   IconLogout, IconCalendarCheck, IconTag, IconMenu2, IconX, IconShoppingBag, IconChartLine, IconExternalLink,
   IconUsers, IconReportMoney, IconCreditCard, IconCashRegister,
-  IconBellRinging, IconAlertTriangle, IconBell, IconCalendar, IconWallet, IconChevronRight, IconSettings,
+  IconBellRinging, IconBell, IconCalendar, IconWallet, IconChevronRight, IconSettings,
 } from "@tabler/icons-react";
 import { useAdminNotificacoes } from "@/hooks/useAdminNotificacoes";
 import { PushToggle } from "@/components/admin/PushToggle";
@@ -54,10 +55,6 @@ export default function AdminNav() {
   const totalAlertas = pendentes + caixasAbertos + vencimentos;
 
   useEffect(() => { setOpen(false); }, [pathname]);
-  useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
-  }, [open]);
 
   async function handleLogout() {
     await signOut(auth);
@@ -189,9 +186,16 @@ export default function AdminNav() {
     <div className="flex flex-col h-full">
       <div className="px-5 pb-5 border-b border-[#2d2d2d] flex items-center justify-between" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)" }}>
         <span className="text-[#b8944a] font-bold text-sm tracking-widest uppercase">Ortega</span>
-        <button onClick={() => setOpen(false)} className="md:hidden p-1.5 text-gray-500 hover:text-white transition rounded-lg hover:bg-[#2d2d2d]">
-          <IconX size={18} />
-        </button>
+        <motion.button
+          onClick={() => setOpen(false)}
+          aria-label="Fechar"
+          className="md:hidden w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-[#F5E6C8] hover:bg-[#2d2d2d]/60 transition-colors"
+          whileHover={{ rotate: 90 }}
+          whileTap={{ rotate: 180, scale: 0.85 }}
+          transition={{ type: "spring", stiffness: 400, damping: 20 }}
+        >
+          <IconX size={17} />
+        </motion.button>
       </div>
 
       <nav className="flex-1 p-3 flex flex-col gap-0.5 overflow-y-auto">

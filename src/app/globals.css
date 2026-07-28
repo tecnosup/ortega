@@ -70,6 +70,46 @@
   .step-anim { animation: none; }
 }
 
+/* Barra fixa "Continuar" do fluxo de agendamento: desliza de baixo ao aparecer,
+   pra o cliente notar que a ação principal ficou disponível no rodapé. */
+@keyframes barraSobe {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.barra-continuar {
+  animation: barraSobe 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .barra-continuar { animation: none; }
+}
+
+/* Troca de mês no calendário do agendamento: a grade de dias desliza pro lado
+   (next = entra da direita; prev = entra da esquerda) com um leve fade. */
+@keyframes mesNext {
+  from { opacity: 0; transform: translate3d(24px, 0, 0); }
+  to   { opacity: 1; transform: translateZ(0); }
+}
+@keyframes mesPrev {
+  from { opacity: 0; transform: translate3d(-24px, 0, 0); }
+  to   { opacity: 1; transform: translateZ(0); }
+}
+.mes-anim-next { animation: mesNext 0.24s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.mes-anim-prev { animation: mesPrev 0.24s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .mes-anim-next, .mes-anim-prev { animation: none; }
+}
+
+/* Serviços aparecendo ao trocar de categoria (passo 1): fade + leve subida, em
+   cascata (o delay por card é aplicado inline). */
+@keyframes servicoIn {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to   { opacity: 1; transform: translateZ(0); }
+}
+.servico-anim { animation: servicoIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .servico-anim { animation: none; }
+}
+
 /* Spinner do botão (envio do agendamento) */
 @keyframes spinnerRot { to { transform: rotate(360deg); } }
 .btn-spinner {

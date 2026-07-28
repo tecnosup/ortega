@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/scroll-lock";
 
 /**
  * Drawer animado reutilizável — desliza de um lado da tela com overlay fade.
@@ -29,9 +30,8 @@ export default function Drawer({
 }) {
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    lockBodyScroll();
+    return () => { unlockBodyScroll(); };
   }, [open]);
 
   useEffect(() => {

@@ -33,12 +33,13 @@ export async function POST(req: NextRequest) {
     clienteNome: string;
     clienteTelefone?: string;
     itens: ItemComanda[];
+    total?: number;
     formaPagamento?: string;
     barbeiroId?: string;
     barbeiroNome?: string;
   };
 
-  const { data, clienteNome, clienteTelefone, itens, formaPagamento, barbeiroId, barbeiroNome } = body;
+  const { data, clienteNome, clienteTelefone, itens, total, formaPagamento, barbeiroId, barbeiroNome } = body;
   if (!data || !clienteNome?.trim() || !itens?.length) {
     return NextResponse.json({ error: "data, clienteNome e itens são obrigatórios" }, { status: 400 });
   }
@@ -49,7 +50,8 @@ export async function POST(req: NextRequest) {
     clienteTelefone,
     data,
     itens,
-    total: calcularTotalItens(itens),
+    // Usa o total ajustado manualmente se veio no corpo; senão, soma dos itens.
+    total: typeof total === "number" ? total : calcularTotalItens(itens),
     formaPagamento,
     barbeiroId,
     barbeiroNome,
