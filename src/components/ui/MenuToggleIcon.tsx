@@ -25,22 +25,40 @@ export default function MenuToggleIcon({
   const [mounted, setMounted] = useState(!animateOnMount);
   useEffect(() => {
     if (!animateOnMount) return;
-    const id = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(id);
+    // dois rAFs garantem que o browser pinte o estado inicial (hambúrguer)
+    // antes de aplicar o estado aberto — sem isso a transição não dispara.
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setMounted(true));
+    });
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
   }, [animateOnMount]);
 
   const isOpen = mounted && open;
-  const bar =
-    "absolute left-1/2 top-1/2 h-[2px] w-[18px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-current transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]";
+
+  // transição inteira via inline style — imune ao purge do Tailwind, que não
+  // gera classes arbitrárias de easing com vírgulas.
+  const barBase: React.CSSProperties = {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    height: 2,
+    width: 18,
+    borderRadius: 9999,
+    backgroundColor: "currentColor",
+    transition: "transform 300ms cubic-bezier(0.16,1,0.3,1), opacity 200ms ease",
+    transformOrigin: "center",
+  };
+
   return (
     <span
       className={`relative inline-block ${className}`}
       style={{ width: size, height: size }}
       aria-hidden="true"
     >
-      <span className={bar} style={{ transform: isOpen ? "translate(-50%,-50%) rotate(45deg)" : "translate(-50%,-50%) translateY(-6px)" }} />
-      <span className={bar} style={{ opacity: isOpen ? 0 : 1, transform: "translate(-50%,-50%)" }} />
-      <span className={bar} style={{ transform: isOpen ? "translate(-50%,-50%) rotate(-45deg)" : "translate(-50%,-50%) translateY(6px)" }} />
+      <span style={{ ...barBase, transform: isOpen ? "translate(-50%,-50%) rotate(45deg)" : "translate(-50%,-50%) translateY(-6px)" }} />
+      <span style={{ ...barBase, opacity: isOpen ? 0 : 1, transform: "translate(-50%,-50%)" }} />
+      <span style={{ ...barBase, transform: isOpen ? "translate(-50%,-50%) rotate(-45deg)" : "translate(-50%,-50%) translateY(6px)" }} />
     </span>
   );
 }
