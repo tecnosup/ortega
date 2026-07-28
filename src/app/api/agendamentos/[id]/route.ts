@@ -4,6 +4,7 @@ import type { AgendamentoStatus } from "@/lib/agendamentos";
 import { getSessionUser, getAdminDb } from "@/lib/firebase-admin";
 import { devolverCredito } from "@/lib/assinaturas";
 import { getComandaPorAgendamento, finalizarComanda, cancelarComanda, atualizarComanda, excluirComanda } from "@/lib/comandas";
+import { registrarClienteAtendido } from "@/lib/clientes-agg";
 import { parsePriceNum } from "@/lib/agendamentos-types";
 
 async function appendLog(id: string, acao: string, adminId: string) {
@@ -43,6 +44,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   await atualizarAgendamento(id, { status: body.status });
   appendLog(id, `status → ${body.status}`, user.uid).catch(() => {});
 
+
   // Mantém a COMANDA vinculada em sincronia com o status do agendamento.
   // (cancelar/finalizar só agem se a comanda estiver "aberta" — guarda interna)
   // A devolução de crédito de assinatura no cancelamento é feita DENTRO de
@@ -57,6 +59,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         : cancelarComanda(comandaVinculada.id)
       ).catch(() => {});
     }
+  }
+
+  // Contador de clientes distintos (número da landing). Idempotente por telefone.
+  // Só registra aqui quando NÃO houve comanda aberta pra finalizar — se houve,
+  // `finalizarComanda` já registrou, e chamar de novo custaria leituras à toa.
+  if (body.status === "concluido" && !(comandaVinculada && comandaVinculada.status === "aberta")) {
+    registrarClienteAtendido(ag.telefone).catch(() => {});
   }
 
   // Reembolso de crédito quando NÃO houve comanda aberta pra cuidar disso.

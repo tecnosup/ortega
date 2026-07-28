@@ -4,6 +4,7 @@ import { getAdminDb } from "./firebase-admin";
 import { criarMovimentacao } from "./estoque-movimentacoes";
 import { devolverCredito } from "./assinaturas";
 import { marcarComandaFinalizada, reconciliarDia } from "./caixas-abertos-agg";
+import { registrarClientePorAgendamento } from "./clientes-agg";
 import type { Comanda } from "./comandas-types";
 import { calcularTotalItens } from "./comandas-types";
 
@@ -157,6 +158,10 @@ export async function finalizarComanda(
 
   // Agregador de caixas abertos: este dia agora tem faturamento real.
   await marcarComandaFinalizada(comanda.data);
+
+  // Contador de clientes distintos (landing). O telefone só existe no agendamento,
+  // por isso vai pelo id — e fora do caminho crítico, sem await.
+  if (comanda.agendamentoId) registrarClientePorAgendamento(comanda.agendamentoId).catch(() => {});
 
   // Baixa de estoque — só produtos com produtoId. Usa FieldValue.increment (atômico),
   // respeitando a quantidade de cada item (default 1).

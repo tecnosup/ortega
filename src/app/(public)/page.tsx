@@ -13,13 +13,14 @@ import { getPublishedProdutos } from "@/lib/admin-produtos";
 import { getActiveDescontos } from "@/lib/admin-descontos";
 import { getCategorias } from "@/lib/admin-categorias";
 import { getCategoriasServicos } from "@/lib/admin-categorias-servicos";
+import { lerTotalClientes } from "@/lib/clientes-agg";
 import type { Desconto } from "@/lib/admin-descontos";
 import { ASSINATURAS_ATIVAS, REVIEWS_ATIVOS } from "@/lib/flags";
 
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [settings, items, produtos, descontosList, categorias, categoriasServicos] = await Promise.all([
+  const [settings, items, produtos, descontosList, categorias, categoriasServicos, totalClientes] = await Promise.all([
     getLandingSettings().catch(() => ({
       heroTitulo: "Ortega",
       heroSubtitulo: "Tradição e estilo em cada corte",
@@ -37,6 +38,8 @@ export default async function HomePage() {
     getActiveDescontos().catch(() => []),
     getCategorias().catch(() => []),
     getCategoriasServicos().catch(() => []),
+    // 1 leitura de doc, e só quando o ISR revalida (60s) — não por visita.
+    lerTotalClientes(),
   ]);
 
   const descontos = new Map<string, Desconto>(descontosList.map((d) => [d.entityId, d]));
@@ -66,7 +69,7 @@ export default async function HomePage() {
         imagemRetrato={settings.heroImagemRetrato}
         destaque={destaque}
       />
-      <Sobre texto={settings.sobreTexto} imagem={settings.sobreImagem} />
+      <Sobre texto={settings.sobreTexto} imagem={settings.sobreImagem} clientes={totalClientes} />
       <Servicos items={items} descontos={descontos} categorias={categoriasServicos} />
       <Produtos produtos={produtos} descontos={descontos} whatsappNumber={settings.whatsappNumber} categorias={categorias} />
       {ASSINATURAS_ATIVAS && <Assinaturas />}

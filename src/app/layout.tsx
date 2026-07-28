@@ -8,6 +8,10 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
+  // Faltava só no site público: /admin e /barbeiro já declaravam. Sem isso o
+  // Chrome no Android pinta a barra de endereço com o padrão claro, destoando
+  // do manifest e da própria página.
+  themeColor: "#b8944a",
 };
 
 const siteName = process.env.NEXT_PUBLIC_SITE_NAME ?? "Ortega";
